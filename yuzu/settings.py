@@ -1,0 +1,6 @@
+BASE_NAME = "http://spraakbanken.gu.se/rdf/"
+URI_PATTERN = "/rdf/(.*?)"
+DUMP_URI = "/rdf/saldo.nt.gz"
+DUMP_FILE = "saldo.nt.gz"
+DB_FILE = "saldo.sqlite"
+DISPLAY_NAME = "SALDO"
