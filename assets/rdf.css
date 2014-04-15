@@ -48,16 +48,16 @@ table.rdf_search > tbody > tr > td:first-child {
     border-right: 3px solid rgb(231,231,231);
 }
 
-table.rdf > tbody > tr > td:first-child > a {
+/*table.rdf > tbody > tr > td:first-child > a {
     text-transform: capitalize;
-}
+}*/
 table.rdf > tbody > tr > td > a {
     text-decoration: none;
 }
 
-table.inner_rdf > tbody > tr > td:first-child > a {
+/*table.inner_rdf > tbody > tr > td:first-child > a {
     text-transform: capitalize;
-}
+}*/
 table.inner_rdf > tbody > tr > td > a {
     text-decoration: none;
 }

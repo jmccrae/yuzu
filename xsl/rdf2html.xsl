@@ -1,358 +1,422 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE xsl:stylesheet [
-        <!ENTITY lemon   "http://lemon-model.net/lemon#">
-        <!ENTITY wordnet "http://wordnet-rdf.princeton.edu/wn31/">
-        <!ENTITY spraakbanken "http://spraakbanken.gu.se/rdf/">
-        <!ENTITY rdf   "http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-        <!ENTITY rdfs   "http://www.w3.org/2000/01/rdf-schema#">
-        <!ENTITY verbnet "http://verbs.colorado.edu/verb-index/vn/">
-        <!ENTITY lexvo "http://www.lexvo.org/page/iso639-3/">
-        <!ENTITY owl "http://www.w3.org/2002/07/owl#">
-        <!ENTITY lemonUby "http://lemon-model.net/lexica/uby/wn/">
-        <!ENTITY w3c-wn "http://www.w3.org/2006/03/wn/wn20/instances/">
-        <!ENTITY lexvo-wn "http://www.lexvo.org/page/wordnet/30/">
-        ]>
-
+    <!ENTITY lemon   "http://lemon-model.net/lemon#">
+    <!ENTITY base    "${base}">
+    <!ENTITY ontology "${base}ontology#">
+]>
+ 
 <xsl:stylesheet version="1.0"
-                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-                xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-                xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
-                xmlns:lemon="http://lemon-model.net/lemon#"
-        >
+xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+xmlns:base="${base}"
+xmlns:ontology="${base}ontology">
 
-    <xsl:template match="/rdf:RDF">
-        <span>
-            <xsl:attribute name="resource">
+  <xsl:strip-space elements="*"/>
+  <xsl:output method="xml" indent="yes" omit-xml-declaration="yes"/>
+
+  <!-- Modify this template for URIs specified in full with @rdf:resource -->  
+  <xsl:template name="display-uri">
+    <xsl:param name="text"/>
+    <xsl:choose>
+      <xsl:when test="contains($$text,'&base;')">
+        <xsl:value-of select="substring-after($$text,'&base;')"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$$text"/>
+      </xsl:otherwise>
+    </xsl:choose>
+</xsl:template>
+
+<xsl:variable name="apos">'</xsl:variable>
+  
+<xsl:template match="/rdf:RDF">  
+  <p>
+  <xsl:choose>
+    <xsl:when test="count(*[substring-after(@rdf:about,'#')='']) = 1">
+     <xsl:for-each select="*[substring-after(@rdf:about,'#')='']">
+         <h1>
+             <xsl:call-template name="display-uri">
+                 <xsl:with-param name="text" select="@rdf:about"/>
+             </xsl:call-template>
+             <img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/>
+        </h1>
+        <xsl:call-template name="rdf_links"/>
+        <!--
+
+
+             <xsl:value-of select="@rdf:about"/>
+         &#160;&#160;
+         <a>
+           <xsl:attribute name="href">
+             <xsl:value-of select="concat(@rdf:about,'.rdf')"/>
+           </xsl:attribute>
+           <img src="/img/rdf_flyer.png"/>
+         </a>
+         <a>
+           <xsl:attribute name="href">
+             <xsl:value-of select="concat(@rdf:about,'.ttl')"/>
+           </xsl:attribute>
+           <img src="/img/icon_turtle.gif"/>
+         </a>
+       </h2>
+       <h5>Instance of: <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
+           <xsl:attribute name="href">
+           <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+           </xsl:attribute>
+           <xsl:value-of select="name()"/>
+           </a>
+       </h5>-->
+       <xsl:call-template name="forprop"/>
+    </xsl:for-each>
+    </xsl:when>
+    <xsl:otherwise>
+     <xsl:for-each select="*[substring-after(@rdf:about,'#')='']">
+       <h2><xsl:value-of select="@rdf:about"/></h2>
+       <h5>Instance of: <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
+           <xsl:attribute name="href">
+           <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+           </xsl:attribute>
+           <xsl:value-of select="name()"/>
+           </a>
+       </h5>
+       <xsl:call-template name="forprop"/>
+    </xsl:for-each>
+    </xsl:otherwise>
+  </xsl:choose>
+  </p>
+</xsl:template>
+
+<xsl:template name="forprop">
+  <table class="rdf rdf_main">
+     <tr>
+       <th>Property</th>
+       <th>Value</th>
+     </tr>
+     <xsl:for-each select="*">
+       <tr>
+          <td> <a>
+         <xsl:attribute name="href">
+         <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+         </xsl:attribute>
+         <xsl:value-of select="name()"/>
+         </a>
+         </td>
+         <td>
             <xsl:choose>
-                <xsl:when test="lemon:LexicalEntry">
-                    <xsl:value-of select="lemon:LexicalEntry/@rdf:about"/>
+              <xsl:when test="@rdf:resource">
+                <xsl:variable name="rdfResource" select="@rdf:resource"/>
+                <xsl:choose>
+                <xsl:when test="not(substring-after(@rdf:resource,'#')='') and //*[@rdf:about=$$rdfResource]">
+                  <span>
+                    <xsl:attribute name="id">
+                      <xsl:value-of select="substring-after(@rdf:resource,'#')"/>
+                    </xsl:attribute>
+                    <xsl:attribute name="resource">
+                      <xsl:value-of select="concat('#',substring-after(@rdf:resource,'#'))"/>
+                    </xsl:attribute>
+                    <xsl:attribute name="rel">
+                      <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                    </xsl:attribute>
+		    <i><xsl:value-of select="substring-after(@rdf:resource,'#')"/></i>
+                    <xsl:for-each select="//*[@rdf:about=$$rdfResource]">
+                      <xsl:call-template name="forprop2"/>
+                    </xsl:for-each>
+                  </span>
                 </xsl:when>
                 <xsl:otherwise>
-                    <xsl:value-of select="lemon:LexicalSense/@rdf:about"/>
+                <a>
+                 <xsl:attribute name="href">
+                 <xsl:value-of select="@rdf:resource"/>
+                 </xsl:attribute>
+                 <xsl:attribute name="property">
+                   <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                 </xsl:attribute>
+                 <xsl:call-template name="display-uri">
+                   <xsl:with-param name="text" select="@rdf:resource"/>
+                 </xsl:call-template>
+                </a>
+                <xsl:if test="not(starts-with(@rdf:resource,'http'))">
+                  &#160;&#160;&#160;
+                  <a class="load_entry"><xsl:attribute name="href">
+                    <xsl:value-of select="concat('javascript:ajax_load_entry(',$$apos,@rdf:resource,$$apos,')')"/>
+                  </xsl:attribute>More...</a>
+                  <div style="display:none;">
+                    <xsl:attribute name="id">
+                      <xsl:value-of select="concat('la_',translate(@rdf:resource,':$$','__'))"/>
+                    </xsl:attribute>
+                  </div>
+                </xsl:if>
                 </xsl:otherwise>
-            </xsl:choose>
-            </xsl:attribute>
-            <a property="&rdf;type" style="display:none;">
-            <xsl:attribute name="href">
-                <xsl:choose>
-                    <xsl:when test="lemon:LexicalEntry">&lemon;LexicalEntry</xsl:when>
-                    <xsl:otherwise>&lemon;LexicalSense</xsl:otherwise>
                 </xsl:choose>
-            </xsl:attribute>
-                ignore
-            </a>
-            <xsl:apply-templates select="lemon:LexicalEntry"/>
-            <xsl:apply-templates select="lemon:LexicalSense"/>
-            <small class="license_link"><a href="/license.html">License Information</a></small>
-        </span>
-    </xsl:template>
+              </xsl:when>
+              <xsl:when test="node()[last()]/self::text()">
+                 <xsl:call-template name="lang">
+                     <xsl:with-param name="lang_id" select="@xml:lang"/>
+                 </xsl:call-template> 
+                 &#x201c;<span>
+                 <xsl:attribute name="property">
+                  <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                 </xsl:attribute><xsl:value-of select="node()"/></span>&#x201d;
+              </xsl:when>
+	      <xsl:when test="rdf:Description/rdf:first">
+	        <ol>
+		  <xsl:for-each select="rdf:Description">
+  		    <xsl:call-template name="list"/>
+		  </xsl:for-each>
+		</ol>
+	      </xsl:when>
+              <xsl:otherwise>
+                <span typeof="http://www.w3.org/2002/07/owl#Thing">
+                 <xsl:attribute name="property">
+                  <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                 </xsl:attribute>
+                <xsl:for-each select="*">
+                  <xsl:call-template name="forprop2"/>
+                </xsl:for-each>
+                </span>
+              </xsl:otherwise>
+            </xsl:choose>
+         </td>
+       </tr>
+    </xsl:for-each>
+  </table>
+</xsl:template>
 
-    <xsl:template name="properties">
-        <xsl:for-each select="*">
-            <xsl:sort select="concat(local-name(),@xml:lang)"/>
-            <xsl:if test="namespace-uri()!='&lemon;' and namespace-uri()!='&rdfs;'">
-                <tr class="rdf">
-                    <!-- Hide lex_id -->
-                    <xsl:if test="local-name()='lex_id'">
-                        <xsl:attribute name="style">display:none;</xsl:attribute>
-                    </xsl:if>
-                    <td>
-                        <a>
-                            <xsl:attribute name="href">
-                                <xsl:value-of select="concat(namespace-uri(),local-name())"/>
-                            </xsl:attribute>
-                            <xsl:choose>
-                                <xsl:when test="local-name()='sameAs'">same as</xsl:when>
-                                <xsl:otherwise>
-                                    <xsl:value-of select="translate(local-name(),'_',' ')"/>
-                                </xsl:otherwise>
-                            </xsl:choose>
-                        </a>
-                    </td>
-                    <td>
-                        <xsl:choose>
-                            <xsl:when test="local-name()='sense_tag'">
-                                <xsl:variable name="position" select="substring-after(@rdf:resource,'#Component-')"/>
-                                <xsl:call-template name="sense_tag">
-                                    <xsl:with-param name="position" select="$position"/>
-                                    <xsl:with-param name="index" select="1"/>
-                                    <xsl:with-param name="text" select="substring-before(substring-after(@rdf:resource,'&spraakbanken;'),'#')"/>
-                                    <xsl:with-param name="href" select="substring-after(@rdf:resource,'&spraakbanken;')"/>
-                                </xsl:call-template>
-                            </xsl:when>
-                            <xsl:when test="@rdf:resource">
-                                <a>
-                                    <xsl:attribute name="href">
-                                        <xsl:choose>
-                                            <xsl:when
-                                                    test="contains(@rdf:resource,'&spraakbanken;')">
-                                                <xsl:value-of
-                                                        select="substring-after(@rdf:resource,'&spraakbanken;')"/>
-                                            </xsl:when>
-                                            <xsl:otherwise>
-                                                <xsl:value-of select="@rdf:resource"/>
-                                            </xsl:otherwise>
-                                        </xsl:choose>
-                                    </xsl:attribute>
-                                    <xsl:attribute name="property">
-                                        <xsl:value-of select="concat(namespace-uri(),local-name())"/>
-                                    </xsl:attribute>
-                                    <!-- Special mouse over for synsets-->
-                                    <!--<xsl:if test="contains(@rdf:resource,'&wordnet-synset;')">
-                                        <xsl:attribute name="id">
-                                            <xsl:value-of select="concat(local-name(),substring-after(@rdf:resource,'&spraakbanken;'))"/>
-                                        </xsl:attribute>
-                                        <script>
-                                           jQuery.get('title/<xsl:value-of select="substring-after(@rdf:resource,'&spraakbanken;')"/>', function(desc) { $('#<xsl:value-of select="concat(local-name(),substring-after(@rdf:resource,'&spraakbanken;'))"/>').attr('title',desc); })
-                                       </script>
-                                    </xsl:if>-->
-                                   <xsl:choose>
-                                        <xsl:when test="contains(@rdf:resource,'&spraakbanken;')">
-                                            <xsl:value-of
-                                                    select="substring-after(@rdf:resource,'&spraakbanken;')"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(@rdf:resource,'&verbnet;')">
-                                            <xsl:value-of
-                                                select="concat('verbnet:',substring-after(@rdf:resource,'&verbnet;'))"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(@rdf:resource,'&lemonUby;')">
-                                            <xsl:value-of
-                                                select="concat('lemonUby:',substring-after(@rdf:resource,'&lemonUby;'))"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(@rdf:resource,'&w3c-wn;')">
-                                            <xsl:value-of
-                                                select="concat('w3c:',substring-after(@rdf:resource,'&w3c-wn;'))"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(@rdf:resource,'&lexvo-wn;')">
-                                            <xsl:value-of
-                                                select="concat('lexvo:',substring-after(@rdf:resource,'&lexvo-wn;'))"/>
-                                        </xsl:when>
-                                           <xsl:otherwise>
-                                            <xsl:value-of select="@rdf:resource"/>
-                                        </xsl:otherwise>
-                                    </xsl:choose>
-                                </a>
-                            </xsl:when>
-                            <xsl:when test="rdf:Description">
-                                <!-- This only happens for synset links so is not quite general yet -->
-                                <a>
-                                    <xsl:attribute name="href">
-                                        <xsl:value-of select="rdf:Description/@rdf:about"/>
-                                    </xsl:attribute>
-                                    <xsl:attribute name="property">
-                                        <xsl:value-of select="concat(namespace-uri(), local-name())"/>
-                                    </xsl:attribute>
-                                    <xsl:choose>
-                                        <xsl:when test="contains(rdf:Description/@rdf:about,'&spraakbanken;')">
-                                            <xsl:value-of
-                                                select="substring-after(rdf:Description/@rdf:about,'&spraakbanken;')"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(rdf:Description/@rdf:about,'&verbnet;')">
-                                            <xsl:value-of
-                                                select="concat('verbnet:',substring-after(rdf:Description/@rdf:about,'&verbnet;'))"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(rdf:Description/@rdf:about,'&lemonUby;')">
-                                            <xsl:value-of
-                                                select="concat('lemonUby:',substring-after(rdf:Description/@rdf:about,'&lemonUby;'))"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(rdf:Description/@rdf:about,'&w3c-wn;')">
-                                            <xsl:value-of
-                                                select="concat('w3c:',substring-after(rdf:Description/@rdf:about,'&w3c-wn;'))"/>
-                                        </xsl:when>
-                                        <xsl:when test="contains(rdf:Description/@rdf:about,'&lexvo-wn;')">
-                                            <xsl:value-of
-                                                select="concat('lexvo:',substring-after(rdf:Description/@rdf:about,'&lexvo-wn;'))"/>
-                                        </xsl:when>
-                                           <xsl:otherwise>
-                                               <xsl:value-of select="rdf:Description/@rdf:about"/>
-                                        </xsl:otherwise>
-                                    </xsl:choose>
-                                </a>
-                                <table class="inner_rdf">
-                                    <xsl:for-each select="rdf:Description">
-                                        <xsl:call-template name="properties"/>
-                                    </xsl:for-each>
-                                </table>
-                            </xsl:when>
-                            <xsl:otherwise>
-                                <xsl:attribute name="property">
-                                    <xsl:value-of select="concat(namespace-uri(),local-name())"/>
-                                </xsl:attribute>
-                                <xsl:if test="@rdf:datatype">
-                                    <xsl:attribute name="datatype">
-                                        <xsl:value-of select="@rdf:datatype"/>
-                                    </xsl:attribute>
-                                </xsl:if>
-                                <xsl:if test="@xml:lang">
-                                    <xsl:call-template name="lang">
-                                        <xsl:with-param name="code" select="@xml:lang"/>
-                                    </xsl:call-template>
-                               </xsl:if>
-                                <xsl:value-of select="."/>
-                            </xsl:otherwise>
-                        </xsl:choose>
-                    </td>
-                </tr>
-            </xsl:if>
-        </xsl:for-each>
-    </xsl:template>
 
-    <xsl:template match="lemon:LexicalEntry">
-        <h1>
-            <xsl:value-of select="lemon:canonicalForm/lemon:Form/lemon:writtenRep"/>
-            <img src="http://www.w3.org/RDF/icons/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/>
-        </h1>
-        <xsl:call-template name="rdf_links"/>
+<xsl:template name="forprop2">
+  <table class="rdf">
+     <xsl:if test="not(name()='rdf:Description')">
+       <tr>
+         <td> <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">rdf:type</a></td>
+         <td> <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
+         <xsl:attribute name="href">
+         <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+         </xsl:attribute>
+         <xsl:value-of select="name()"/>
+         </a></td>
+       </tr>
+     </xsl:if>
+     <xsl:for-each select="*">
+       <tr>
+          <td> <a>
+         <xsl:attribute name="href">
+         <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+         </xsl:attribute>
+         <xsl:value-of select="name()"/>
+         </a>
+         </td>
+         <td>
+            <xsl:choose>
+              <xsl:when test="@rdf:resource">
+                <xsl:variable name="rdfResource" select="@rdf:resource"/>
+                <xsl:choose>
+                <xsl:when test="not(substring-after(@rdf:resource,'#')='') and //*[@rdf:about=$$rdfResource]">
+                  <span>
+                    <xsl:attribute name="id">
+                      <xsl:value-of select="substring-after(@rdf:resource,'#')"/>
+                    </xsl:attribute>
+                    <xsl:attribute name="resource">
+                      <xsl:value-of select="concat('#',substring-after(@rdf:resource,'#'))"/>
+                    </xsl:attribute>
+                    <xsl:attribute name="rel">
+                      <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                    </xsl:attribute>
+		    <i><xsl:value-of select="substring-after(@rdf:resource,'#')"/></i>
+                    <xsl:for-each select="//*[@rdf:about=$$rdfResource]">
+                      <xsl:call-template name="forprop2"/>
+                    </xsl:for-each>
+                  </span>
+                </xsl:when>
+                <xsl:otherwise>
+                <a>
+                 <xsl:attribute name="href">
+                 <xsl:value-of select="@rdf:resource"/>
+                 </xsl:attribute>
+                 <xsl:attribute name="property">
+                  <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                 </xsl:attribute>
+                 <xsl:call-template name="display-uri">
+                   <xsl:with-param name="text" select="@rdf:resource"/>
+                 </xsl:call-template>
+                </a>
+                <xsl:if test="not(starts-with(@rdf:resource,'http'))">
+                  &#160;&#160;&#160;
+                  <a class="load_entry"><xsl:attribute name="href">
+                    <xsl:value-of select="concat('javascript:ajax_load_entry(',$$apos,@rdf:resource,$$apos,')')"/>
+                  </xsl:attribute>More...</a>
+                  <div style="display:none;">
+                    <xsl:attribute name="id">
+                      <xsl:value-of select="concat('la_',translate(@rdf:resource,'$$:','__'))"/>
+                    </xsl:attribute>
+                  </div>
+                </xsl:if>
+                </xsl:otherwise>
+                </xsl:choose>
+              </xsl:when>
+              <xsl:when test="node()[last()]/self::text()">  
+                  <xsl:call-template name="lang">
+                     <xsl:with-param name="lang_id" select="@xml:lang"/>
+                 </xsl:call-template> 
+                 &#x201c;<span>
+                 <xsl:attribute name="property">
+                  <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                 </xsl:attribute><xsl:value-of select="node()"/></span>&#x201d;
+              </xsl:when>
+	      <xsl:when test="rdf:Description/rdf:first">
+	        <ol>
+		  <xsl:for-each select="rdf:Description">
+  		    <xsl:call-template name="list"/>
+		  </xsl:for-each>
+		</ol>
+	      </xsl:when>
+              <xsl:otherwise>
+                <span typeof="http://www.w3.org/2002/07/owl#Thing">
+                <xsl:attribute name="property">
+                  <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                </xsl:attribute>
+                <xsl:for-each select="*">
+                  <xsl:call-template name="forprop2"/>
+                </xsl:for-each>
+                </span>
+              </xsl:otherwise>
+            </xsl:choose>
+         </td>
+       </tr>
+    </xsl:for-each>
+  </table>
+</xsl:template>
 
-        <table class="rdf">
-            <tr class="rdf">
-                <td>
-                    <a href="&lemon;canonicalForm">canonical form</a>
-                </td>
-                <td>
-                    <span id="CanonicalForm" resource="#CanonicalForm" rel="&lemon;canonicalForm" typeof="&lemon;Form">
-                        <table class="inner_rdf">
-                            <tr class="rdf">
-                                <!--<td>
-                                    <a href="&lemon;writtenRep">written representation</a>
-                                </td>-->
-                                <td property="&lemon;writtenRep">
-                                    <xsl:attribute name="xml:lang">
-                                        <xsl:value-of
-                                                select="lemon:canonicalForm/lemon:Form/lemon:writtenRep/@xml:lang"/>
-                                    </xsl:attribute>
-                                    <xsl:value-of select="lemon:canonicalForm/lemon:Form/lemon:writtenRep"/>
-                                </td>
-                                <xsl:for-each select="lemon:canonicalForm/lemon:Form">
-                                    <xsl:call-template name="properties"/>
-                                </xsl:for-each>
-                            </tr>
-                        </table>
-                    </span>
-                </td>
-            </tr>
-            <xsl:if test="lemon:decomposition">
-                <tr class="rdf">
-                    <td>
-                        <a href="&lemon;decomposition">decomposition</a>
-                    </td>
-                    <td>
-                        <div class="rdf_component_list">
-                            <xsl:for-each select="lemon:decomposition/rdf:Description">
-                                <xsl:variable name="rdfid" select="@rdf:about"/>
-                                <div class="rdf_component">
-                                    <xsl:attribute name="resource">
-                                        <xsl:value-of select="concat('_:elem',position())"/>
-                                    </xsl:attribute>
-                                    <xsl:if test="position()=1">
-                                        <xsl:attribute name="rel">&lemon;decomposition</xsl:attribute>
-                                    </xsl:if>
-                                    <xsl:choose>
-                                        <xsl:when test="position()=last()">
-                                            <a resource="&rdf;nil" property="&rdf;rest" style="display:none;">nil</a>
-                                        </xsl:when>
-                                        <xsl:otherwise>
-                                            <a property="&rdf;rest" style="display:none;">
-                                                <xsl:attribute name="resource">
-                                                    <xsl:value-of select="concat('_:elem',position()+1)"/>
-                                                </xsl:attribute>next
-                                            </a>
-                                        </xsl:otherwise>
-                                    </xsl:choose>
-                                    <xsl:apply-templates select="//rdf:RDF/lemon:Component[@rdf:about=$rdfid]"/>
-                                </div>
-                            </xsl:for-each>
-                        </div>
-                    </td>
-                </tr>
-            </xsl:if>
-            <xsl:for-each select="lemon:otherForm/lemon:Form">
-                <tr class="rdf">
-                    <td>
-                        <a href="&lemon;otherForm">other form</a>
-                    </td>
-                    <td>
-                        <span rel="&lemon;otherForm" typeof="&lemon;Form">
-                            <xsl:attribute name="id">
-                                <xsl:value-of select="substring-after(@rdf:about,'#')"/>
-                            </xsl:attribute>
-                            <xsl:attribute name="resource">
-                                <xsl:value-of select="concat('#',substring-after(@rdf:about,'#'))"/>
-                            </xsl:attribute>
-                            <table class="inner_rdf">
-                                <tr>
-                                    <!--<td>
-                                        <a href="&lemon;writtenRep">Written Representation</a>
-                                    </td>-->
-                                    <td property="&lemon;writtenRep">
-                                        <xsl:attribute name="xml:lang">
-                                            <xsl:value-of select="lemon:writtenRep/@xml:lang"/>
-                                        </xsl:attribute>
-                                        <xsl:value-of select="lemon:writtenRep"/>
-                                    </td>
-                                </tr>
-                                <xsl:call-template name="properties"/>
-                            </table>
-                        </span>
-                    </td>
-                </tr>
-            </xsl:for-each>
-            <xsl:call-template name="properties"/>
-            <xsl:for-each select="lemon:sense">
-                <xsl:sort select="concat(@rdf:resource,lemon:LexicalSense/@rdf:about)"/>
-                <tr class="rdf">
-                    <td>
-                        <a href="&lemon;sense">sense</a>
-                    </td>
-                    <td>
-                        <span rel="&lemon;sense" typeof="&lemon;LexicalSense">
+<xsl:template name="list">
+  <li>
+    <xsl:choose>
+      <xsl:when test="rdf:first/@rdf:resource">
+        <a>
+	  <xsl:attribute name="href">
+	    <xsl:value-of select="rdf:first/@rdf:resource"/>
+	  </xsl:attribute>
+          <xsl:attribute name="property">
+            <xsl:value-of select="rdf:first/@rdf:resource"/>
+          </xsl:attribute>
+          <xsl:call-template name="display-uri">
+            <xsl:with-param name="text" select="rdf:first/@rdf:resource"/>
+          </xsl:call-template>
+        </a>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:call-template name="forprop2" select="rdf:first"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </li>
+  <xsl:choose>
+    <xsl:when test="rdf:rest/@rdf:resource='http://www.w3.org/1999/02/22-rdf-syntax-ns#nil'">
+    
+    </xsl:when>
+    <xsl:when test="rdf:rest/rdf:Description">
+      <xsl:for-each select="rdf:rest/rdf:Description">
+        <xsl:call-template name="list"/>
+      </xsl:for-each>
+    </xsl:when>
+  </xsl:choose>
+</xsl:template>
 
-                            <xsl:choose>
-                                <xsl:when test="@rdf:resource">
-                                    <a>
-                                        <xsl:attribute name="href">
-                                            <xsl:value-of select="substring-after(@rdf:resource,'&spraakbanken;')"/>
-                                        </xsl:attribute>
-                                        <xsl:value-of select="substring-after(@rdf:resource,'&spraakbanken;')"/>
-                                    </a>
-                                </xsl:when>
-                                <xsl:otherwise>
-                                    <xsl:attribute name="id">
-                                        <xsl:value-of select="substring-after(lemon:LexicalSense/@rdf:about,'#')"/>
-                                    </xsl:attribute>
-                                    <xsl:attribute name="resource">
-                                        <xsl:value-of select="concat('#',substring-after(lemon:LexicalSense/@rdf:about,'#'))"/>
-                                    </xsl:attribute>
-                                    <xsl:apply-templates select="lemon:LexicalSense"/>
-                                </xsl:otherwise>
-                            </xsl:choose>
-                        </span>
-                    </td>
-                </tr>
-            </xsl:for-each>
-        </table>
-    </xsl:template>
-
-    <xsl:template match="lemon:LexicalSense">
-        <h1>
-            <xsl:value-of select="substring-after(@rdf:about,'&spraakbanken;')"/>
-            <img src="http://www.w3.org/RDF/icons/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/>
-        </h1>
-        <xsl:call-template name="rdf_links"/>
-        <table class="rdf">
-            <tr class="rdf">
-                <xsl:call-template name="properties"/>
-            </tr>
-        </table>
-    </xsl:template>
-
+<xsl:template name="lang">
+    <xsl:param name="lang_id"/>
+    <xsl:variable name="lang-id" select="translate($$lang_id,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"/>
+    <xsl:choose>
+        <xsl:when test="$$lang-id='en' or $$lang-id='eng'">
+            <img src="/assets/flag/en.gif" alt="eng"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='en-us' or $$lang-id='eng-us'">
+            <img src="/assets/flag/us.gif" alt="eng-US"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='en-gb' or $$lang-id='eng-gb'">
+            <img src="/assets/flag/gb.gif" alt="eng-GB"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='en-gb' or $$lang-id='eng-gb'">
+            <img src="/assets/flag/gb.gif" alt="eng-GB"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='zh' or $$lang-id='chi' or $$lang-id='zho'">
+            <img src="/assets/flag/cn.gif" alt="zho"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='zh-tw' or $$lang-id='zho-tw'">
+            <img src="/assets/flag/tw.gif" alt="zho-TW"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='zh-cn' or $$lang-id='zho-cn'">
+            <img src="/assets/flag/cn.gif" alt="zho-CN"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='es' or $$lang-id='spa'">
+            <img src="/assets/flag/es.gif" alt="spa"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='ar' or $$lang-id='ara'">
+            <img src="/assets/flag/sa.gif" alt="ara"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='pt' or $$lang-id='por'">
+            <img src="/assets/flag/pt.gif" alt="por"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='bn' or $$lang-id='ben'">
+            <img src="/assets/flag/bd.gif" alt="ben"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='ru' or $$lang-id='rus'">
+            <img src="/assets/flag/ru.gif" alt="rus"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='ja' or $$lang-id='jap'">
+            <img src="/assets/flag/jp.gif" alt="jap"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='de' or $$lang-id='deu' or $$lang-id='ger'">
+            <img src="/assets/flag/de.gif" alt="deu"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='ko' or $$lang-id='kor'">
+            <img src="/assets/flag/kr.gif" alt="kor"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='fr' or $$lang-id='fra'">
+            <img src="/assets/flag/fr.gif" alt="fra"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='it' or $$lang-id='ita'">
+            <img src="/assets/flag/it.gif" alt="ita"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='pl' or $$lang-id='pol'">
+            <img src="/assets/flag/pl.gif" alt="pol"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='uk' or $$lang-id='ukr'">
+            <img src="/assets/flag/ua.gif" alt="ukr"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='ro' or $$lang-id='rum' or $$lang-id='ron'">
+            <img src="/assets/flag/ro.gif" alt="ron"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='nl' or $$lang-id='dut' or $$lang-id='nld'">
+            <img src="/assets/flag/nl.gif" alt="nld"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='hu' or $$lang-id='hun'">
+            <img src="/assets/flag/hu.gif" alt="hun"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='cs' or $$lang-id='cze' or $$lang-id='ces'">
+            <img src="/assets/flag/cz.gif" alt="ces"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='da' or $$lang-id='dan'">
+            <img src="/assets/flag/dk.gif" alt="dan"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='sv' or $$lang-id='swe'">
+            <img src="/assets/flag/se.gif" alt="swe"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='no' or $$lang-id='nor'">
+            <img src="/assets/flag/no.gif" alt="nor"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='fi' or $$lang-id='fin'">
+            <img src="/assets/flag/fi.gif" alt="fin"/>
+        </xsl:when>
+        <xsl:when test="$$lang-id='el' or $$lang-id='ell' or $$lang-id='gre'">
+            <img src="/assets/flag/gr.gif" alt="ell"/>
+        </xsl:when>
+        <xsl:otherwise><b><xsl:value-of select="$$lang-id"/></b></xsl:otherwise>
+    </xsl:choose>
+</xsl:template>
     <xsl:template name="rdf_links">
             <ul id="rdf_format_list">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&spraakbanken;'),'.json')"/>
+                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.json')"/>
                         </xsl:attribute>
                         JSON-LD
                     </a>
@@ -360,7 +424,7 @@
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&spraakbanken;'),'.nt')"/>
+                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.nt')"/>
                         </xsl:attribute>
                         N-Triples
                     </a>
@@ -368,7 +432,7 @@
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&spraakbanken;'),'.ttl')"/>
+                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.ttl')"/>
                         </xsl:attribute>
                         Turtle
                     </a>
@@ -376,7 +440,7 @@
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&spraakbanken;'),'.rdf')"/>
+                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.rdf')"/>
                         </xsl:attribute>
                         RDF/XML
                     </a>
@@ -384,132 +448,5 @@
             </ul>
     </xsl:template>
 
-    <xsl:template name="sense_tag">
-        <xsl:param name="position"/>
-        <xsl:param name="index"/>
-        <xsl:param name="text"/>
-        <xsl:param name="href"/>
-        <xsl:choose>
-            <xsl:when test="not(contains($text,'+'))">
-                <xsl:choose>
-                    <xsl:when test="$position=$index">
-                        <a>
-                            <xsl:attribute name="href">
-                                <xsl:value-of select="$href"/>
-                            </xsl:attribute>
-                            <xsl:value-of select="substring-before($text,'-p')"/>
-                        </a>
-                    </xsl:when>
-                    <xsl:otherwise>
-                        <xsl:value-of select="substring-before($text,'-p')"/>
-                    </xsl:otherwise>
-                </xsl:choose>
-            </xsl:when>
-            <xsl:otherwise>
-                <xsl:choose>
-                    <xsl:when test="$position=$index">
-                        <a>
-                            <xsl:attribute name="href">
-                                <xsl:value-of select="$href"/>
-                            </xsl:attribute>
-                            <xsl:value-of select="concat(substring-before($text,'+'),' ')"/>
-                        </a>
-                    </xsl:when>
-                    <xsl:otherwise>
-                        <xsl:value-of select="concat(substring-before($text,'+'),' ')"/>
-                    </xsl:otherwise>
-                </xsl:choose>
-                <xsl:call-template name="sense_tag">
-                    <xsl:with-param name="position" select="$position"/>
-                    <xsl:with-param name="index" select="$index + 1"/>
-                    <xsl:with-param name="text" select="substring-after($text,'+')"/>
-                    <xsl:with-param name="href" select="$href"/>
-                </xsl:call-template>
-            </xsl:otherwise>
-        </xsl:choose>
-    </xsl:template>
-
-    <xsl:template name="lang">
-        <xsl:param name="code"/>
-        <xsl:attribute name="xml:lang">
-            <xsl:value-of select="@xml:lang"/>
-        </xsl:attribute>
-        <xsl:if test="not(@xml:lang='eng')">
-            <a>
-                <xsl:attribute name="href">
-                    <xsl:value-of select="concat('&lexvo;',@xml:lang)"/>
-                </xsl:attribute>
-                <xsl:choose>
-                    <xsl:when test="$code='ara'">
-                        <img src="/flag/sa.gif" title="Arabic (ara)"/>
-                    </xsl:when>
-                    <xsl:when test="$code='sqi'">
-                        <img src="/flag/al.gif" title="Albanian (sqi)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='zho'">
-                         <img src="/flag/cn.gif" title="Chinese (zho)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='dan'">
-                         <img src="/flag/dk.gif" title="Danish (dan)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='fas'">
-                         <img src="/flag/ir.gif" title="Persian (fas)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='fin'">
-                         <img src="/flag/fi.gif" title="Finnish (fin)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='fra'">
-                         <img src="/flag/fr.gif" title="French (fra)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='heb'">
-                         <img src="/flag/il.gif" title="Hebrew (heb)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='ita'">
-                         <img src="/flag/it.gif" title="Italian (ita)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='jpn'">
-                         <img src="/flag/jp.gif" title="Japanes (jpn)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='cat'">
-                         <img src="/flag/catalonia.gif" title="Catalan (cat)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='eus'">
-                         <img src="/flag/basque.gif" title="Basque (eus)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='glg'">
-                         <img src="/flag/galicia.gif" title="Galician (glg)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='spa'">
-                         <img src="/flag/es.gif" title="Spanish (spa)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='ind'">
-                         <img src="/flag/id.gif" title="Bahasa Indonesia (ind)"/>
-                    </xsl:when>
-                     <xsl:when test="$code='zsm'">
-                         <img src="/flag/my.gif" title="Bahasa Malay (zsm)"/>
-                    </xsl:when>
-                      <xsl:when test="$code='nno'">
-                          <img src="/flag/no.gif" title="Nynorsk (nno)"/> (Nynorsk)
-                    </xsl:when>
-                      <xsl:when test="$code='nob'">
-                          <img src="/flag/no.gif" title="Norwegian Bokm&#229;l (nob)"/> (Bokm&#229;l)
-                    </xsl:when>
-                      <xsl:when test="$code='pol'">
-                          <img src="/flag/pl.gif" title="Polish (pol)"/>
-                    </xsl:when>
-                      <xsl:when test="$code='por'">
-                          <img src="/flag/pt.gif" title="Portuguese (por)"/>
-                    </xsl:when>
-                      <xsl:when test="$code='tha'">
-                          <img src="/flag/th.gif" title="Thai (tha)"/>
-                    </xsl:when>
-                      <xsl:otherwise>
-                        <xsl:value-of select="@xml:lang"/>
-                    </xsl:otherwise>
-                </xsl:choose>
-            </a>
-            &#160;&#160;
-        </xsl:if>
-    </xsl:template>
 
 </xsl:stylesheet>

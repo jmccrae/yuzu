@@ -17,6 +17,7 @@ from os.path import exists
 from string import Template
 import sqlite3
 import cgi
+import mimetypes
 
 from yuzu.backend import RDFBackend
 from yuzu.settings import *
@@ -180,7 +181,7 @@ class RDFServer:
 
     def rdfxml_to_html(self, graph, title=""):
         dom = et.parse(StringIO(graph.serialize(format="pretty-xml")))
-        xslt = et.parse(resolve("xsl/rdf2html.xsl"))
+        xslt = et.parse(StringIO(Template(open(resolve("xsl/rdf2html.xsl")).read()).substitute(base=BASE_NAME)))
         transform = et.XSLT(xslt)
         newdom = transform(dom)
         return self.render_html(title, et.tostring(newdom, pretty_print=True))
@@ -208,26 +209,6 @@ class RDFServer:
         if uri == "/license.html":
             start_response('200 OK', [('Content-type', 'text/html')])
             return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read())]
-        elif uri == "/rdf.css" or uri == "/sparql/rdf.css":
-            start_response('200 OK', [('Content-type', 'text/css')])
-            return [open(resolve("html/rdf.css")).read()]
-        elif re.match(URI_PATTERN + "(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
-            id,_ = re.findall("^" + URI_PATTERN + "(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
-            print(id)
-            graph = self.backend.lookup(id)
-            if graph is None:
-                return self.send404(start_response)
-            title = ', '.join(sorted([str(o) for _, _, o in graph.triples((None, RDFS.label, None))]))
-            if mime == "html":
-                content = self.rdfxml_to_html(graph, title)
-            else:
-                try:
-                    content = graph.serialize(format=mime)#, context=self.wordnet_context.jsonld_context)
-                except Exception as e:
-                    print (e)
-                    return self.send501(start_response)
-            start_response('200 OK', [('Content-type', self.mime_types[mime]),('Vary','Accept'), ('Content-length', str(len(content)))])
-            return [content]
         elif uri == "/search":
             start_response('200 OK', [('Content-type', 'text/html')])
             if 'QUERY_STRING' in environ:
@@ -248,6 +229,15 @@ class RDFServer:
             start_response('200 OK', [('Content-type', 'appliction/x-gzip'),
                                       ('Content-length', str(os.stat(DUMP_FILE).st_size))])
             return open(resolve(DUMP_FILE), "rb").read()
+        elif uri.startswith("/favicon.ico") and exists(resolve("assets/favicon.ico")):
+            start_response('200 OK', [('Content-type', 'image/png'),
+                ('Content-length', str(os.stat("assets/favicon.ico").st_size))])
+            return open(resolve("assets/favicon.ico"), "rb").read()
+        elif uri.startswith("/assets/") and exists(resolve(uri[1:])):
+            start_response('200 OK', [('Content-type', mimetypes.guess_type(uri)[0]),
+                ('Content-length', str(os.stat(resolve(uri[1:])).st_size))])
+            return open(resolve(uri[1:]), "rb").read()
+        # TODO
         elif uri.startswith("/flag/") and exists(resolve(uri[1:])):
             start_response('200 OK', [('Content-type', 'image/gif'),
                 ('Content-length', str(os.stat(resolve("assets/" + uri[1:])).st_size))])
@@ -263,7 +253,24 @@ class RDFServer:
             else:
                 start_response('200 OK', [('Content-type', 'text/html')])
                 return [self.render_html("WordNet RDF",open(resolve("html/sparql.html")).read())]
+        elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
+            id,_ = re.findall("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
+            graph = self.backend.lookup(id)
+            if graph is None:
+                return self.send404(start_response)
+            title = ', '.join(sorted([str(o) for _, _, o in graph.triples((None, RDFS.label, None))]))
+            if mime == "html":
+                content = self.rdfxml_to_html(graph, title)
+            else:
+                try:
+                    content = graph.serialize(format=mime)#, context=self.wordnet_context.jsonld_context)
+                except Exception as e:
+                    print (e)
+                    return self.send501(start_response)
+            start_response('200 OK', [('Content-type', self.mime_types[mime]),('Vary','Accept'), ('Content-length', str(len(content)))])
+            return [content]
         else:
+            print("Unreachable")
             return self.send404(start_response)
 
     # From http://hetland.org/coding/python/levenshtein.py
@@ -344,7 +351,7 @@ def application(environ, start_response):
 
 if __name__ == "__main__":
     opts = dict(getopt.getopt(sys.argv[1:],'d:p:')[0])
-    server = RDFServer(opts.get('-d','wordnet_3.1+.db'))
+    server = RDFServer(opts.get('-d',DB_FILE))
 
     httpd = make_server('localhost', int(opts.get('-p',8051)), server.application)
 

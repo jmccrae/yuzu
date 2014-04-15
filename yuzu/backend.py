@@ -3,6 +3,7 @@ from rdflib.util import from_n3
 import sqlite3
 import sys
 import getopt
+import gzip
 
 from yuzu.settings import *
 
@@ -39,13 +40,12 @@ class RDFBackend:
             print("Not found: %s" % id)
             return None
 
-    def load(self):
+    def load(self, input_stream):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
         cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL)")
-        cursor.execute("CREATE INDEX if not exists k_triples_subject ON [triples] ( subject )")
-        cursor.execute("begin transaction")
-        for line in sys.stdin:
+        cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
+        for line in input_stream:
             e = line.split(" ")
             subj = e[0][1:-1]
             if subj.startswith(BASE_NAME):
@@ -58,13 +58,19 @@ class RDFBackend:
                 prop = e[1]
                 obj = " ".join(e[2:-1])
                 cursor.execute("insert into triples values (?, ?, ?, ?)", (id, frag, prop, obj))
-        cursor.execute("end transaction")
+        conn.commit()
+        cursor.close()
         conn.close()
 
 if __name__ == "__main__":
-    opts = dict(getopt.getopt(sys.argv[1:],'d:')[0])
+    opts = dict(getopt.getopt(sys.argv[1:],'d:f:')[0])
     backend = RDFBackend(opts.get('-d', DB_FILE))
-    backend.load()
+    input_file = opts.get('-f', DUMP_FILE)
+    if input_file.endswith(".gz"):
+        input_stream = gzip.open(input_file)
+    else:
+        input_stream = open(input_file)
+    backend.load(input_stream)
 
 
 
