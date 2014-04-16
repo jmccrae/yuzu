@@ -39,7 +39,7 @@ xmlns:ontology="${base}ontology">
              <xsl:call-template name="display-uri">
                  <xsl:with-param name="text" select="@rdf:about"/>
              </xsl:call-template>
-             <img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/>
+             <img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/>
         </h1>
         <xsl:call-template name="rdf_links"/>
         <!--
@@ -88,7 +88,7 @@ xmlns:ontology="${base}ontology">
 </xsl:template>
 
 <xsl:template name="forprop">
-  <table class="table table-hover rdf rdf_main">
+  <table class="rdf rdf_main table table-hover">
      <tr>
        <th>Property</th>
        <th>Value</th>
@@ -185,9 +185,9 @@ xmlns:ontology="${base}ontology">
 
 
 <xsl:template name="forprop2">
-  <table class="rdf table">
+  <table class="rdf table table-hover">
      <xsl:if test="not(name()='rdf:Description')">
-       <tr>
+       <tr class="active">
          <td> <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">rdf:type</a></td>
          <td> <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
          <xsl:attribute name="href">
@@ -198,7 +198,7 @@ xmlns:ontology="${base}ontology">
        </tr>
      </xsl:if>
      <xsl:for-each select="*">
-       <tr>
+       <tr class="active">
           <td> <a>
          <xsl:attribute name="href">
          <xsl:value-of select="concat(namespace-uri(),local-name())"/>
@@ -408,15 +408,16 @@ xmlns:ontology="${base}ontology">
         <xsl:when test="$$lang-id='el' or $$lang-id='ell' or $$lang-id='gre'">
             <img src="/assets/flag/gr.gif" alt="ell"/>
         </xsl:when>
-        <xsl:otherwise><b><xsl:value-of select="$$lang-id"/></b></xsl:otherwise>
+        <xsl:otherwise><xsl:value-of select="$$lang-id"/></xsl:otherwise>
     </xsl:choose>
 </xsl:template>
+
     <xsl:template name="rdf_links">
             <ul id="rdf_format_list">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.json')"/>
+                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.json')"/>
                         </xsl:attribute>
                         JSON-LD
                     </a>
@@ -424,7 +425,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.nt')"/>
+                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.nt')"/>
                         </xsl:attribute>
                         N-Triples
                     </a>
@@ -432,7 +433,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.ttl')"/>
+                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.ttl')"/>
                         </xsl:attribute>
                         Turtle
                     </a>
@@ -440,7 +441,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat(substring-after(@rdf:about,'&base;'),'.rdf')"/>
+                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.rdf')"/>
                         </xsl:attribute>
                         RDF/XML
                     </a>

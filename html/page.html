@@ -17,6 +17,20 @@
     <link rel="shortcut icon" href="/favicon.ico" />
     <!-- You should include this in your template to make RDF tables appear correctly -->
     <link href="/assets/rdf.css" media="all" rel="stylesheet" type="text/css">
+    <!-- Used to reveal/show RDF format options -->
+    <script>
+        var rdf_formats_revealed = false;
+
+        function toggle_rdf_format_list() {
+            if(rdf_formats_revealed) {
+                document.getElementById('rdf_format_list').style.display='none';
+                rdf_formats_revealed = false;
+            } else {
+                document.getElementById('rdf_format_list').style.display='inline';
+                rdf_formats_revealed = true;
+            }
+        }
+    </script>
 </head>
 <body>
 <div class="container">
