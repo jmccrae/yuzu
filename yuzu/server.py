@@ -21,42 +21,12 @@ import mimetypes
 
 from yuzu.backend import RDFBackend
 from yuzu.settings import *
+from yuzu.user_text import *
 
 __author__ = 'John P. McCrae'
 
-
-class SPARQLExecutor(multiprocessing.Process):
-    def __init__(self, query, mime_type, default_graph_uri, pipe, graph):
-        multiprocessing.Process.__init__(self)
-        self.result = None
-        self.result_type = None
-        self.query = str(query)
-        if mime_type == "html" or mime_type == "json-ld":
-            self.mime_type = "pretty-xml"
-        else:
-            self.mime_type = mime_type
-        self.default_graph_uri = default_graph_uri
-        self.pipe = pipe
-        self.graph = graph
-
-
-    def run(self):
-        t1 = time.time()
-        print("Starting: %s" % self.query)
-        try:
-            qres = self.graph.query(self.query, initNs=self.default_graph_uri)
-            print("Query completed in %f seconds" % (time.time() - t1))
-        except Exception as e:
-            print(e)
-            self.pipe.send(('error', 'Bad query'))
-            return
-        if qres.type == "CONSTRUCT" or qres.type == "DESCRIBE":
-            self.pipe.send((self.mime_type, qres.serialize(format=self.mime_type)))
-        else:
-            self.pipe.send(('sparql', qres.serialize()))
-
-
 def resolve(fname):
+    """Resolve a local path name so that it works when the app is deployed"""
     if os.path.dirname(__file__):
         return os.path.dirname(__file__) + "/../" + fname
     else:
@@ -64,7 +34,11 @@ def resolve(fname):
 
 
 class RDFServer:
+    """The main web server class for Yuzu"""
     def __init__(self, db):
+        """Create a server
+        @param db The path to the database
+        """
         self.mime_types = dict(
             [('html', 'text/html'), ('pretty-xml', 'application/rdf+xml'), ('turtle', 'text/turtle'),
              ('nt', 'text/plain'), ('json-ld', 'application/ld+json'), ('sparql', 'application/sparql-results+xml'
@@ -72,31 +46,55 @@ class RDFServer:
         self.backend = RDFBackend(db)
 
     @staticmethod
-    def send302(start_response, location):
-        start_response('302 Found', [('Location', location)])
-        return ['Moved to ' + location]
-
-    @staticmethod
-    def send400(start_response):
-        start_response('400 Bad Request', [('Content-type', 'text/plain')])
-        return ['Invalid SPARQL query']
-
-    @staticmethod
-    def send404(start_response):
-        start_response('404 Not Found', [('Content-type', 'text/plain')])
-        return ['Page not found']
-
-    @staticmethod
-    def send501(start_response):
-        start_response('501 Not Implemented', [('Content-type', 'text/plain')])
-        return ['You requested a format not installed on this server']
-
-    def render_html(self, title, text):
+    def render_html(title, text):
+        """Apply the standard template to some more HTML. This method is used in the creation of most pages
+        @param title The page title (in the header)
+        @param text The page content
+        """
         template = Template(open(resolve("html/page.html")).read())
         return template.substitute(title=title, content=text)
 
     @staticmethod
+    def send302(start_response, location):
+        """Send a 302 redirect
+        @param start_response The response object
+        @param location The target to redirect to
+        """
+        start_response('302 Found', [('Location', location)])
+        return [YZ_MOVED_TO + location]
+
+    @staticmethod
+    def send400(start_response, message=YZ_INVALID_QUERY):
+        """Send a 400 bad request
+        @param start_response The response object
+        @param message The error message to display
+        """
+        start_response('400 Bad Request', [('Content-type', 'text/html')])
+        return [RDFServer.render_html(YZ_BAD_REQUEST,message)]
+
+    @staticmethod
+    def send404(start_response):
+        """Send a 404 not found
+        @param start_response The response object
+        """
+        start_response('404 Not Found', [('Content-type', 'text/html')])
+        return [RDFServer.render_html(YZ_NOT_FOUND_TITLE,YZ_NOT_FOUND_PAGE)]
+
+    @staticmethod
+    def send501(start_response, message=YZ_JSON_LD_NOT_INSTALLED):
+        """Send a 501 not implemented. (Likely as RDFlib JSON-LD plugin not installed)
+        @param start_response The response
+        @param message The message
+        """
+        start_response('501 Not Implemented', [('Content-type', 'text/plain')])
+        return [render_html(YZ_NOT_IMPLEMENTED,message)]
+
+    @staticmethod
     def best_mime_type(accept_string):
+        """Guess the MIME type from the Accept string
+        @param accept_string The accept string passed to the server
+        @result The best file type to serve
+        """
         accepts = re.split("\s*,\s*", accept_string)
         for accept in accepts:
             if accept == "text/html":
@@ -136,7 +134,7 @@ class RDFServer:
                             if mime == "application/n-triples" or mime == "text/plain":
                                 best_q = q
                                 best_mime = "nt"
-                            if mime == "application/json" or mime = "application/ld+json":
+                            if mime == "application/json" or mime == "application/ld+json":
                                 best_q = q
                                 best_mime = "json-ld"
                             if mime == "application/sparql-results+xml":
@@ -145,6 +143,7 @@ class RDFServer:
         return best_mime
 
 
+    #TODO
     def sparql_query(self, query, mime_type, default_graph_uri, start_response, timeout=10):
         try:
             store = plugin.get('Sleepycat', Store)(resolve("store"))
@@ -180,6 +179,10 @@ class RDFServer:
 
 
     def rdfxml_to_html(self, graph, title=""):
+        """Convert RDF data to XML
+        @param graph The RDFlib graph object
+        @param title The page header to show (optional)
+        """
         dom = et.parse(StringIO(graph.serialize(format="pretty-xml")))
         xslt = et.parse(StringIO(Template(open(resolve("xsl/rdf2html.xsl")).read()).substitute(base=BASE_NAME)))
         transform = et.XSLT(xslt)
@@ -187,7 +190,10 @@ class RDFServer:
         return self.render_html(title, et.tostring(newdom, pretty_print=True))
 
     def application(self, environ, start_response):
+        """The entry point for all queries (see WSGI docs for more details)"""
         uri = environ['PATH_INFO']
+
+        # Guess the file type required
         if re.match(".*\.html", uri):
             mime = "html"
         elif re.match(".*\.rdf", uri):
@@ -203,12 +209,16 @@ class RDFServer:
         else:
             mime = "html"
 
+        # The welcome page
         if uri == "/" or uri == "/index.html":
             start_response('200 OK', [('Content-type', 'text/html')])
             return [self.render_html(DISPLAY_NAME,open(resolve("html/index.html")).read())]
+        # The license page
         if uri == "/license.html":
             start_response('200 OK', [('Content-type', 'text/html')])
             return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read())]
+        # The search page
+        # TODO
         elif uri == "/search":
             start_response('200 OK', [('Content-type', 'text/html')])
             if 'QUERY_STRING' in environ:
@@ -221,27 +231,27 @@ class RDFServer:
                     return ["No query"]
             else:
                 return ["No query string"]
+        # The data set ontology
         elif uri == "/ontology":
             start_response('200 OK', [('Content-type', 'application/rdf+xml'),
                                       ('Content-length', str(os.stat("assets/ontology.rdf").st_size))])
             return [open(resolve("assets/ontology.rdf")).read()]
+        # The dump file
         elif uri == DUMP_URI:
             start_response('200 OK', [('Content-type', 'appliction/x-gzip'),
                                       ('Content-length', str(os.stat(DUMP_FILE).st_size))])
             return open(resolve(DUMP_FILE), "rb").read()
+        # The favicon (i.e., the logo users see in the browser next to the title)
         elif uri.startswith("/favicon.ico") and exists(resolve("assets/favicon.ico")):
             start_response('200 OK', [('Content-type', 'image/png'),
                 ('Content-length', str(os.stat("assets/favicon.ico").st_size))])
             return open(resolve("assets/favicon.ico"), "rb").read()
+        # Any assets requests
         elif uri.startswith("/assets/") and exists(resolve(uri[1:])):
             start_response('200 OK', [('Content-type', mimetypes.guess_type(uri)[0]),
                 ('Content-length', str(os.stat(resolve(uri[1:])).st_size))])
             return open(resolve(uri[1:]), "rb").read()
-        # TODO
-        elif uri.startswith("/flag/") and exists(resolve(uri[1:])):
-            start_response('200 OK', [('Content-type', 'image/gif'),
-                ('Content-length', str(os.stat(resolve("assets/" + uri[1:])).st_size))])
-            return open(resolve(uri[1:]), "rb").read()
+        # SPARQL requests
         elif uri == "/sparql/":
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
@@ -253,6 +263,7 @@ class RDFServer:
             else:
                 start_response('200 OK', [('Content-type', 'text/html')])
                 return [self.render_html("WordNet RDF",open(resolve("html/sparql.html")).read())]
+        # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id,_ = re.findall("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
             graph = self.backend.lookup(id)
@@ -346,6 +357,7 @@ class RDFServer:
 
 
 def application(environ, start_response):
+    """Needed to start the app in mod_wsgi"""
     server = RDFServer(DB_FILE)
     return server.application(environ, start_response)
 
