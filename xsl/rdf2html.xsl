@@ -88,13 +88,13 @@ xmlns:ontology="${base}ontology">
 </xsl:template>
 
 <xsl:template name="forprop">
-  <table class="rdf rdf_main">
+  <table class="table table-hover rdf rdf_main">
      <tr>
        <th>Property</th>
        <th>Value</th>
      </tr>
      <xsl:for-each select="*">
-       <tr>
+       <tr class="active">
           <td> <a>
          <xsl:attribute name="href">
          <xsl:value-of select="concat(namespace-uri(),local-name())"/>
@@ -185,7 +185,7 @@ xmlns:ontology="${base}ontology">
 
 
 <xsl:template name="forprop2">
-  <table class="rdf">
+  <table class="rdf table">
      <xsl:if test="not(name()='rdf:Description')">
        <tr>
          <td> <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">rdf:type</a></td>
