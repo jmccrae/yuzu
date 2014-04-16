@@ -67,7 +67,7 @@ class RDFServer:
     def __init__(self, db):
         self.mime_types = dict(
             [('html', 'text/html'), ('pretty-xml', 'application/rdf+xml'), ('turtle', 'text/turtle'),
-             ('nt', 'text/plain'), ('json-ld', 'application/json'), ('sparql', 'application/sparql-results+xml'
+             ('nt', 'text/plain'), ('json-ld', 'application/ld+json'), ('sparql', 'application/sparql-results+xml'
                  )])
         self.backend = RDFBackend(db)
 
@@ -107,7 +107,7 @@ class RDFServer:
                 return "turtle"
             elif accept == "application/n-triples" or accept == "text/plain":
                 return "nt"
-            elif accept == "application/json":
+            elif accept == "application/json" or accept == "application/ld+json":
                 return "json-ld"
             elif accept == "application/sparql-results+xml":
                 return "sparql"
@@ -136,7 +136,7 @@ class RDFServer:
                             if mime == "application/n-triples" or mime == "text/plain":
                                 best_q = q
                                 best_mime = "nt"
-                            if mime == "application/json":
+                            if mime == "application/json" or mime = "application/ld+json":
                                 best_q = q
                                 best_mime = "json-ld"
                             if mime == "application/sparql-results+xml":
