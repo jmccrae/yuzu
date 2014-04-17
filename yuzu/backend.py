@@ -40,6 +40,19 @@ class RDFBackend:
             print("Not found: %s" % id)
             return None
 
+    def list_resources(self, offset, limit):
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+
+        cursor.execute("select distinct count(subject) from triples")
+        n, = cursor.fetchone()
+        if offset >= int(n):
+            return False, None
+        cursor.execute("select distinct subject from triples offset limit ? offset ?", (limit, offset))
+        refs = [uri for uri, in cursor.fetchall()]
+        return int(n) > limit + offset, refs
+        
+
     def load(self, input_stream):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()

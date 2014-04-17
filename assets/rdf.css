@@ -114,3 +114,6 @@ tr.sparql_body {
     font-size: 90%;
 }
 
+.list_offset {
+    float:right;
+}

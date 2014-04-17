@@ -259,10 +259,20 @@ class RDFServer:
                     return self.sparql_query(qs['query'][0], mime, qs.get('default-graph-uri',[None])[0], start_response)
                 else:
                     start_response('200 OK', [('Content-type', 'text/html')])
-                    return [self.render_html("WordNet RDF",open(resolve("html/sparql.html")).read())]
+                    return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
             else:
                 start_response('200 OK', [('Content-type', 'text/html')])
-                return [self.render_html("WordNet RDF",open(resolve("html/sparql.html")).read())]
+                return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
+        # TODO: /index/
+        elif uri == "/list/":
+            offset = 0
+            if 'QUERY_STRING' in environ:
+                qs = parse_qs(environ['QUERY_STRING'])
+                if 'offset' in qs:
+                    offset = int(qs['offset'][0])
+            x = self.list_resources(start_response, offset)
+            print(type(x))
+            return [self.render_html(DISPLAY_NAME,x)]
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id,_ = re.findall("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
@@ -305,6 +315,24 @@ class RDFServer:
                 current[j] = min(add, delete, change)
 
         return current[n]
+
+    def list_resources(self, start_response, offset):
+        start_response('200 OK',[('Content-type','text/html')])
+        limit = 20
+        has_more, results = self.backend.list_resources(offset, limit)
+        buf = "<h1>Index</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><div class='list_offset'>"
+        if offset > 0:
+            buf = buf + "<a href='/list/?offset=%d'>&lt;&lt;</a>" % (max(offset - limit, 0))
+        buf = buf + " %d - %d " % (offset, offset + len(results))
+        if has_more:
+            buf = buf + "<a href='/list/?offset=%s'>&gt;&gt;</a>" % (offset + limit)
+        buf = buf + "</div>"
+        return buf.encode()
+
+    def build_list_table(self, values):
+        for value in values:
+            yield "<tr class='rdf_search_full table-active'><td><a href='/%s'>%s</a></td></tr>" % (value, value)
+        
 
 #    def build_search_table(self, values_sorted, cursor, mc):
 #        last_lemma = ""
