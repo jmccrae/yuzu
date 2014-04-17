@@ -40,6 +40,17 @@ class RDFBackend:
             print("Not found: %s" % id)
             return None
 
+    def search(self, value, prop, limit=20):
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+
+        if prop:
+            cursor.execute("select subject from triples where property=? and object like ? limit ?", ("<%s>" % prop, "%%%s%%" % value, limit))
+        else:
+            cursor.execute("select subject from triples where object like ? limit ?", ("%%%s%%" % value, limit))
+        rows = cursor.fetchall()
+        return [uri for uri, in rows]
+
     def list_resources(self, offset, limit):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()

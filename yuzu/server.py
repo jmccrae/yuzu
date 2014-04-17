@@ -219,18 +219,20 @@ class RDFServer:
             return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read())]
         # The search page
         # TODO
-        elif uri == "/search":
-            start_response('200 OK', [('Content-type', 'text/html')])
+        elif uri == "/search" or uri == "/search/":
             if 'QUERY_STRING' in environ:
                 qs_parsed = parse_qs(environ['QUERY_STRING'])
                 if 'query' in qs_parsed:
-                    lemma = qs_parsed['query'][0]
-                    result = self.search(self.wordnet_context, lemma)
-                    return [result]
+                    query = qs_parsed['query'][0]
+                    if 'property' in qs_parsed:
+                        prop = qs_parsed['property'][0]
+                    else:
+                        prop = None
+                    return self.search(start_response, query, prop)
                 else:
-                    return ["No query"]
+                    return self.send400(start_response,YZ_NO_QUERY)
             else:
-                return ["No query string"]
+                return self.send400(start_response,YZ_NO_QUERY)
         # The data set ontology
         elif uri == "/ontology":
             start_response('200 OK', [('Content-type', 'application/rdf+xml'),
@@ -264,15 +266,13 @@ class RDFServer:
                 start_response('200 OK', [('Content-type', 'text/html')])
                 return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
         # TODO: /index/
-        elif uri == "/list/":
+        elif uri == "/list" or uri == "/list/":
             offset = 0
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
                 if 'offset' in qs:
                     offset = int(qs['offset'][0])
-            x = self.list_resources(start_response, offset)
-            print(type(x))
-            return [self.render_html(DISPLAY_NAME,x)]
+            return self.list_resources(start_response, offset)
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id,_ = re.findall("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
@@ -317,9 +317,15 @@ class RDFServer:
         return current[n]
 
     def list_resources(self, start_response, offset):
-        start_response('200 OK',[('Content-type','text/html')])
+        """Build the list resources page
+        @param start_response The response object
+        @param offset The offset to show from
+        """
         limit = 20
         has_more, results = self.backend.list_resources(offset, limit)
+        if not results:
+            return self.send404(start_response)
+        start_response('200 OK',[('Content-type','text/html')])
         buf = "<h1>Index</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><div class='list_offset'>"
         if offset > 0:
             buf = buf + "<a href='/list/?offset=%d'>&lt;&lt;</a>" % (max(offset - limit, 0))
@@ -327,9 +333,21 @@ class RDFServer:
         if has_more:
             buf = buf + "<a href='/list/?offset=%s'>&gt;&gt;</a>" % (offset + limit)
         buf = buf + "</div>"
-        return buf.encode()
+        return [self.render_html(DISPLAY_NAME,buf.encode())]
+
+    def search(self, start_response, query, prop):
+        start_response('200 OK',[('Content-type','text/html')])
+        print(prop)
+        results = self.backend.search(query, prop)
+        if results:
+            buf = "<h1>Search</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
+        else:
+            buf = "<h1>%s</h1><p>%s</p>" % (YZ_SEARCH, YZ_NO_RESULTS)
+        return [self.render_html(DISPLAY_NAME,buf.encode())]
+
 
     def build_list_table(self, values):
+        """Utility to build the list table items"""
         for value in values:
             yield "<tr class='rdf_search_full table-active'><td><a href='/%s'>%s</a></td></tr>" % (value, value)
         
