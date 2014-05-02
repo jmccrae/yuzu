@@ -55,13 +55,14 @@ class RDFBackend:
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
 
-        cursor.execute("select distinct count(subject) from triples")
-        n, = cursor.fetchone()
-        if offset >= int(n):
+        cursor.execute("select distinct subject from triples limit ? offset ?", (limit, offset + 1))
+        # Yes count exists in SQL, it is very slow however
+        n = len(cursor.fetchall())
+        if n == 0:
             return False, None
         cursor.execute("select distinct subject from triples offset limit ? offset ?", (limit, offset))
         refs = [uri for uri, in cursor.fetchall()]
-        return int(n) > limit + offset, refs
+        return n >= limit, refs
         
 
     def load(self, input_stream):

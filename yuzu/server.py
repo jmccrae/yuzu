@@ -330,13 +330,17 @@ class RDFServer:
         if not results:
             return self.send404(start_response)
         start_response('200 OK',[('Content-type','text/html')])
-        buf = "<h1>Index</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><div class='list_offset'>"
+        buf = "<h1>Index</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><ul class='pager'>"
         if offset > 0:
-            buf = buf + "<a href='/list/?offset=%d'>&lt;&lt;</a>" % (max(offset - limit, 0))
-        buf = buf + " %d - %d " % (offset, offset + len(results))
+            buf = buf + "<li class='previous'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" % (max(offset - limit, 0))
+        else:
+            buf = buf + "<li class='previous disabled'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" % (max(offset - limit, 0))
+        buf = buf + "<li>%d - %d</li>" % (offset, offset + len(results))
         if has_more:
-            buf = buf + "<a href='/list/?offset=%s'>&gt;&gt;</a>" % (offset + limit)
-        buf = buf + "</div>"
+            buf = buf + "<li class='next'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" % (offset + limit)
+        else:
+            buf = buf + "<li class='next disabled'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" % (offset + limit)
+        buf = buf + "</ul>"
         return [self.render_html(DISPLAY_NAME,buf.encode())]
 
     def search(self, start_response, query, prop):
