@@ -79,6 +79,9 @@ class RDFBackend:
                 else:
                     id = subj[len(BASE_NAME):]
                     frag = ""
+                if id.endswith(".rdf") or id.endswith(".ttl") or id.endswith(".nt") or id.endswith(".json") or id.endswith(".xml"):
+                    sys.stderr.write("File type at end of name (%s) dropped\n" % id)
+                    id = id[:id.rindex(".")]
                 prop = e[1]
                 obj = " ".join(e[2:-1])
                 cursor.execute("insert into triples values (?, ?, ?, ?)", (id, frag, prop, obj))
