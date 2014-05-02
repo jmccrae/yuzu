@@ -279,7 +279,11 @@ class RDFServer:
             graph = self.backend.lookup(id)
             if graph is None:
                 return self.send404(start_response)
-            title = ', '.join(sorted([str(o) for _, _, o in graph.triples((URIRef(BASE_NAME + id), RDFS.label, None))]))
+            labels = sorted([str(o) for _, _, o in graph.triples((URIRef(BASE_NAME + id), RDFS.label, None))])
+            if labels:
+                title = ', '.join(labels)
+            else:
+                title = id
             if mime == "html":
                 content = self.rdfxml_to_html(graph, title)
             else:
