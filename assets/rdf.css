@@ -1,6 +1,5 @@
 table.rdf > tbody > tr {
     background-color: rgb(255,255,255);
-    border: 3px solid rgb(231,231,231);
 }
 
 table.inner_rdf > tbody > tr {
@@ -14,12 +13,10 @@ table.rdf_search > thead > tr {
 }
 
 table.rdf_search > thead > tr > th {
-    border: 3px solid rgb(231,231,231);
 }
 
 tr.rdf_search_full {
     background-color: rgb(255,255,255);
-    border-top: 3px solid rgb(231,231,231);
 }
 
 tr.rdf_search_empty > td:last-child {
@@ -45,19 +42,18 @@ table.rdf > tbody > tr > td:first-child {
 
 table.rdf_search > tbody > tr > td:first-child {
     width: 120px;
-    border-right: 3px solid rgb(231,231,231);
 }
 
-table.rdf > tbody > tr > td:first-child > a {
+/*table.rdf > tbody > tr > td:first-child > a {
     text-transform: capitalize;
-}
+}*/
 table.rdf > tbody > tr > td > a {
     text-decoration: none;
 }
 
-table.inner_rdf > tbody > tr > td:first-child > a {
+/*table.inner_rdf > tbody > tr > td:first-child > a {
     text-transform: capitalize;
-}
+}*/
 table.inner_rdf > tbody > tr > td > a {
     text-decoration: none;
 }
@@ -69,7 +65,6 @@ table.rdf {
 
 table.inner_rdf {
     width: 98%;
-    border: 3px solid rgb(255,255,255);
 }
 
 #rdf_format_list {
@@ -108,12 +103,10 @@ tr.sparql_head {
 }
 
 th.sparql_head {
-    border: 3px solid rgb(231,231,231);
 }
 
 tr.sparql_body {
     background-color: rgb(255,255,255);
-    border-top: 3px solid rgb(231,231,231);
 }
 
 .definition {
@@ -121,3 +114,14 @@ tr.sparql_body {
     font-size: 90%;
 }
 
+.list_offset {
+    float:right;
+}
+
+.pager li>a {
+    color:#007fff;
+}
+
+.pager li>a:hover {
+    color:#007fff;
+}

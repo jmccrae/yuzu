@@ -3,9 +3,47 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <title>${title}</title>
-    <link href="/rdf.css" media="all" rel="stylesheet" type="text/css">
+    <link href="/assets/bootstrap.min.css" media="all" rel="stylesheet" type"text/css">
+    <link href='http://fonts.googleapis.com/css?family=Nova+Square' rel='stylesheet' type='text/css'>
+    <style>
+        .page-header h1 {
+            font-family: 'Nova Square', cursive;
+            font-size: 80px;
+        }
+        .page-header img {
+            padding-right:60px;
+        }
+    </style>
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <!-- You should include this in your template to make RDF tables appear correctly -->
+    <link href="/assets/rdf.css" media="all" rel="stylesheet" type="text/css">
+    <!-- Used to reveal/show RDF format options -->
+    <script>
+        var rdf_formats_revealed = false;
+
+        function toggle_rdf_format_list() {
+            if(rdf_formats_revealed) {
+                document.getElementById('rdf_format_list').style.display='none';
+                rdf_formats_revealed = false;
+            } else {
+                document.getElementById('rdf_format_list').style.display='inline';
+                rdf_formats_revealed = true;
+            }
+        }
+    </script>
 </head>
 <body>
-${content}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="page-header">
+                <h1><a href="/"><img src="/assets/logo.png"/></a>yuzu</h1>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        ${content}
+    </div>
+</div>
 </body>
 </html>
