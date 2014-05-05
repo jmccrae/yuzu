@@ -16,7 +16,7 @@ import time
 from os.path import exists
 from string import Template
 import sqlite3
-import cgi
+import html
 
 from yuzu.backend import RDFBackend
 from yuzu.settings import *
@@ -288,55 +288,25 @@ class RDFServer:
 
         return current[n]
 
-#    def build_search_table(self, values_sorted, cursor, mc):
-#        last_lemma = ""
-#        last_pos = ""
-#        for lemma, pos, synsetid, definition in values_sorted:
-#            mc.execute("select release from wn31r where internal=?", (synsetid,))
-#            r = mc.fetchone()
-#            if r:
-#                synsetid2, = r
-#            else:
-#                synsetid2 = synsetid
-#                pos = pos.upper()
-#            if not lemma == last_lemma or not pos == last_pos:
-#                last_lemma = lemma
-#                last_pos = pos
-#                yield "<tr class='rdf_search_full'><td><a href='%s/%s-%s'>%s</a> (%s)</td><td><a href='%s/%s-%s'>%s</a> &mdash; <span class='definition'>%s</span></td></tr>" % \
-#                      (WNRDF.wn_version, lemma, pos, lemma, pos, WNRDF.wn_version, synsetid2, pos, self.synset_label(cursor, synsetid), definition)
-#            else:
-#                yield "<tr class='rdf_search_empty'><td></td><td><a href='%s/%s-%s'>%s</a> &mdash; <span class='definition'>%s</span></td></tr>" % \
-#                      (WNRDF.wn_version, synsetid2, pos, self.synset_label(cursor, synsetid), definition)
-#
-#    @staticmethod
-#    def synset_label(cursor, offset):
-#        cursor.execute("select lemma from senses inner join words on words.wordid = senses.wordid where synsetid=?",
-#                       (offset,))
-#        return ', '.join([str(lemma) for lemma, in cursor.fetchall()])
-#
-#    def search(self, context, query_lemma):
-#        cursor = context.conn.cursor()
-#        try:
-#            cursor.execute(
-#                "select sensekey,senses.synsetid,lemma,definition from words inner join senses, synsets on senses.wordid=words.wordid and senses.synsetid = synsets.synsetid "
-#                "where soundex(lemma) = soundex(?)",
-#                (query_lemma,))
-#        except: # Only if no soundex
-#            print ("Soundex not supported, please install a newer version of SQLite")
-#            cursor.execute(
-#                "select sensekey,senses.synsetid,lemma,definition from words inner join senses, synsets on senses.wordid=words.wordid and senses.synsetid = synsets.synsetid "
-#                "where lemma = ?",
-#                (query_lemma,))
-#        values = [(str(lemma), str(sensekey[-1]), str(synsetid), str(description)) for sensekey, synsetid, lemma, description in cursor.fetchall()]
-#        mc = context.mconn.cursor()
-#        if values:
-#            values_sorted = sorted(values, key=lambda s: self.levenshtein(s[0], query_lemma))[0:49]
-#            html = "".join(self.build_search_table(values_sorted, cursor, mc))
-#            return self.render_html("Search results", "<h1>Search results</h1> <table class='rdf_search'><thead><tr><th>Word</th><th>Synset</th></tr></thead>"
-#                                + html + "</table>")
-#        else:
-#            return self.render_html("Search results", "<h1>Search results</h1> <p>Nothing found for <b>%s</b></p>" % cgi.escape(query_lemma))
+    def build_search_table(self, prop, values_sorted):
+        last_query = ""
+        for query, result_id in values_sorted:
+            if query == last_query:
+                last_query = query
+                yield "<tr class='rdf_search_empty'><td></td><td><a href='%s'>%s</a></td></tr>" % (result_id, result_id)
+            else:
+                yield "<tr class='rdf_search_full'><td>%s</td><td><a href='%s'>%s</a></td></tr>" % (html.escape(query), result_id, result_id)
 
+    def search(self, prop, query):
+        status, results = self.backend.search(prop, query)
+        if status == "EXACT" and len(results) == 1:
+            return "REDIRECT", results[0]
+        elif status != "FAIL":
+            values_sorted = sorted(results, key=lambda s: self.levenshtein(s[1], query))[0:49]
+            html_content = "".join(self.build_search_table(values_sorted))
+            return self.render_html("Search results", "<h1>Search results</h1> <table class='rdf_search'><thead><tr><th>%s</th><th>Page</th></tr></thead>%s</table>" % (prop, html_content))
+        else:
+            return self.render_html("Search results", "<h1>Search results</h1> <p>Nothing found for <b>%s</b></p>" % html.escape(query))
 
 def application(environ, start_response):
     server = RDFServer(DB_FILE)
