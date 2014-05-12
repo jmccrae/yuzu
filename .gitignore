@@ -58,3 +58,6 @@ docs/_build/
 Thumbs.db
 db.sqlite
 
+scala/target
+scala/project/target
+
