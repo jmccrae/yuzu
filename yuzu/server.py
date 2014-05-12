@@ -6,7 +6,7 @@ import lxml.etree as et
 from cStringIO import StringIO
 from wsgiref.simple_server import make_server
 from urlparse import parse_qs
-from urllib import unquote_plus
+from urllib import unquote_plus, quote_plus, urlopen
 from rdflib import RDFS, URIRef, Graph
 from rdflib import plugin
 from rdflib.store import Store, VALID_STORE
@@ -31,6 +31,39 @@ def resolve(fname):
         return os.path.dirname(__file__) + "/../" + fname
     else:
         return fname
+
+class SPARQLExecutor(multiprocessing.Process):
+    """Executes a SPARQL query as a background process"""
+    def __init__(self, query, mime_type, default_graph_uri, pipe, graph):
+        multiprocessing.Process.__init__(self)
+        self.result = None
+        self.result_type = None
+        self.query = str(query)
+        self.mime_type = mime_type
+        self.default_graph_uri = default_graph_uri
+        self.pipe = pipe
+        self.graph = graph
+
+
+    def run(self):
+        t1 = time.time()
+        try:
+            if self.default_graph_uri:
+                qres = self.graph.query(self.query, initNs=self.default_graph_uri)
+            else:
+                qres = self.graph.query(self.query)#, initNs=self.default_graph_uri)
+        except Exception as e:
+            print(e)
+            self.pipe.send(('error', YZ_BAD_REQUEST))
+            return
+        if qres.type == "CONSTRUCT" or qres.type == "DESCRIBE":
+            if self.mime_type == "html" or self.mime_type == "json-ld":
+                self.mime_type == "pretty-xml"
+            self.pipe.send((self.mime_type, qres.serialize(format=self.mime_type)))
+        elif self.mime_type == 'sparql' or self.mime_type == 'html':
+            self.pipe.send(('sparql', qres.serialize()))
+        else:
+            self.pipe.send(('error', YZ_BAD_MIME))
 
 
 class RDFServer:
@@ -87,7 +120,7 @@ class RDFServer:
         @param message The message
         """
         start_response('501 Not Implemented', [('Content-type', 'text/plain')])
-        return [render_html(YZ_NOT_IMPLEMENTED,message)]
+        return [RDFServer.render_html(YZ_NOT_IMPLEMENTED,message)]
 
     @staticmethod
     def best_mime_type(accept_string):
@@ -143,39 +176,44 @@ class RDFServer:
         return best_mime
 
 
-    #TODO
     def sparql_query(self, query, mime_type, default_graph_uri, start_response, timeout=10):
+        """Execute a SPARQL query
+        @param query The query string
+        @param mime_type The requested MIME type
+        @param default_graph_uri The default graph URI
+        @param start_response The response object
+        @param timeout The timeout (in seconds) on the query
+        """
+        if SPARQL_ENDPOINT:
+            graph = Graph('SPARQLStore')
+            graph.open(SPARQL_ENDPOINT)
+        else:
+            graph = Graph(self.backend)
         try:
-            store = plugin.get('Sleepycat', Store)(resolve("store"))
-            identifier = URIRef(BASE_NAME)
-            try:
-                graph = Graph(store, identifier=identifier)
-                parent, child = multiprocessing.Pipe()
-                executor = SPARQLExecutor(query, mime_type, default_graph_uri, child, graph)
-                executor.start()
-                executor.join(timeout)
-                if executor.is_alive():
-                    start_response('503 Service Unavailable', [('Content-type','text/plain')])
-                    executor.terminate()
-                    return "The query could not be processed in time"
+            parent, child = multiprocessing.Pipe()
+            executor = SPARQLExecutor(query, mime_type, default_graph_uri, child, graph)
+            executor.start()
+            executor.join(timeout)
+            if executor.is_alive():
+                start_response('503 Service Unavailable', [('Content-type','text/plain')])
+                executor.terminate()
+                return "The query could not be processed in time"
+            else:
+                result_type, result = parent.recv()
+                if result_type == "error":
+                    return self.send400(start_response)
+                elif mime_type != "html" or result_type != "sparql":
+                    start_response('200 OK', [('Content-type',self.mime_types[result_type])])
+                    return [str(result)]
                 else:
-                    result_type, result = parent.recv()
-                    if result_type == "error":
-                        return self.send400(start_response)
-                    elif mime_type != "html" or result_type != "sparql":
-                        start_response('200 OK', [('Content-type',self.mime_types[result_type])])
-                        return [str(result)]
-                    else:
-                        start_response('200 OK', [('Content-type','text/html')])
-                        dom = et.parse(StringIO(result))
-                        xslt = et.parse(resolve("xsl/sparql2html.xsl"))
-                        transform = et.XSLT(xslt)
-                        newdom = transform(dom)
-                        return self.render_html("SPARQL Results", et.tostring(newdom, pretty_print=True))
-            finally:
-                graph.close()
+                    start_response('200 OK', [('Content-type','text/html')])
+                    dom = et.parse(StringIO(result))
+                    xslt = et.parse(resolve("xsl/sparql2html.xsl"))
+                    transform = et.XSLT(xslt)
+                    new_dom = transform(dom)
+                    return self.render_html("SPARQL Results", et.tostring(new_dom, pretty_print=True))
         finally:
-            store.close()
+            graph.close()
 
 
     def rdfxml_to_html(self, graph, title=""):
@@ -218,7 +256,6 @@ class RDFServer:
             start_response('200 OK', [('Content-type', 'text/html')])
             return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read())]
         # The search page
-        # TODO
         elif uri == "/search" or uri == "/search/":
             if 'QUERY_STRING' in environ:
                 qs_parsed = parse_qs(environ['QUERY_STRING'])
@@ -265,7 +302,6 @@ class RDFServer:
             else:
                 start_response('200 OK', [('Content-type', 'text/html')])
                 return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
-        # TODO: /index/
         elif uri == "/list" or uri == "/list/":
             offset = 0
             if 'QUERY_STRING' in environ:
@@ -298,28 +334,6 @@ class RDFServer:
             print("Unreachable")
             return self.send404(start_response)
 
-    # From http://hetland.org/coding/python/levenshtein.py
-    @staticmethod
-    def levenshtein(a, b):
-        "Calculates the Levenshtein distance between a and b."
-        n, m = len(a), len(b)
-        if n > m:
-            # Make sure n <= m, to use O(min(n,m)) space
-            a, b = b, a
-            n, m = m, n
-
-        current = range(n + 1)
-        for i in range(1, m + 1):
-            previous, current = current, [i] + [0] * n
-            for j in range(1, n + 1):
-                add, delete = previous[j] + 1, current[j - 1] + 1
-                change = previous[j - 1]
-                if a[j - 1] != b[i - 1]:
-                    change = change + 1
-                current[j] = min(add, delete, change)
-
-        return current[n]
-
     def list_resources(self, start_response, offset):
         """Build the list resources page
         @param start_response The response object
@@ -345,7 +359,6 @@ class RDFServer:
 
     def search(self, start_response, query, prop):
         start_response('200 OK',[('Content-type','text/html')])
-        print(prop)
         results = self.backend.search(query, prop)
         if results:
             buf = "<h1>Search</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
@@ -358,67 +371,6 @@ class RDFServer:
         """Utility to build the list table items"""
         for value in values:
             yield "<tr class='rdf_search_full table-active'><td><a href='/%s'>%s</a></td></tr>" % (value, value)
-
-
-#    def build_search_table(self, values_sorted, cursor, mc):
-#        last_lemma = ""
-#        last_pos = ""
-#        for lemma, pos, synsetid, definition in values_sorted:
-#            mc.execute("select release from wn31r where internal=?", (synsetid,))
-#            r = mc.fetchone()
-#            if r:
-#                synsetid2, = r
-#            else:
-#                synsetid2 = synsetid
-#                pos = pos.upper()
-#            if not lemma == last_lemma or not pos == last_pos:
-#                last_lemma = lemma
-#                last_pos = pos
-#                yield "<tr class='rdf_search_full'><td><a href='%s/%s-%s'>%s</a> (%s)</td><td><a href='%s/%s-%s'>%s</a> &mdash; <span class='definition'>%s</span></td></tr>" % \
-#                      (WNRDF.wn_version, lemma, pos, lemma, pos, WNRDF.wn_version, synsetid2, pos, self.synset_label(cursor, synsetid), definition)
-#            else:
-#                yield "<tr class='rdf_search_empty'><td></td><td><a href='%s/%s-%s'>%s</a> &mdash; <span class='definition'>%s</span></td></tr>" % \
-#                      (WNRDF.wn_version, synsetid2, pos, self.synset_label(cursor, synsetid), definition)
-#
-#    @staticmethod
-#    def synset_label(cursor, offset):
-#        cursor.execute("select lemma from senses inner join words on words.wordid = senses.wordid where synsetid=?",
-#                       (offset,))
-#        return ', '.join([str(lemma) for lemma, in cursor.fetchall()])
-#
-#    def search(self, context, query_lemma):
-#        cursor = context.conn.cursor()
-#        try:
-#            cursor.execute(
-#                "select sensekey,senses.synsetid,lemma,definition from words inner join senses, synsets on senses.wordid=words.wordid and senses.synsetid = synsets.synsetid "
-#                "where soundex(lemma) = soundex(?)",
-#                (query_lemma,))
-#        except: # Only if no soundex
-#            print ("Soundex not supported, please install a newer version of SQLite")
-#            cursor.execute(
-#                "select sensekey,senses.synsetid,lemma,definition from words inner join senses, synsets on senses.wordid=words.wordid and senses.synsetid = synsets.synsetid "
-#                "where lemma = ?",
-#                (query_lemma,))
-#        values = [(str(lemma), str(sensekey[-1]), str(synsetid), str(description)) for sensekey, synsetid, lemma, description in cursor.fetchall()]
-#        mc = context.mconn.cursor()
-#        if values:
-#            values_sorted = sorted(values, key=lambda s: self.levenshtein(s[0], query_lemma))[0:49]
-#            html = "".join(self.build_search_table(values_sorted, cursor, mc))
-#            return self.render_html("Search results", "<h1>Search results</h1> <table class='rdf_search'><thead><tr><th>Word</th><th>Synset</th></tr></thead>"
-#                                + html + "</table>")
-#        else:
-#            return self.render_html("Search results", "<h1>Search results</h1> <p>Nothing found for <b>%s</b></p>" % cgi.escape(query_lemma))
-
-    def search(self, prop, query):
-        status, results = self.backend.search(prop, query)
-        if status == "EXACT" and len(results) == 1:
-            return "REDIRECT", results[0]
-        elif status != "FAIL":
-            values_sorted = sorted(results, key=lambda s: self.levenshtein(s[1], query))[0:49]
-            html_content = "".join(self.build_search_table(values_sorted))
-            return self.render_html("Search results", "<h1>Search results</h1> <table class='rdf_search'><thead><tr><th>%s</th><th>Page</th></tr></thead>%s</table>" % (prop, html_content))
-        else:
-            return self.render_html("Search results", "<h1>Search results</h1> <p>Nothing found for <b>%s</b></p>" % html.escape(query))
 
 def application(environ, start_response):
     """Needed to start the app in mod_wsgi"""

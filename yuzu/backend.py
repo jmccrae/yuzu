@@ -26,8 +26,8 @@ class RDFBackend(Store):
     def unname(uri):
         if uri.startswith(BASE_NAME):
             if '#' in uri:
-                id = uri[len(BASE_NAME):id.index('#')]
-                frag = uri[id.index('#') + 1:]
+                id = uri[len(BASE_NAME):uri.index('#')]
+                frag = uri[uri.index('#') + 1:]
                 return id, frag
             else:
                 return uri[len(BASE_NAME):], ""
@@ -52,7 +52,6 @@ class RDFBackend(Store):
             conn.close()
             return g
         else:
-            print("Not found: %s" % id)
             return None
 
     def search(self, value, prop, limit=20):
@@ -74,7 +73,7 @@ class RDFBackend(Store):
         if s == None:
             if p == None:
                 if o == None:
-                    raise "Query too broad"
+                    raise Exception("Query too broad")
                 else:
                     cursor.execute("select subject, fragment, property, object from triples where object=? and inverse=0", (o.n3(),))
             else:
@@ -104,7 +103,7 @@ class RDFBackend(Store):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
 
-        cursor.execute("select distinct subject from triples limit ? offset ?", (limit, offset + 1))
+        cursor.execute("select distinct subject from triples limit ? offset ?", (limit + 1, offset))
         # Yes count exists in SQL, it is very slow however
         n = len(cursor.fetchall())
         if n == 0:
@@ -117,7 +116,7 @@ class RDFBackend(Store):
     def load(self, input_stream):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-        cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0, query VARCHAR(256) NOT NULL)")
+        cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0)")
         cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
         if not SPARQL_ENDPOINT:
             cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
@@ -143,13 +142,7 @@ class RDFBackend(Store):
                     id = id[:id.rindex(".")]
                 prop = e[1]
                 obj = " ".join(e[2:-1])
-                if obj.startswith("\""):
-                    query = obj[1:obj.rindex("\"")]
-                elif obj.startswith("<"):
-                    query = obj[1:-1]
-                else:
-                    query = ""
-                cursor.execute("insert into triples values (?, ?, ?, ?, 0, ?)", (id, frag, prop, obj, query))
+                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (id, frag, prop, obj))
                 if obj.startswith("<" + BASE_NAME):
                     if '#' in obj:
                         id = obj[len(BASE_NAME) + 1:obj.index('#')]
@@ -164,28 +157,6 @@ class RDFBackend(Store):
         cursor.close()
         conn.close()
 
-    def search(self, prop, query):
-        conn = sqlite3.connect(self.db)
-        cursor = conn.cursor()
-        cursor.execute("select subject, query from triples where property=? and query=?", (prop, query))
-        rows = cursor.fetchall()
-        if rows:
-            results = [(s, q) for s, q in rows]
-            conn.close()
-            return "EXACT", results
-        else:
-            cursor.execute("select subject, query from triples where property=? and query like ?", (prop, "%%%s%%" % query))
-            rows = cursor.fetchall()
-            if rows:
-                results = [(s, q) for s, q in rows]
-                conn.close()
-                return "APPROX", results
-            else:
-                conn.close()
-                return "FAIL", []
-
-        print(triple)
-        return []
 
 if __name__ == "__main__":
     opts = dict(getopt.getopt(sys.argv[1:],'d:f:')[0])
