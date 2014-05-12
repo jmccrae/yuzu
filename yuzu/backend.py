@@ -18,6 +18,11 @@ class RDFBackend(Store):
 
     @staticmethod
     def name(id, frag):
+        """Get a URI from the local id and fragment object
+        @param id The id
+        @param frag The fragment or None for the root element
+        @return A URIRef with the URI
+        """
         if frag:
             return URIRef("%s%s#%s" % (BASE_NAME, id, frag))
         else:
@@ -25,6 +30,10 @@ class RDFBackend(Store):
 
     @staticmethod
     def unname(uri):
+        """Convert a named URI into id and fragment
+        @param uri The URI (string)
+        @return The URI object
+        """
         if uri.startswith(BASE_NAME):
             if '#' in uri:
                 id = uri[len(BASE_NAME):uri.index('#')]
@@ -36,6 +45,10 @@ class RDFBackend(Store):
             return None
 
     def lookup(self, id):
+        """Resolve a single id
+        @param id The id
+        @return A RDFlib Graph or None if the ID is not found
+        """
         g = ConjunctiveGraph()
         g.bind("lemon", "http://lemon-model.net/lemon#")
         g.bind("owl", str(OWL))
@@ -47,7 +60,7 @@ class RDFBackend(Store):
         if rows:
             for f, p, o, i in rows:
                 if i:
-                    g.add(from_n3(o), from_n3(p), self.name(id, f))
+                    g.add((from_n3(o), from_n3(p), self.name(id, f)))
                 else:
                     g.add((self.name(id, f), from_n3(p), from_n3(o)))
             conn.close()
@@ -56,6 +69,12 @@ class RDFBackend(Store):
             return None
 
     def search(self, value, prop, limit=20):
+        """Search for pages with the appropriate property
+        @param value The value to query for
+        @param prop The property to use or None for no properties
+        @param limit The result limit
+        @return The list of matching IDs
+        """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
 
@@ -67,7 +86,8 @@ class RDFBackend(Store):
         return [uri for uri, in rows]
 
     def triples(self, triple, context=None):
-        """This function allows SPARQL queries directly on the database"""
+        """This function allows SPARQL queries directly on the database. See rdflib's Store
+        """
         s, p, o = triple
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
@@ -101,6 +121,12 @@ class RDFBackend(Store):
         return [((URIRef(self.name(s,f)), from_n3(p), from_n3(o)), None) for s,f,p,o in cursor.fetchall()]
 
     def list_resources(self, offset, limit):
+        """
+        Produce the list of all pages in the resource
+        @param offset Where to start
+        @param limit How many results
+        @return A tuple consisting of a boolean indicating if there are more results and the list of IDs that can be found
+        """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
 
@@ -115,6 +141,10 @@ class RDFBackend(Store):
 
 
     def load(self, input_stream):
+        """
+        Load the resource from an input stream (of NTriples formatted files)
+        @param input_stream The input of NTriples
+        """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
         cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0)")
