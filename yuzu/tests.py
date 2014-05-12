@@ -10,7 +10,11 @@ from settings import *
 
 from rdflib import Graph, RDFS, URIRef, Literal
 
+__author__ = "John P. McCrae"
+
 class YuzuTests(unittest.TestCase):
+    """ Test cases for Yuzu
+    """
     def setUp(self):
         self.srv = server.RDFServer("test.db")
         buf = StringIO.StringIO("<%stest_resource> <http://www.w3.org/2000/01/rdf-schema#label> \"test\"@eng .\n" % BASE_NAME)

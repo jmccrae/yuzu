@@ -252,11 +252,11 @@ class RDFServer:
             start_response('200 OK', [('Content-type', 'text/html')])
             return [self.render_html(DISPLAY_NAME,open(resolve("html/index.html")).read())]
         # The license page
-        if uri == "/license.html":
+        if LICENSE_PATH and uri == LICENSE_PATH:
             start_response('200 OK', [('Content-type', 'text/html')])
             return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read())]
         # The search page
-        elif uri == "/search" or uri == "/search/":
+        elif SEARCH_PATH and (uri == SEARCH_PATH or uri == (SEARCH_PATH + "/")):
             if 'QUERY_STRING' in environ:
                 qs_parsed = parse_qs(environ['QUERY_STRING'])
                 if 'query' in qs_parsed:
@@ -270,11 +270,6 @@ class RDFServer:
                     return self.send400(start_response,YZ_NO_QUERY)
             else:
                 return self.send400(start_response,YZ_NO_QUERY)
-        # The data set ontology
-        elif uri == "/ontology":
-            start_response('200 OK', [('Content-type', 'application/rdf+xml'),
-                                      ('Content-length', str(os.stat("assets/ontology.rdf").st_size))])
-            return [open(resolve("assets/ontology.rdf")).read()]
         # The dump file
         elif uri == DUMP_URI:
             start_response('200 OK', [('Content-type', 'appliction/x-gzip'),
@@ -286,12 +281,12 @@ class RDFServer:
                 ('Content-length', str(os.stat("assets/favicon.ico").st_size))])
             return open(resolve("assets/favicon.ico"), "rb").read()
         # Any assets requests
-        elif uri.startswith("/assets/") and exists(resolve(uri[1:])):
+        elif uri.startswith(ASSETS_PATH) and exists(resolve(uri[1:])):
             start_response('200 OK', [('Content-type', mimetypes.guess_type(uri)[0]),
                 ('Content-length', str(os.stat(resolve(uri[1:])).st_size))])
             return open(resolve(uri[1:]), "rb").read()
         # SPARQL requests
-        elif uri == "/sparql/":
+        elif SPARQL_PATH and (uri == SPARQL_PATH or uri == (SPARQL_PATH+"/")):
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
                 if 'query' in qs:
@@ -302,7 +297,7 @@ class RDFServer:
             else:
                 start_response('200 OK', [('Content-type', 'text/html')])
                 return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
-        elif uri == "/list" or uri == "/list/":
+        elif LIST_PATH and (uri == LIST_PATH or uri == (LIST_PATH + "/")):
             offset = 0
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
@@ -342,9 +337,10 @@ class RDFServer:
         limit = 20
         has_more, results = self.backend.list_resources(offset, limit)
         if not results:
+            print(YZ_NO_DATA)
             return self.send404(start_response)
         start_response('200 OK',[('Content-type','text/html')])
-        buf = "<h1>Index</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><ul class='pager'>"
+        buf = "<h1>"+ YZ_INDEX + "</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><ul class='pager'>"
         if offset > 0:
             buf = buf + "<li class='previous'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" % (max(offset - limit, 0))
         else:
@@ -361,7 +357,7 @@ class RDFServer:
         start_response('200 OK',[('Content-type','text/html')])
         results = self.backend.search(query, prop)
         if results:
-            buf = "<h1>Search</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
+            buf = "<h1>" + YZ_SEARCH + "</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
         else:
             buf = "<h1>%s</h1><p>%s</p>" % (YZ_SEARCH, YZ_NO_RESULTS)
         return [self.render_html(DISPLAY_NAME,buf.encode())]

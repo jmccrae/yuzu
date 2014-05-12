@@ -7,8 +7,9 @@ import getopt
 import gzip
 
 from yuzu.settings import *
+from yuzu.user_text import *
 
-__author__ = 'jmccrae'
+__author__ = 'John P. McCrae'
 
 
 class RDFBackend(Store):
@@ -73,7 +74,7 @@ class RDFBackend(Store):
         if s == None:
             if p == None:
                 if o == None:
-                    raise Exception("Query too broad")
+                    raise Exception(YZ_QUERY_TOO_BROAD)
                 else:
                     cursor.execute("select subject, fragment, property, object from triples where object=? and inverse=0", (o.n3(),))
             else:
