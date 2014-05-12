@@ -17,3 +17,4 @@ YZ_BAD_MIME='Bad MIME request'
 YZ_QUERY_TOO_BROAD='Query too broad'
 YZ_NO_DATA='No data is yet loaded in the system'
 YZ_INDEX='Index'
+YZ_TIME_OUT="The query could not be processed in time"

@@ -46,7 +46,6 @@ class SPARQLExecutor(multiprocessing.Process):
 
 
     def run(self):
-        t1 = time.time()
         try:
             if self.default_graph_uri:
                 qres = self.graph.query(self.query, initNs=self.default_graph_uri)
@@ -197,7 +196,7 @@ class RDFServer:
             if executor.is_alive():
                 start_response('503 Service Unavailable', [('Content-type','text/plain')])
                 executor.terminate()
-                return "The query could not be processed in time"
+                return YZ_TIME_OUT
             else:
                 result_type, result = parent.recv()
                 if result_type == "error":
