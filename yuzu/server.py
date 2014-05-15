@@ -301,7 +301,10 @@ class RDFServer:
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
                 if 'offset' in qs:
-                    offset = int(qs['offset'][0])
+                    try:
+                        offset = int(qs['offset'][0])
+                    except ValueError:
+                        return self.send400(start_response)
             return self.list_resources(start_response, offset)
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
@@ -325,7 +328,6 @@ class RDFServer:
             start_response('200 OK', [('Content-type', self.mime_types[mime]),('Vary','Accept'), ('Content-length', str(len(content)))])
             return [content]
         else:
-            print("Unreachable")
             return self.send404(start_response)
 
     def list_resources(self, start_response, offset):
