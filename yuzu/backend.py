@@ -134,11 +134,26 @@ class RDFBackend(Store):
         # Yes count exists in SQL, it is very slow however
         n = len(cursor.fetchall())
         if n == 0:
+            conn.close()
             return False, None
-        cursor.execute("select distinct subject from triples offset limit ? offset ?", (limit, offset))
+        cursor.execute("select distinct subject from triples limit ? offset ?", (limit, offset))
         refs = [uri for uri, in cursor.fetchall()]
+        conn.close()
         return n >= limit, refs
 
+
+    @staticmethod
+    def split_uri(subj):
+        if '#' in subj:
+            id = subj[len(BASE_NAME):subj.index('#')]
+            frag = subj[subj.index('#') + 1:]
+        else:
+            id = subj[len(BASE_NAME):]
+            frag = ""
+        if id.endswith(".rdf") or id.endswith(".ttl") or id.endswith(".nt") or id.endswith(".json") or id.endswith(".xml"):
+            sys.stderr.write("File type at end of name (%s) dropped\n" % id)
+            id = id[:id.rindex(".")]
+        return id, frag
 
     def load(self, input_stream):
         """
@@ -162,26 +177,13 @@ class RDFBackend(Store):
             e = line.split(" ")
             subj = e[0][1:-1]
             if subj.startswith(BASE_NAME):
-                if '#' in subj:
-                    id = subj[len(BASE_NAME):subj.index('#')]
-                    frag = subj[subj.index('#') + 1:]
-                else:
-                    id = subj[len(BASE_NAME):]
-                    frag = ""
-                if id.endswith(".rdf") or id.endswith(".ttl") or id.endswith(".nt") or id.endswith(".json") or id.endswith(".xml"):
-                    sys.stderr.write("File type at end of name (%s) dropped\n" % id)
-                    id = id[:id.rindex(".")]
+                id, frag = self.split_uri(subj)
                 prop = e[1]
                 obj = " ".join(e[2:-1])
                 cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (id, frag, prop, obj))
                 if obj.startswith("<" + BASE_NAME):
-                    if '#' in obj:
-                        id = obj[len(BASE_NAME) + 1:obj.index('#')]
-                        frag = obj[obj.index('#') + 1:-1]
-                    else:
-                        id = obj[len(BASE_NAME) + 1:-1]
-                        frag = ""
-                    cursor.execute("insert into triples values (?, ?, ?, ?, 0, '')", (id, frag, prop, "<"+subj+">"))
+                    id, frag = self.split_uri(obj)
+                    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
         if lines_read > 100000:
             sys.stderr.write("\n")
         conn.commit()
