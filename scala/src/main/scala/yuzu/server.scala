@@ -7,7 +7,7 @@ import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
 import com.hp.hpl.jena.query.{Query, QueryExecution, QueryFactory, QueryExecutionFactory, ResultSetFormatter}
 import java.nio.file.Files
 import java.io.{ByteArrayOutputStream, PipedOutputStream, PipedInputStream, StringReader, InputStream,
-OutputStream, File, FileInputStream}
+OutputStream, File, FileInputStream, StringWriter}
 import java.util.concurrent.{Executors, TimeUnit}
 import javax.xml.transform.{TransformerFactory}
 import javax.xml.transform.stream.{StreamSource, StreamResult}
@@ -58,6 +58,7 @@ class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable {
       }
     } catch {
       case x : Exception => {
+        x.printStackTrace()
         resultType = error
         result = Left(x.getMessage())
       }
@@ -69,7 +70,7 @@ object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
   // TODO:
-  def resolve(fname : String) = fname
+  def resolve(fname : String) = "../"+fname
 
   def renderHTML(title : String, text : String) = {
     val template = new Template(slurp(resolve("html/page.html")))
@@ -170,12 +171,11 @@ class RDFServer(db : String) extends HttpServlet {
   private val mimeTypes = Map(
      )
   val backend = new RDFBackend(db)
-  // TODO
-  val backendModel : Model = null
+  lazy val backendModel : Model = ModelFactory.createModelForGraph(backend.graph)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
 
   def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
-    resp : HttpServletResponse, timeout : Int = 10) = {
+    resp : HttpServletResponse, timeout : Int = 10) {
       val q = defaultGraphURI match {
         case Some(uri) => QueryFactory.create(query, uri)
         case None => QueryFactory.create(query)
@@ -199,26 +199,7 @@ class RDFServer(db : String) extends HttpServlet {
       } else {
         if(executor.resultType == error) {
           send400(resp)
-        } else if(mimeType != html || executor.resultType != sparql) {
-          executor.result match {
-            case Left(data) => {
-              resp.addHeader("Content-type", executor.resultType.mime)
-              resp.setStatus(SC_OK)
-              val out = resp.getWriter()
-              out.println(data)
-              out.flush()
-              out.close()
-            }
-            case Right(model) => {
-              resp.addHeader("Content-type", executor.resultType.mime) 
-              resp.setStatus(SC_OK)
-              val os = resp.getOutputStream()
-              RDFDataMgr.write(os, model, executor.resultType.jena.get)
-              os.flush()
-              os.close()
-            }
-          }
-        } else {
+        } else if(mimeType == html) {
           executor.result match {
             case Left(data) => {
               resp.addHeader("Content-type", "text/html")
@@ -233,7 +214,38 @@ class RDFServer(db : String) extends HttpServlet {
               out.flush()
               out.close()
             }
-            case Right(data) => throw new IllegalArgumentException("SPARQL results expected but received RDF model")
+            case Right(model) => {
+              resp.addHeader("Content-type", "text/html")
+              resp.setStatus(SC_OK)
+              val out = resp.getWriter()
+              out.println(rdfxmlToHtml(model))
+              out.flush()
+              out.close()
+            }
+          }
+        } else if(mimeType == sparql) {
+          executor.result match {
+            case Left(data) => {
+              resp.addHeader("Content-type", executor.resultType.mime)
+              resp.setStatus(SC_OK)
+              val out = resp.getWriter()
+              out.println(data)
+              out.flush()
+              out.close()
+            }
+            case Right(_) => throw new IllegalArgumentException("SPARQL results expected but received RDF model")
+          }
+        } else {
+          executor.result match {
+            case Left(_) => throw new IllegalArgumentException("RDF results expected but received SPARQL results")
+            case Right(model) => {
+              resp.addHeader("Content-type", executor.resultType.mime) 
+              resp.setStatus(SC_OK)
+              val os = resp.getOutputStream()
+              RDFDataMgr.write(os, model, executor.resultType.jena.get)
+              os.flush()
+              os.close()
+            }
           }
         }
       }
@@ -242,17 +254,18 @@ class RDFServer(db : String) extends HttpServlet {
   def rdfxmlToHtml(model : Model, title : String = "") : String = {
     val tf = TransformerFactory.newInstance()
     val xslt = new Template(slurp(resolve("xsl/rdf2html.xsl"))).substitute("base" -> BASE_NAME)
+      println("loaded template")
     val transformer = tf.newTransformer(new StreamSource(new StringReader(xslt)))
-    val pis = new PipedInputStream()
-    val pos = new PipedOutputStream(pis)
-    RDFDataMgr.write(pos, model, RDFFormat.RDFXML_PRETTY)
-    val baos = new ByteArrayOutputStream()
-    transformer.transform(new StreamSource(pis), new StreamResult(baos))
-    baos.flush()
-    return baos.toString()
+    println("init transformer")
+    val rdfData = new StringWriter()
+    RDFDataMgr.write(rdfData, model, RDFFormat.RDFXML_PRETTY)
+    val out = new StringWriter()
+    transformer.transform(new StreamSource(new StringReader(rdfData.toString())), new StreamResult(out))
+    println("end transform")
+    return renderHTML(out.toString(),title)
   }
 
-  override def service(req : HttpServletRequest, resp : HttpServletResponse) {
+  override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
     val uri = req.getPathInfo()
     var mime = if(uri.matches(".*\\.html")) {
       html
@@ -356,7 +369,12 @@ class RDFServer(db : String) extends HttpServlet {
     } else {
       send404(resp)
     }
-  }
+  } catch {
+    case x : Exception => {
+      System.err.println("INTERNAL SERVER ERROR: %s" format x.getMessage())
+      throw x
+    }
+  }}
 
   def listResources(resp : HttpServletResponse, offset : Int) {
     val limit = 20
@@ -387,12 +405,14 @@ class RDFServer(db : String) extends HttpServlet {
             buf ++= "<li class='next disabled'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" format (offset + limit)
         }
         buf ++= "</ul>"
-        renderHTML(DISPLAY_NAME, buf.toString())
+        resp.respond("text/html", SC_OK) {
+          out => out.println(renderHTML(DISPLAY_NAME, buf.toString()))
+        }
       }
     }
   }
 
-  def search(resp : HttpServletResponse, query : String, property : Option[String]) = {
+  def search(resp : HttpServletResponse, query : String, property : Option[String]) {
     val buf = new StringBuilder()
     val results = backend.search(query, property)
     results match {
@@ -410,7 +430,9 @@ class RDFServer(db : String) extends HttpServlet {
         buf ++= "</table>"
       }
    }
-    renderHTML(DISPLAY_NAME, buf.toString())
+    resp.respond("text/html", SC_OK) {
+      out => out.println(renderHTML(DISPLAY_NAME, buf.toString()))
+    }
   }
 
   def buildListTable(values : List[String]) = {
@@ -419,6 +441,10 @@ class RDFServer(db : String) extends HttpServlet {
     }
   }
 
+  override def destroy() {
+    backend.close()
+  }
 
 }
 
+class YuzuServlet extends RDFServer(DB_FILE)

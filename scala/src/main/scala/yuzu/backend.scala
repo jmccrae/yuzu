@@ -1,7 +1,8 @@
 package com.github.jmccrae.yuzu
 
 import com.github.jmccrae.yuzu.YuzuSettings._
-import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch}
+import com.github.jmccrae.yuzu.YuzuUserText._
+import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node}
 import com.hp.hpl.jena.util.iterator.ExtendedIterator
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
 import java.sql.{DriverManager, ResultSet}
@@ -15,18 +16,17 @@ class RDFBackend(db : String) {
   } catch {
     case x : ClassNotFoundException => throw new RuntimeException("No SQLite Driver", x)
   }
-  def unname(uri : String) = if(uri.startsWith(BASE_NAME)) {
-    if(uri contains '#') {
-      val id = uri.slice(BASE_NAME.length, uri.indexOf('#'))
-      val frag = uri.drop(uri.indexOf('#') + 1)
-      Some((id, Some(frag)))
-    } else {
-      Some((uri.drop(BASE_NAME.length), None))
+
+  private val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
+
+  def close() {
+    if(!conn.isClosed()) {
+      conn.close()
     }
-  } else {
-    None
   }
 
+  def graph = new RDFBackendGraph(conn)
+ 
   def from_n3(n3 : String, model : Model) = if(n3.startsWith("<") && n3.endsWith(">")) {
     model.createResource(n3.drop(1).dropRight(1))
   } else if(n3.startsWith("_:")) {
@@ -60,7 +60,6 @@ class RDFBackend(db : String) {
   }
 
   def lookup(id : String) : Option[Model] = {
-    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
     val ps = conn.prepareStatement("select fragment, property, object, inverse from triples where subject=?")
     ps.setString(1,id)
     val rows = ps.executeQuery()
@@ -89,12 +88,10 @@ class RDFBackend(db : String) {
         }
       }
     } while(rows.next())
-    conn.close()
     return Some(model)
   }
 
   def search(query : String, property : Option[String], limit : Int = 20) : List[String] = {
-    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
     val ps = property match {
       case Some(p) => {
         val ps2 = conn.prepareStatement("select subject from triples where property=? and object like ? limit ?")
@@ -119,14 +116,12 @@ class RDFBackend(db : String) {
   }
 
   def listResources(offset : Int, limit : Int) : (Boolean,List[String]) = {
-    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
     val ps = conn.prepareStatement("select distinct subject from triples limit ? offset ?")
     ps.setInt(1, limit + 1)
     ps.setInt(2, offset)
     val rs = ps.executeQuery()
     var n = 0
     if(!rs.next()) {
-      conn.close()
       return (false, Nil)
     }
     var results = collection.mutable.ListBuffer[String]()
@@ -137,10 +132,8 @@ class RDFBackend(db : String) {
 
     if(n >= limit) {
       results.remove(n - 1)
-      conn.close()
       return (true, results.toList)
     } else {
-      conn.close()
       return (false, results.toList)
     }
   }
@@ -161,68 +154,139 @@ class RDFBackend(db : String) {
       }
       (id,frag)
     }
-    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
     val cursor = conn.createStatement()
-    cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0)")
-    cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
-    if(SPARQL_ENDPOINT == None) {
-      cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-      cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
-      cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
-    }
-    var linesRead = 0
-    for(line <- io.Source.fromInputStream(inputStream).getLines) {
-      linesRead += 1
-      if(linesRead % 100000 == 0) {
-        System.err.print(".")
-        System.err.flush()
+    val oldAutocommit = conn.getAutoCommit()
+    try {
+      conn.setAutoCommit(false)
+      cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0)")
+      cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
+      if(SPARQL_ENDPOINT == None) {
+        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
+        cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
+        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
       }
-      val e = line.split(" ")
-      val subj = e(0).drop(1).dropRight(1)
-      if(subj.startsWith(BASE_NAME)) {
-        val (id, frag) = splitUri(subj)
-        val prop = e(1)
-        val obj = e.drop(2).dropRight(1).mkString(" ")
-        val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
-        ps1.setString(1, id)
-        ps1.setString(2, frag)
-        ps1.setString(3, prop)
-        ps1.setString(4, obj)
-        ps1.execute()
-        if(obj.startsWith("<"+BASE_NAME)) {
-          val (id2, frag2) = splitUri(obj)
-          val ps2 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 1)")
-          ps2.setString(1, id2)
-          ps2.setString(2, frag2)
-          ps2.setString(3, prop)
-          ps2.setString(4, obj)
+      var linesRead = 0
+      for(line <- io.Source.fromInputStream(inputStream).getLines) {
+        linesRead += 1
+        if(linesRead % 100000 == 0) {
+          System.err.print(".")
+          System.err.flush()
+        }
+        val e = line.split(" ")
+        val subj = e(0).drop(1).dropRight(1)
+        if(subj.startsWith(BASE_NAME)) {
+          val (id, frag) = splitUri(subj)
+          val prop = e(1)
+          val obj = e.drop(2).dropRight(1).mkString(" ")
+          val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
+          ps1.setString(1, id)
+          ps1.setString(2, frag)
+          ps1.setString(3, prop)
+          ps1.setString(4, obj)
+          ps1.execute()
+          if(obj.startsWith("<"+BASE_NAME)) {
+            val (id2, frag2) = splitUri(obj)
+            val ps2 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 1)")
+            ps2.setString(1, id2)
+            ps2.setString(2, frag2)
+            ps2.setString(3, prop)
+            ps2.setString(4, obj)
+          }
         }
       }
+      if(linesRead > 100000) {
+        System.err.println()
+      }
+    } finally {
+      cursor.close()
+      conn.commit()
+      conn.setAutoCommit(oldAutocommit)
     }
-    if(linesRead > 100000) {
-      System.err.println()
-    }
-    conn.commit()
-    cursor.close()
-    conn.close()
   }
 }
 
-class RDFBackendGraph(db : String)  extends com.hp.hpl.jena.graph.impl.GraphBase {
+class RDFBackendGraph(conn : java.sql.Connection)  extends com.hp.hpl.jena.graph.impl.GraphBase {
   protected def graphBaseFind(m : TripleMatch) : ExtendedIterator[Triple] = {
     val model = ModelFactory.createDefaultModel()
     val s = m.getMatchSubject()
     val p = m.getMatchPredicate()
     val o = m.getMatchObject()
-    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
-    if(s == null) {
+    val rs : ResultSet = if(s == null) {
       if(p == null) {
         if(o == null) {
+          throw new RuntimeException(YZ_QUERY_TOO_BROAD)
+        } else {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where object=? and inverse=0")
+          ps.setString(1, RDFBackend.to_n3(o))
+          ps.executeQuery()        
+        }
+      } else {
+        if(o == null) {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0")
+          ps.setString(1, RDFBackend.to_n3(p))
+          ps.executeQuery()
+        } else {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0 and object=?")
+          ps.setString(1, RDFBackend.to_n3(p))
+          ps.setString(2, RDFBackend.to_n3(o))
+          ps.executeQuery()
+        }
+      }
+    } else {
+      val (id, frag) = RDFBackend.unname(s.toString()) match {
+        case Some((i,f)) => (i,f)
+        case None => return new NullExtendedIterator()
+      }
+      if(p == null) {
+        if(o == null) {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0")
+          ps.setString(1, id)
+          ps.setString(2, frag.getOrElse(""))
+          ps.executeQuery()
+        } else {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0")
+          ps.setString(1, id)
+          ps.setString(2, frag.getOrElse(""))
+          ps.setString(3, RDFBackend.to_n3(o))
+          ps.executeQuery()
+        }
+      } else {
+        if(o == null) {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0")
+          ps.setString(1, id)
+          ps.setString(2, frag.getOrElse(""))
+          ps.setString(3, RDFBackend.to_n3(p))
+          ps.executeQuery()
+        } else {
+          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0")
+          ps.setString(1, id)
+          ps.setString(2, frag.getOrElse(""))
+          ps.setString(3, RDFBackend.to_n3(p))
+          ps.setString(4, RDFBackend.to_n3(o))
+          ps.executeQuery()
         }
       }
     }
-    null
+    return new SQLResultSetAsExtendedIterator(rs)
   }
+}
+
+class NullExtendedIterator() extends ExtendedIterator[Triple] {
+  def close() { }
+  def andThen[X <: Triple](x : java.util.Iterator[X]) : ExtendedIterator[Triple] = throw new UnsupportedOperationException()
+  def filterDrop(x : com.hp.hpl.jena.util.iterator.Filter[com.hp.hpl.jena.graph.Triple]):
+  com.hp.hpl.jena.util.iterator.ExtendedIterator[com.hp.hpl.jena.graph.Triple] = throw new UnsupportedOperationException()
+  def filterKeep(x : com.hp.hpl.jena.util.iterator.Filter[com.hp.hpl.jena.graph.Triple]):
+  com.hp.hpl.jena.util.iterator.ExtendedIterator[com.hp.hpl.jena.graph.Triple] = throw new UnsupportedOperationException()
+  def mapWith[U](x: com.hp.hpl.jena.util.iterator.Map1[com.hp.hpl.jena.graph.Triple,U]): com.hp.hpl.jena.util.iterator.ExtendedIterator[U] =
+    throw new UnsupportedOperationException()
+  def removeNext(): com.hp.hpl.jena.graph.Triple =  throw new UnsupportedOperationException()
+  def toList(): java.util.List[com.hp.hpl.jena.graph.Triple] =  throw new UnsupportedOperationException()
+  def toSet(): java.util.Set[com.hp.hpl.jena.graph.Triple] = throw new UnsupportedOperationException()
+
+  def hasNext(): Boolean = false
+  def next(): Triple = throw new NoSuchElementException()
+  def remove(): Unit = throw new UnsupportedOperationException()
 }
 
 class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Triple] {
@@ -273,6 +337,7 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Tr
     val t = new Triple(NodeFactory.createURI(RDFBackend.name(s, Option(f))),
       prop_from_n3(p),
       from_n3(o))
+    _hasNext = rs.next()
 
     return t
   }
@@ -282,8 +347,33 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Tr
 object RDFBackend {
 
   def name(id : String, frag : Option[String]) = frag match {
-    case Some(f) => "%s%s#%s" format (BASE_NAME, id, frag)
+    case Some(f) => "%s%s#%s" format (BASE_NAME, id, f)
     case None => "%s%s" format (BASE_NAME, id)
+  }
+
+  def unname(uri : String) = if(uri.startsWith(BASE_NAME)) {
+    if(uri contains '#') {
+      val id = uri.slice(BASE_NAME.length, uri.indexOf('#'))
+      val frag = uri.drop(uri.indexOf('#') + 1)
+      Some((id, Some(frag)))
+    } else {
+      Some((uri.drop(BASE_NAME.length), None))
+    }
+  } else {
+    None
+  }
+
+
+  def to_n3(node : Node) : String = if(node.isURI()) {
+    return "<%s>" format node.getURI()
+  } else if(node.isBlank()) {
+    return "_:%s" format node.getBlankNodeId().toString()
+  } else if(node.getLiteralLanguage() != "") {
+    return "\"%s\"@%s" format (node.getLiteralValue().toString().replaceAll("\"","\\\\\""), node.getLiteralLanguage())
+  } else if(node.getLiteralDatatypeURI() != null) {
+    return "\"%s\"^^<%s>" format (node.getLiteralValue().toString().replaceAll("\"","\\\\\""), node.getLiteralDatatypeURI())
+  } else {
+    return "\"%s\"" format (node.getLiteralValue().toString().replaceAll("\"","\\\\\""))
   }
 
   def main(args : Array[String]) {
@@ -303,5 +393,6 @@ object RDFBackend {
       case file => new FileInputStream(file)
     }
     backend.load(inputStream)
+    backend.close()
   }
 }
