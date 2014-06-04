@@ -28,9 +28,9 @@ __author__ = 'John P. McCrae'
 def resolve(fname):
     """Resolve a local path name so that it works when the app is deployed"""
     if os.path.dirname(__file__):
-        return os.path.dirname(__file__) + "/../" + fname
+        return os.path.dirname(__file__) + "/../common/" + fname
     else:
-        return fname
+        return "/common/" + fname
 
 class SPARQLExecutor(multiprocessing.Process):
     """Executes a SPARQL query as a background process"""

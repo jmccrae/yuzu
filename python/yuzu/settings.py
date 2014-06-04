@@ -7,7 +7,7 @@ BASE_NAME = "http://localhost:8051/"
 # The data download will be at BASE_NAME + DUMP_URI
 DUMP_URI = "/example.nt.gz"
 # The local path to the data
-DUMP_FILE = "example.nt.gz"
+DUMP_FILE = "../example.nt.gz"
 # Where the SQLite database should appear
 DB_FILE = "db.sqlite"
 # The name of the server

@@ -69,8 +69,19 @@ class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable {
 object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
-  // TODO:
-  def resolve(fname : String) = "../"+fname
+  def resolve(fname : String) = try {
+    val cls = this.getClass()
+    val pd = cls.getProtectionDomain()
+    val cs = pd.getCodeSource()
+    val loc = cs.getLocation()
+    if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+      loc.getPath() + fname
+    } else {
+      "../common/" + fname
+    }
+  } catch {
+    case x : Exception =>  "../common/" + fname
+  }
 
   def renderHTML(title : String, text : String) = {
     val template = new Template(slurp(resolve("html/page.html")))

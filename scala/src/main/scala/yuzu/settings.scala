@@ -10,7 +10,7 @@ object YuzuSettings {
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/example.nt.gz"
   // The local path to the data
-  val DUMP_FILE = "example.nt.gz"
+  val DUMP_FILE = "../example.nt.gz"
   // Where the SQLite database should appear
   val DB_FILE = "db.sqlite"
   // The name of the server

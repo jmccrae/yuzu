@@ -20,8 +20,4 @@ libraryDependencies ++= Seq(
 
 scalacOptions := Seq("-feature", "-deprecation")
 
-unmanagedResourceDirectories in Compile += baseDirectory.value / "../assets"
-
-unmanagedResourceDirectories in Compile += baseDirectory.value / "../html"
-
-unmanagedResourceDirectories in Compile += baseDirectory.value / "../xsl"
+unmanagedResourceDirectories in Compile += baseDirectory.value / "../common"
