@@ -90,11 +90,10 @@ object RDFServer {
 
   def send302(resp : HttpServletResponse, location : String) { resp.sendRedirect(location) }
   def send400(resp : HttpServletResponse, message : String = YZ_INVALID_QUERY) {
-    resp.sendError(SC_BAD_REQUEST, renderHTML(YZ_BAD_REQUEST, message))
+    resp.sendError(SC_BAD_REQUEST, message)
   }
   def send404(resp : HttpServletResponse) { 
-    resp.sendError(SC_NOT_FOUND, 
-      renderHTML(YZ_NOT_FOUND_TITLE, YZ_NOT_FOUND_PAGE)) 
+    resp.sendError(SC_NOT_FOUND, YZ_NOT_FOUND_PAGE)
   }
   def send501(resp : HttpServletResponse, message : String = YZ_JSON_LD_NOT_INSTALLED) {
     resp.sendError(SC_NOT_IMPLEMENTED,
@@ -265,15 +264,13 @@ class RDFServer(db : String) extends HttpServlet {
   def rdfxmlToHtml(model : Model, title : String = "") : String = {
     val tf = TransformerFactory.newInstance()
     val xslt = new Template(slurp(resolve("xsl/rdf2html.xsl"))).substitute("base" -> BASE_NAME)
-      println("loaded template")
     val transformer = tf.newTransformer(new StreamSource(new StringReader(xslt)))
-    println("init transformer")
+    transformer.setOutputProperty(javax.xml.transform.OutputKeys.METHOD, "html")
     val rdfData = new StringWriter()
     RDFDataMgr.write(rdfData, model, RDFFormat.RDFXML_PRETTY)
     val out = new StringWriter()
     transformer.transform(new StreamSource(new StringReader(rdfData.toString())), new StreamResult(out))
-    println("end transform")
-    return renderHTML(out.toString(),title)
+    return renderHTML(title, out.toString())
   }
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {

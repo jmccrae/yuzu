@@ -2,10 +2,10 @@ package com.github.jmccrae.yuzu
 
 object YuzuUserText {
   val YZ_MOVED_TO="Moved to"
-  val YZ_INVALID_QUERY="<h1>Invalid query</h1><p>The query could not be understood</p>"
+  val YZ_INVALID_QUERY="The query could not be understood"
   val YZ_BAD_REQUEST="Bad request"
   val YZ_NOT_FOUND_TITLE="Not found"
-  val YZ_NOT_FOUND_PAGE="<h1>Page not found</h1><p>The requested URL does not exist</p>"
+  val YZ_NOT_FOUND_PAGE="The requested URL does not exist"
   val YZ_JSON_LD_NOT_INSTALLED="You requested a format not installed on this server"
   val YZ_NOT_IMPLEMENTED="Not Implemented"
   val YZ_SEARCH="Search"

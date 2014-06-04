@@ -347,6 +347,7 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Tr
 object RDFBackend {
 
   def name(id : String, frag : Option[String]) = frag match {
+    case Some("") => "%s%s" format (BASE_NAME, id)
     case Some(f) => "%s%s#%s" format (BASE_NAME, id, f)
     case None => "%s%s" format (BASE_NAME, id)
   }
