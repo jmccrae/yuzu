@@ -215,7 +215,12 @@ class RDFServer(db : String) extends HttpServlet {
               resp.addHeader("Content-type", "text/html")
               resp.setStatus(SC_OK)
               val tf = TransformerFactory.newInstance()
-              val transformer = tf.newTransformer(new StreamSource(resolve("xsl/sparql2html.xsl")))
+              val transformer = tf.newTransformer(new StreamSource(new Template(resolve("xsl/sparql2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
+"prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
+"prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
+"prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
+"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI)))
+
               val baos = new ByteArrayOutputStream()
               transformer.transform(new StreamSource(new StringReader(data)), new StreamResult(baos))
               baos.flush()
@@ -260,10 +265,30 @@ class RDFServer(db : String) extends HttpServlet {
         }
       }
     }
+
+  def addNamespaces(model : Model) {
+    model.setNsPrefix("base", BASE_NAME)
+    model.setNsPrefix("ontology", BASE_NAME+"ontology#")
+    model.setNsPrefix(PREFIX1_QN, PREFIX1_URI)
+    model.setNsPrefix(PREFIX2_QN, PREFIX2_URI)
+    model.setNsPrefix(PREFIX3_QN, PREFIX3_URI)
+    model.setNsPrefix(PREFIX4_QN, PREFIX4_URI)
+    model.setNsPrefix(PREFIX5_QN, PREFIX5_URI)
+    model.setNsPrefix(PREFIX6_QN, PREFIX6_URI)
+    model.setNsPrefix(PREFIX7_QN, PREFIX7_URI)
+    model.setNsPrefix(PREFIX8_QN, PREFIX8_URI)
+    model.setNsPrefix(PREFIX9_QN, PREFIX9_URI)
+  }
+ 
   
   def rdfxmlToHtml(model : Model, title : String = "") : String = {
     val tf = TransformerFactory.newInstance()
-    val xslt = new Template(slurp(resolve("xsl/rdf2html.xsl"))).substitute("base" -> BASE_NAME)
+    addNamespaces(model)
+    val xslt = new Template(slurp(resolve("xsl/rdf2html.xsl"))).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
+"prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
+"prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
+"prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
+"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI)
     val transformer = tf.newTransformer(new StreamSource(new StringReader(xslt)))
     transformer.setOutputProperty(javax.xml.transform.OutputKeys.METHOD, "html")
     val rdfData = new StringWriter()
@@ -304,7 +329,7 @@ class RDFServer(db : String) extends HttpServlet {
         val qsParsed = req.getParameterMap().asInstanceOf[java.util.Map[String,Array[String]]]
         if(qsParsed.containsKey("query")) {
           val query = qsParsed.get("query")(0)
-          val prop = if(qsParsed.containsKey("property")) {
+          val prop = if(qsParsed.containsKey("property") && qsParsed.get("property")(0) != "") {
             Some(qsParsed.get("property")(0))
           } else {
             None
@@ -366,6 +391,7 @@ class RDFServer(db : String) extends HttpServlet {
             rdfxmlToHtml(model,  title)
           } else {
             val out = new java.io.StringWriter()
+            addNamespaces(model)
             RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
             out.toString()
           }

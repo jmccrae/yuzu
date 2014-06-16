@@ -1,9 +1,17 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE xsl:stylesheet [
-    <!ENTITY lemon   "http://lemon-model.net/lemon#">
     <!ENTITY base    "${base}">
     <!ENTITY ontology "${base}ontology#">
+    <!ENTITY prefix1 "${prefix1uri}">
+    <!ENTITY prefix2 "${prefix2uri}">
+    <!ENTITY prefix3 "${prefix3uri}">
+    <!ENTITY prefix4 "${prefix4uri}">
+    <!ENTITY prefix5 "${prefix5uri}">
+    <!ENTITY prefix6 "${prefix6uri}">
+    <!ENTITY prefix7 "${prefix7uri}">
+    <!ENTITY prefix8 "${prefix8uri}">
+    <!ENTITY prefix9 "${prefix9uri}">
 ]>
  
 <xsl:stylesheet version="1.0"
@@ -21,6 +29,36 @@ xmlns:ontology="${base}ontology">
     <xsl:choose>
       <xsl:when test="contains($$text,'&base;')">
         <xsl:value-of select="substring-after($$text,'&base;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&ontology;')">
+        <xsl:value-of select="substring-after($$text,'&ontology;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix1;')">
+        <xsl:value-of select="substring-after($$text,'&prefix1;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix2;')">
+        <xsl:value-of select="substring-after($$text,'&prefix2;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix3;')">
+        <xsl:value-of select="substring-after($$text,'&prefix3;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix4;')">
+        <xsl:value-of select="substring-after($$text,'&prefix4;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix5;')">
+        <xsl:value-of select="substring-after($$text,'&prefix5;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix6;')">
+        <xsl:value-of select="substring-after($$text,'&prefix6;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix7;')">
+        <xsl:value-of select="substring-after($$text,'&prefix7;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix8;')">
+        <xsl:value-of select="substring-after($$text,'&prefix8;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix9;')">
+        <xsl:value-of select="substring-after($$text,'&prefix9;')"/>
       </xsl:when>
       <xsl:otherwise>
         <xsl:value-of select="$$text"/>
@@ -304,7 +342,7 @@ xmlns:ontology="${base}ontology">
         </a>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:call-template name="forprop2" select="rdf:first"/>
+        <xsl:call-template name="forprop2"/><!-- select="rdf:first"/>-->
       </xsl:otherwise>
     </xsl:choose>
   </li>

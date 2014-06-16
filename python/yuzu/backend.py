@@ -79,9 +79,9 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("select subject from triples where property=? and object like ? limit ?", ("<%s>" % prop, "%%%s%%" % value, limit))
+            cursor.execute("select distinct subject from triples where property=? and object like ? limit ?", ("<%s>" % prop, "%%%s%%" % value, limit))
         else:
-            cursor.execute("select subject from triples where object like ? limit ?", ("%%%s%%" % value, limit))
+            cursor.execute("select distinct subject from triples where object like ? limit ?", ("%%%s%%" % value, limit))
         rows = cursor.fetchall()
         return [uri for uri, in rows]
 
