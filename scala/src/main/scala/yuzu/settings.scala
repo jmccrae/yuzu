@@ -6,7 +6,7 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://localhost:8051/"
+  val BASE_NAME = "http://localhost:8080/"
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/dump.nt.gz"
   // The local path to the data
@@ -16,7 +16,7 @@ object YuzuSettings {
   // The name of the server
   val DISPLAY_NAME = "Yuzu Example"
 
-  // Namespace prefixes
+  // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://www.example.com#"
   val PREFIX1_QN = "ex1"
   val PREFIX2_URI = "http://www.example.com#"

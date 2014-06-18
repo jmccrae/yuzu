@@ -181,9 +181,10 @@ class RDFBackend(Store):
                 prop = e[1]
                 obj = " ".join(e[2:-1])
                 cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (id, frag, prop, obj))
-                if obj.startswith("<" + BASE_NAME):
-                    id, frag = self.split_uri(obj)
-                    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
+                # TODO: Causes all kinds of weird issues with HTML generation, fix later
+                #if obj.startswith("<" + BASE_NAME):
+                #    id, frag = self.split_uri(obj[1:-1])
+                #    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
         if lines_read > 100000:
             sys.stderr.write("\n")
         conn.commit()

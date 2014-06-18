@@ -184,14 +184,16 @@ class RDFBackend(db : String) {
           ps1.setString(3, prop)
           ps1.setString(4, obj)
           ps1.execute()
-          if(obj.startsWith("<"+BASE_NAME)) {
+          /* TODO: Causes all kinds of weird issues with HTML generation, fix later
+           * if(obj.startsWith("<"+BASE_NAME)) {
             val (id2, frag2) = splitUri(obj)
             val ps2 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 1)")
             ps2.setString(1, id2)
             ps2.setString(2, frag2)
             ps2.setString(3, prop)
             ps2.setString(4, obj)
-          }
+            ps2.execute()
+          }*/
         }
       }
       if(linesRead > 100000) {

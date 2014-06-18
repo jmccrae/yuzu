@@ -267,7 +267,6 @@ class RDFServer(db : String) extends HttpServlet {
     }
 
   def addNamespaces(model : Model) {
-    model.setNsPrefix("base", BASE_NAME)
     model.setNsPrefix("ontology", BASE_NAME+"ontology#")
     model.setNsPrefix(PREFIX1_QN, PREFIX1_URI)
     model.setNsPrefix(PREFIX2_QN, PREFIX2_URI)

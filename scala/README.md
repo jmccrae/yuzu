@@ -2,7 +2,7 @@ Yuzu (Scala)
 ============
 
 This documentation describes how to get started with the Scala version
-of the Yuzu RDF Publishing Micro-Installation
+of the Yuzu RDF Publishing micro-framework
 
 Compiling
 ---------
@@ -28,8 +28,8 @@ resources hosted at this endpoint must start with this URI.
 N-Triple file, preferrably the output of a `rapper -o ntriples` command
 * `DISPLAY_NAME`: The human-readable name of your dataset
 
-After this it is necessary to create the database by using the `run` target of
-SBT, e.g.,
+After changing these variables it is necessary to create the database by using 
+the `run` target of SBT, e.g.,
 
     sbt run
 

@@ -207,12 +207,34 @@ class RDFServer:
                 else:
                     start_response('200 OK', [('Content-type','text/html')])
                     dom = et.parse(StringIO(result))
-                    xslt = et.parse(resolve("xsl/sparql2html.xsl"))
+                    xslt = et.parse(StringIO(Template(open(resolve("xsl/sparql2html.xsl")).read()).substitute(base=BASE_NAME,
+                        prefix1uri=PREFIX1_URI, prefix1qn=PREFIX1_QN,
+                        prefix2uri=PREFIX2_URI, prefix2qn=PREFIX2_QN,
+                        prefix3uri=PREFIX3_URI, prefix3qn=PREFIX3_QN,
+                        prefix4uri=PREFIX4_URI, prefix4qn=PREFIX4_QN,
+                        prefix5uri=PREFIX5_URI, prefix5qn=PREFIX5_QN,
+                        prefix6uri=PREFIX6_URI, prefix6qn=PREFIX6_QN,
+                        prefix7uri=PREFIX7_URI, prefix7qn=PREFIX7_QN,
+                        prefix8uri=PREFIX8_URI, prefix8qn=PREFIX8_QN,
+                        prefix9uri=PREFIX9_URI, prefix9qn=PREFIX9_QN)))
+
                     transform = et.XSLT(xslt)
                     new_dom = transform(dom)
                     return self.render_html("SPARQL Results", et.tostring(new_dom, pretty_print=True))
         finally:
             graph.close()
+
+    def add_namespaces(self, graph):
+        graph.namespace_manager.bind("ontology", BASE_NAME+"ontology#")
+        graph.namespace_manager.bind(PREFIX1_QN, PREFIX1_URI)
+        graph.namespace_manager.bind(PREFIX2_QN, PREFIX2_URI)
+        graph.namespace_manager.bind(PREFIX3_QN, PREFIX3_URI)
+        graph.namespace_manager.bind(PREFIX4_QN, PREFIX4_URI)
+        graph.namespace_manager.bind(PREFIX5_QN, PREFIX5_URI)
+        graph.namespace_manager.bind(PREFIX6_QN, PREFIX6_URI)
+        graph.namespace_manager.bind(PREFIX7_QN, PREFIX7_URI)
+        graph.namespace_manager.bind(PREFIX8_QN, PREFIX8_URI)
+        graph.namespace_manager.bind(PREFIX9_QN, PREFIX9_URI)
 
 
     def rdfxml_to_html(self, graph, title=""):
@@ -220,8 +242,18 @@ class RDFServer:
         @param graph The RDFlib graph object
         @param title The page header to show (optional)
         """
+        self.add_namespaces(graph)
         dom = et.parse(StringIO(graph.serialize(format="pretty-xml")))
-        xslt = et.parse(StringIO(Template(open(resolve("xsl/rdf2html.xsl")).read()).substitute(base=BASE_NAME)))
+        xslt = et.parse(StringIO(Template(open(resolve("xsl/rdf2html.xsl")).read()).substitute(base=BASE_NAME,
+                        prefix1uri=PREFIX1_URI, prefix1qn=PREFIX1_QN,
+                        prefix2uri=PREFIX2_URI, prefix2qn=PREFIX2_QN,
+                        prefix3uri=PREFIX3_URI, prefix3qn=PREFIX3_QN,
+                        prefix4uri=PREFIX4_URI, prefix4qn=PREFIX4_QN,
+                        prefix5uri=PREFIX5_URI, prefix5qn=PREFIX5_QN,
+                        prefix6uri=PREFIX6_URI, prefix6qn=PREFIX6_QN,
+                        prefix7uri=PREFIX7_URI, prefix7qn=PREFIX7_QN,
+                        prefix8uri=PREFIX8_URI, prefix8qn=PREFIX8_QN,
+                        prefix9uri=PREFIX9_URI, prefix9qn=PREFIX9_QN)))
         transform = et.XSLT(xslt)
         newdom = transform(dom)
         return self.render_html(title, et.tostring(newdom, pretty_print=True))
@@ -277,7 +309,7 @@ class RDFServer:
         # The favicon (i.e., the logo users see in the browser next to the title)
         elif uri.startswith("/favicon.ico") and exists(resolve("assets/favicon.ico")):
             start_response('200 OK', [('Content-type', 'image/png'),
-                ('Content-length', str(os.stat("assets/favicon.ico").st_size))])
+                ('Content-length', str(os.stat(resolve("assets/favicon.ico")).st_size))])
             return open(resolve("assets/favicon.ico"), "rb").read()
         # Any assets requests
         elif uri.startswith(ASSETS_PATH) and exists(resolve(uri[1:])):
@@ -321,6 +353,7 @@ class RDFServer:
                 content = self.rdfxml_to_html(graph, title)
             else:
                 try:
+                    self.add_namespaces(graph)
                     content = graph.serialize(format=mime)#, context=self.wordnet_context.jsonld_context)
                 except Exception as e:
                     print (e)
@@ -378,7 +411,7 @@ if __name__ == "__main__":
     opts = dict(getopt.getopt(sys.argv[1:],'d:p:')[0])
     server = RDFServer(opts.get('-d',DB_FILE))
 
-    httpd = make_server('localhost', int(opts.get('-p',8051)), server.application)
+    httpd = make_server('localhost', int(opts.get('-p',8080)), server.application)
 
     while True:
         httpd.handle_request()
