@@ -63,10 +63,30 @@ class RDFBackend(Store):
                     g.add((from_n3(o), from_n3(p), self.name(id, f)))
                 else:
                     g.add((self.name(id, f), from_n3(p), from_n3(o)))
+                if o.startswith("_:"):
+                    self.lookup_blanks(g, o, conn)
             conn.close()
             return g
         else:
             return None
+
+    def lookup_blanks(self, g, bn, conn):
+        """Recursively find any relevant blank nodes for
+        the current lookup
+        @param g The graph
+        @param bn The blank node ID (starting _:)
+        @param conn The database connection
+        """
+        cursor = conn.cursor()
+        cursor.execute("select property, object from triples where subject=\"<BLANK>\" and fragment=?", (bn[2:],))
+        rows = cursor.fetchall()
+        if rows:
+            for p, o in rows:
+                g.add((from_n3(bn), from_n3(p), from_n3(o)))
+            if o.startswith("_:"):
+                self.lookup_blanks(g, o, conn)
+        cursor.close()
+        
 
     def search(self, value, prop, limit=20):
         """Search for pages with the appropriate property
@@ -162,7 +182,7 @@ class RDFBackend(Store):
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-        cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0)")
+        cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
         cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
         if not SPARQL_ENDPOINT:
             cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
@@ -185,6 +205,12 @@ class RDFBackend(Store):
                 #if obj.startswith("<" + BASE_NAME):
                 #    id, frag = self.split_uri(obj[1:-1])
                 #    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
+            elif e[0].startswith("_:"):
+                id, frag = "<BLANK>", e[0][2:]
+                prop = e[1]
+                obj = " ".join(e[2:-1])
+                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (id, frag, prop, obj))
+
         if lines_read > 100000:
             sys.stderr.write("\n")
         conn.commit()

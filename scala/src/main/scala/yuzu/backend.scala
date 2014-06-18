@@ -86,10 +86,30 @@ class RDFBackend(db : String) {
         subject match {
           case r : Resource => r.addProperty(property, obj)
         }
+        if(o.startsWith("_:")) {
+          lookupBlanks(model, obj.asInstanceOf[Resource])
+        }
       }
     } while(rows.next())
     return Some(model)
   }
+
+  def lookupBlanks(model : Model, bn : Resource) {
+    val ps = conn.prepareStatement("select property, object from triples where subject=\"<BLANK>\" and fragment=?")
+    ps.setString(1, bn.getId().getLabelString())
+    val rows = ps.executeQuery()
+    while(rows.next()) {
+      val p = rows.getString(1)
+      val o = rows.getString(2)
+      val property = prop_from_n3(p, model)
+      val obj = from_n3(o, model)
+      bn.addProperty(property, obj)
+      if(o.startsWith("_:")) {
+        lookupBlanks(model, obj.asInstanceOf[Resource])
+      }
+    }
+  }
+
 
   def search(query : String, property : Option[String], limit : Int = 20) : List[String] = {
     val ps = property match {
@@ -158,7 +178,7 @@ class RDFBackend(db : String) {
     val oldAutocommit = conn.getAutoCommit()
     try {
       conn.setAutoCommit(false)
-      cursor.execute("create table if not exists [triples] ([subject] VARCHAR(80), [fragment] VARCHAR(80), property VARCHAR(80) NOT NULL, object VARCHAR(256) NOT NULL, inverse INT DEFAULT 0)")
+      cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
       cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
       if(SPARQL_ENDPOINT == None) {
         cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
@@ -194,7 +214,18 @@ class RDFBackend(db : String) {
             ps2.setString(4, obj)
             ps2.execute()
           }*/
+        } else if(subj.startsWith("_:")) {
+          val (id, frag) = ("<BLANK>", subj.drop(2))
+          val prop = e(1)
+          val obj = e.drop(2).dropRight(1).mkString(" ")
+          val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
+          ps1.setString(1, id)
+          ps1.setString(2, frag)
+          ps1.setString(3, prop)
+          ps1.setString(4, obj)
+          ps1.execute()
         }
+
       }
       if(linesRead > 100000) {
         System.err.println()
