@@ -76,5 +76,9 @@ class BackendTest extends FlatSpec with Matchers {
     val (_, result) = backend.listResources(0, 100)
     result.size should be (1)
   }
+
+  "unicodeEscape" should "work" in {
+    RDFBackend.unicodeEscape("m\\u00fcll") should be ("müll")
+  }
 }
 

@@ -25,7 +25,7 @@ class YuzuTests(unittest.TestCase):
         os.remove("test.db")
 
     def test_resolve(self):
-        self.assertEqual(os.path.abspath(__file__), os.path.abspath(server.resolve('yuzu/tests.py')))
+        assert(os.path.exists(server.resolve('xsl/rdf2html.xsl')))
 
     def test_SPARQLExecutor_run(self):
         g = Graph()
@@ -140,6 +140,9 @@ class YuzuTests(unittest.TestCase):
     def test_RDFBackend_load(self):
         # Tested in setUp
         pass
+
+    def test_RDFBackend_unicode_escape(self):
+        self.assertEqual(u'm\xfcll', backend.unicode_escape("m\\u00fcll"))
 
 
 if __name__ == '__main__':

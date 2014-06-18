@@ -199,10 +199,10 @@ class RDFBackend(db : String) {
           val prop = e(1)
           val obj = e.drop(2).dropRight(1).mkString(" ")
           val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
-          ps1.setString(1, id)
-          ps1.setString(2, frag)
-          ps1.setString(3, prop)
-          ps1.setString(4, obj)
+          ps1.setString(1, RDFBackend.unicodeEscape(id))
+          ps1.setString(2, RDFBackend.unicodeEscape(frag))
+          ps1.setString(3, RDFBackend.unicodeEscape(prop))
+          ps1.setString(4, RDFBackend.unicodeEscape(obj))
           ps1.execute()
           /* TODO: Causes all kinds of weird issues with HTML generation, fix later
            * if(obj.startsWith("<"+BASE_NAME)) {
@@ -219,10 +219,10 @@ class RDFBackend(db : String) {
           val prop = e(1)
           val obj = e.drop(2).dropRight(1).mkString(" ")
           val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
-          ps1.setString(1, id)
-          ps1.setString(2, frag)
-          ps1.setString(3, prop)
-          ps1.setString(4, obj)
+          ps1.setString(1, RDFBackend.unicodeEscape(id))
+          ps1.setString(2, RDFBackend.unicodeEscape(frag))
+          ps1.setString(3, RDFBackend.unicodeEscape(prop))
+          ps1.setString(4, RDFBackend.unicodeEscape(obj))
           ps1.execute()
         }
 
@@ -408,6 +408,18 @@ object RDFBackend {
     return "\"%s\"^^<%s>" format (node.getLiteralValue().toString().replaceAll("\"","\\\\\""), node.getLiteralDatatypeURI())
   } else {
     return "\"%s\"" format (node.getLiteralValue().toString().replaceAll("\"","\\\\\""))
+  }
+
+  def unicodeEscape(str : String) : String = {
+    val sb = new StringBuilder(str)
+    var i = 0
+    while(i < sb.length) {
+      if(sb.slice(i,i+2).toString == "\\u") {
+        sb.replace(i,i+6, Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString)
+      }
+      i += 1
+    }
+    return sb.toString
   }
 
   def main(args : Array[String]) {

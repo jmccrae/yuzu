@@ -200,7 +200,7 @@ class RDFBackend(Store):
                 id, frag = self.split_uri(subj)
                 prop = e[1]
                 obj = " ".join(e[2:-1])
-                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (id, frag, prop, obj))
+                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (unicode_escape(id), unicode_escape(frag), unicode_escape(prop), unicode_escape(obj)))
                 # TODO: Causes all kinds of weird issues with HTML generation, fix later
                 #if obj.startswith("<" + BASE_NAME):
                 #    id, frag = self.split_uri(obj[1:-1])
@@ -209,7 +209,7 @@ class RDFBackend(Store):
                 id, frag = "<BLANK>", e[0][2:]
                 prop = e[1]
                 obj = " ".join(e[2:-1])
-                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (id, frag, prop, obj))
+                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (unicode_escape(id), unicode_escape(frag), unicode_escape(prop), unicode_escape(obj)))
 
         if lines_read > 100000:
             sys.stderr.write("\n")
@@ -217,6 +217,15 @@ class RDFBackend(Store):
         cursor.close()
         conn.close()
 
+# TODO: Make this faster
+def unicode_escape(string):
+    s = string.decode()
+    i = 0
+    while i < len(s):
+        if s[i:i+2] == "\\u":                
+            s = s[:i] + unichr(int(s[i+2:i+6], 16)) + s[i+6:]
+        i += 1
+    return s
 
 if __name__ == "__main__":
     opts = dict(getopt.getopt(sys.argv[1:],'d:f:')[0])

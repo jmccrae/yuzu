@@ -215,11 +215,17 @@ class RDFServer(db : String) extends HttpServlet {
               resp.addHeader("Content-type", "text/html")
               resp.setStatus(SC_OK)
               val tf = TransformerFactory.newInstance()
-              val transformer = tf.newTransformer(new StreamSource(new Template(resolve("xsl/sparql2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
+              val xslDoc = new Template(slurp(resolve("xsl/sparql2html.xsl"))).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
 "prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
 "prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
 "prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
-"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI)))
+"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI,
+"prefix1qn" -> PREFIX1_QN, "prefix2qn" -> PREFIX2_QN,
+"prefix3qn" -> PREFIX3_QN, "prefix4qn" -> PREFIX4_QN,
+"prefix5qn" -> PREFIX5_QN, "prefix6qn" -> PREFIX6_QN,
+"prefix7qn" -> PREFIX7_QN, "prefix8qn" -> PREFIX8_QN,
+"prefix9qn" -> PREFIX9_QN)
+              val transformer = tf.newTransformer(new StreamSource(new StringReader(xslDoc)))
 
               val baos = new ByteArrayOutputStream()
               transformer.transform(new StreamSource(new StringReader(data)), new StreamResult(baos))

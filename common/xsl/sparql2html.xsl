@@ -90,31 +90,31 @@
                     <xsl:value-of select="concat('owl:',substring-after(.,'&owl;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix1;')">
-                    <xsl:value-of select="concat('${prefix1qn}:',substring-after(.,'&prefix1;')"/>
+                    <xsl:value-of select="concat('${prefix1qn}:',substring-after(.,'&prefix1;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix2;')">
-                    <xsl:value-of select="concat('${prefix2qn}:',substring-after(.,'&prefix2;')"/>
+                    <xsl:value-of select="concat('${prefix2qn}:',substring-after(.,'&prefix2;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix3;')">
-                    <xsl:value-of select="concat('${prefix3qn}:',substring-after(.,'&prefix3;')"/>
+                    <xsl:value-of select="concat('${prefix3qn}:',substring-after(.,'&prefix3;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix4;')">
-                    <xsl:value-of select="concat('${prefix4qn}:',substring-after(.,'&prefix4;')"/>
+                    <xsl:value-of select="concat('${prefix4qn}:',substring-after(.,'&prefix4;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix5;')">
-                    <xsl:value-of select="concat('${prefix5qn}:',substring-after(.,'&prefix5;')"/>
+                    <xsl:value-of select="concat('${prefix5qn}:',substring-after(.,'&prefix5;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix6;')">
-                    <xsl:value-of select="concat('${prefix6qn}:',substring-after(.,'&prefix6;')"/>
+                    <xsl:value-of select="concat('${prefix6qn}:',substring-after(.,'&prefix6;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix7;')">
-                    <xsl:value-of select="concat('${prefix7qn}:',substring-after(.,'&prefix7;')"/>
+                    <xsl:value-of select="concat('${prefix7qn}:',substring-after(.,'&prefix7;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix8;')">
-                    <xsl:value-of select="concat('${prefix8qn}:',substring-after(.,'&prefix8;')"/>
+                    <xsl:value-of select="concat('${prefix8qn}:',substring-after(.,'&prefix8;'))"/>
                 </xsl:when>
                 <xsl:when test="contains(.,'&prefix9;')">
-                    <xsl:value-of select="concat('${prefix9qn}:',substring-after(.,'&prefix9;')"/>
+                    <xsl:value-of select="concat('${prefix9qn}:',substring-after(.,'&prefix9;'))"/>
                 </xsl:when>
                 <xsl:otherwise>
                     <xsl:value-of select="."/>
