@@ -1,9 +1,18 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE xsl:stylesheet [
-    <!ENTITY lemon   "http://lemon-model.net/lemon#">
     <!ENTITY base    "${base}">
     <!ENTITY ontology "${base}ontology#">
+    <!ENTITY prefix1 "${prefix1uri}">
+    <!ENTITY prefix2 "${prefix2uri}">
+    <!ENTITY prefix3 "${prefix3uri}">
+    <!ENTITY prefix4 "${prefix4uri}">
+    <!ENTITY prefix5 "${prefix5uri}">
+    <!ENTITY prefix6 "${prefix6uri}">
+    <!ENTITY prefix7 "${prefix7uri}">
+    <!ENTITY prefix8 "${prefix8uri}">
+    <!ENTITY prefix9 "${prefix9uri}">
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">
 ]>
  
 <xsl:stylesheet version="1.0"
@@ -22,6 +31,36 @@ xmlns:ontology="${base}ontology">
       <xsl:when test="contains($$text,'&base;')">
         <xsl:value-of select="substring-after($$text,'&base;')"/>
       </xsl:when>
+      <xsl:when test="contains($$text,'&ontology;')">
+        <xsl:value-of select="substring-after($$text,'&ontology;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix1;')">
+        <xsl:value-of select="substring-after($$text,'&prefix1;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix2;')">
+        <xsl:value-of select="substring-after($$text,'&prefix2;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix3;')">
+        <xsl:value-of select="substring-after($$text,'&prefix3;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix4;')">
+        <xsl:value-of select="substring-after($$text,'&prefix4;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix5;')">
+        <xsl:value-of select="substring-after($$text,'&prefix5;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix6;')">
+        <xsl:value-of select="substring-after($$text,'&prefix6;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix7;')">
+        <xsl:value-of select="substring-after($$text,'&prefix7;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix8;')">
+        <xsl:value-of select="substring-after($$text,'&prefix8;')"/>
+      </xsl:when>
+      <xsl:when test="contains($$text,'&prefix9;')">
+        <xsl:value-of select="substring-after($$text,'&prefix9;')"/>
+      </xsl:when>
       <xsl:otherwise>
         <xsl:value-of select="$$text"/>
       </xsl:otherwise>
@@ -32,58 +71,32 @@ xmlns:ontology="${base}ontology">
   
 <xsl:template match="/rdf:RDF">  
   <p>
-  <xsl:choose>
-    <xsl:when test="count(*[substring-after(@rdf:about,'#')='']) = 1">
-     <xsl:for-each select="*[substring-after(@rdf:about,'#')='']">
-         <h1>
-             <xsl:call-template name="display-uri">
-                 <xsl:with-param name="text" select="@rdf:about"/>
-             </xsl:call-template>
-             <img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/>
-        </h1>
-        <xsl:call-template name="rdf_links"/>
-        <!--
-
-
-             <xsl:value-of select="@rdf:about"/>
-         &#160;&#160;
-         <a>
-           <xsl:attribute name="href">
-             <xsl:value-of select="concat(@rdf:about,'.rdf')"/>
-           </xsl:attribute>
-           <img src="/img/rdf_flyer.png"/>
-         </a>
-         <a>
-           <xsl:attribute name="href">
-             <xsl:value-of select="concat(@rdf:about,'.ttl')"/>
-           </xsl:attribute>
-           <img src="/img/icon_turtle.gif"/>
-         </a>
-       </h2>
-       <h5>Instance of: <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
-           <xsl:attribute name="href">
-           <xsl:value-of select="concat(namespace-uri(),local-name())"/>
-           </xsl:attribute>
-           <xsl:value-of select="name()"/>
-           </a>
-       </h5>-->
-       <xsl:call-template name="forprop"/>
-    </xsl:for-each>
-    </xsl:when>
-    <xsl:otherwise>
-     <xsl:for-each select="*[substring-after(@rdf:about,'#')='']">
-       <h2><xsl:value-of select="@rdf:about"/></h2>
-       <h5>Instance of: <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
-           <xsl:attribute name="href">
-           <xsl:value-of select="concat(namespace-uri(),local-name())"/>
-           </xsl:attribute>
-           <xsl:value-of select="name()"/>
-           </a>
-       </h5>
-       <xsl:call-template name="forprop"/>
-    </xsl:for-each>
-    </xsl:otherwise>
-  </xsl:choose>
+      <h1>
+          <xsl:choose>
+              <xsl:when test="count(*) = 1">
+                  <xsl:call-template name="display-uri">
+                      <xsl:with-param name="text" select="*/@rdf:about"/>
+                  </xsl:call-template>
+              </xsl:when>
+              <xsl:otherwise>RDF Document</xsl:otherwise>
+          </xsl:choose>
+          <img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/>
+      </h1>
+      <xsl:call-template name="rdf_links"/>
+      <xsl:for-each select="*">
+          <xsl:if test="count(../*) != 1">
+              <h2><xsl:value-of select="@rdf:about"/></h2>
+              <h5>Instance of: 
+                  <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
+                      <xsl:attribute name="href">
+                          <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                      </xsl:attribute>
+                      <xsl:value-of select="name()"/>
+                  </a>
+              </h5>
+          </xsl:if>
+          <xsl:call-template name="forprop"/>
+      </xsl:for-each>
   </p>
 </xsl:template>
 
@@ -150,6 +163,13 @@ xmlns:ontology="${base}ontology">
                 </xsl:otherwise>
                 </xsl:choose>
               </xsl:when>
+              <xsl:when test="@rdf:parseType='Collection'">
+                  <ol>
+                      <xsl:for-each select="rdf:Description">
+                          <xsl:call-template name="list"/>
+                      </xsl:for-each>
+                  </ol>
+              </xsl:when>
               <xsl:when test="node()[last()]/self::text()">
                  <xsl:call-template name="lang">
                      <xsl:with-param name="lang_id" select="@xml:lang"/>
@@ -185,6 +205,8 @@ xmlns:ontology="${base}ontology">
 
 
 <xsl:template name="forprop2">
+    <xsl:choose>
+        <xsl:when test="*">
   <table class="rdf table table-hover">
      <xsl:if test="not(name()='rdf:Description')">
        <tr class="active">
@@ -254,6 +276,13 @@ xmlns:ontology="${base}ontology">
                 </xsl:otherwise>
                 </xsl:choose>
               </xsl:when>
+              <xsl:when test="@rdf:parseType='Collection'">
+                  <ol>
+                      <xsl:for-each select="*">
+                          <xsl:call-template name="list"/>
+                      </xsl:for-each>
+                  </ol>
+              </xsl:when>
               <xsl:when test="node()[last()]/self::text()">  
                   <xsl:call-template name="lang">
                      <xsl:with-param name="lang_id" select="@xml:lang"/>
@@ -265,7 +294,7 @@ xmlns:ontology="${base}ontology">
               </xsl:when>
 	      <xsl:when test="rdf:Description/rdf:first">
 	        <ol>
-		  <xsl:for-each select="rdf:Description">
+		  <xsl:for-each select="*">
   		    <xsl:call-template name="list"/>
 		  </xsl:for-each>
 		</ol>
@@ -285,6 +314,9 @@ xmlns:ontology="${base}ontology">
        </tr>
     </xsl:for-each>
   </table>
+  </xsl:when>
+  <xsl:otherwise/>
+  </xsl:choose>
 </xsl:template>
 
 <xsl:template name="list">
@@ -303,8 +335,25 @@ xmlns:ontology="${base}ontology">
           </xsl:call-template>
         </a>
       </xsl:when>
+      <xsl:when test="@rdf:about">
+          <xsl:choose>
+              <xsl:when test="not(*)">
+              <a property="&rdf;first">
+                  <xsl:attribute name="href">
+                      <xsl:value-of select="@rdf:about"/>
+                  </xsl:attribute>
+                  <xsl:call-template name="display-uri">
+                      <xsl:with-param name="text" select="@rdf:about"/>
+                  </xsl:call-template>
+              </a>
+              </xsl:when>
+              <xsl:otherwise>
+                  <xsl:call-template name="forprop2"/>
+              </xsl:otherwise>
+          </xsl:choose>
+      </xsl:when>
       <xsl:otherwise>
-        <xsl:call-template name="forprop2" select="rdf:first"/>
+        <xsl:call-template name="forprop2"/><!-- select="rdf:first"/>-->
       </xsl:otherwise>
     </xsl:choose>
   </li>
