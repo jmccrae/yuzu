@@ -200,6 +200,7 @@ class RDFBackend(db : String) extends Backend {
         if(linesRead % 100000 == 0) {
           System.err.print(".")
           System.err.flush()
+          conn.commit()
         }
         val e = line.split(" ")
         val subj = e(0).drop(1).dropRight(1)
