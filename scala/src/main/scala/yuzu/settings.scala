@@ -6,15 +6,15 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://localhost:8080/"
+  val BASE_NAME = "http://linghub.lider-project.eu/"
   // The data download will be at BASE_NAME + DUMP_URI
-  val DUMP_URI = "/dump.nt.gz"
+  val DUMP_URI = "/linghub.nt.gz"
   // The local path to the data
-  val DUMP_FILE = "../example.nt.gz"
+  val DUMP_FILE = "../linghub.nt.gz"
   // Where the SQLite database should appear
   val DB_FILE = "db.sqlite"
   // The name of the server
-  val DISPLAY_NAME = "Yuzu Example"
+  val DISPLAY_NAME = "LingHub"
 
   // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://www.example.com#"
