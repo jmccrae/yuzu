@@ -2,7 +2,7 @@ package com.github.jmccrae.yuzu
 
 import com.github.jmccrae.yuzu.YuzuSettings._
 import com.github.jmccrae.yuzu.YuzuUserText._
-import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node}
+import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node, Graph}
 import com.hp.hpl.jena.util.iterator.ExtendedIterator
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
 import java.sql.{DriverManager, ResultSet}
@@ -10,7 +10,16 @@ import java.io.FileInputStream
 import java.util.zip.GZIPInputStream
 import gnu.getopt.Getopt
 
-class RDFBackend(db : String) {
+trait Backend {
+  def graph : Graph
+  def lookup(id : String) : Option[Model]
+  def listResources(offset : Int, limit : Int) : (Boolean,List[String])
+  def search(query : String, property : Option[String], limit : Int = 20) : List[String]
+  def load(inputStream : java.io.InputStream) : Unit
+  def close() : Unit
+}
+
+class RDFBackend(db : String) extends Backend {
   try {
     Class.forName("org.sqlite.JDBC")
   } catch {
@@ -442,3 +451,4 @@ object RDFBackend {
     backend.close()
   }
 }
+
