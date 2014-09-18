@@ -117,3 +117,11 @@ tr.sparql_body {
 .list_offset {
     float:right;
 }
+
+.pager li>a {
+    color:#007fff;
+}
+
+.pager li>a:hover {
+    color:#007fff;
+}

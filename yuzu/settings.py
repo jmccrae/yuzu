@@ -1,5 +1,0 @@
-BASE_NAME = "http://linghub.org/"
-DUMP_URI = "/linghub.nt.gz"
-DUMP_FILE = "linghub.nt.gz"
-DB_FILE = "db.sqlite"
-DISPLAY_NAME = "LingHub"
