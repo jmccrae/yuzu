@@ -4,6 +4,7 @@ import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.jmccrae.yuzu.YuzuSettings._
 import org.apache.jena.riot.{RDFDataMgr, RDFFormat}
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
+import java.net.URL
 import java.nio.file.Files
 import java.io.{ByteArrayOutputStream, PipedOutputStream, PipedInputStream, StringReader, InputStream,
 OutputStream, File, FileInputStream, StringWriter}
@@ -27,24 +28,28 @@ object nt extends ResultType("text/plain", Some(RDFFormat.NT))
 object jsonld extends ResultType("application/ld+json", Some(RDFFormat.RDFJSON))
 object error extends ResultType("text/html", None)
 
+trait PathResolver {
+  def apply(fname : String) : URL
+}
+
 object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
-  def resolve(fname : String) = try {
-    val cls = this.getClass()
-    val pd = cls.getProtectionDomain()
-    val cs = pd.getCodeSource()
-    val loc = cs.getLocation()
-    if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
-      loc.getPath() + fname
-    } else {
-      "../common/" + fname
-    }
-  } catch {
-    case x : Exception =>  "../common/" + fname
-  }
+//  def resolve(fname : String) = try {
+//    val cls = this.getClass()
+//    val pd = cls.getProtectionDomain()
+//    val cs = pd.getCodeSource()
+//    val loc = cs.getLocation()
+//    if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+//      loc.getPath() + fname
+//    } else {
+//      "../common/" + fname
+//    }
+//  } catch {
+//    case x : Exception =>  "../common/" + fname
+//  }
 
-  def renderHTML(title : String, text : String) = {
+  def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
     val template = new Template(slurp(resolve("html/page.html")))
     template.substitute("title"-> title, "content" -> text)
   }
@@ -56,7 +61,7 @@ object RDFServer {
   def send404(resp : HttpServletResponse) { 
     resp.sendError(SC_NOT_FOUND, YZ_NOT_FOUND_PAGE)
   }
-  def send501(resp : HttpServletResponse, message : String = YZ_JSON_LD_NOT_INSTALLED) {
+  def send501(resp : HttpServletResponse, message : String = YZ_JSON_LD_NOT_INSTALLED)(implicit resolve : PathResolver) {
     resp.sendError(SC_NOT_IMPLEMENTED,
       renderHTML(YZ_NOT_IMPLEMENTED, message))
   }
@@ -106,7 +111,10 @@ object RDFServer {
     }
   }
 
-  def slurp(name : String) = io.Source.fromFile(name).getLines.mkString("\n")
+  def slurp(name : String) = _slurp(io.Source.fromFile(name))
+  def slurp(url : URL) = _slurp(io.Source.fromURL(url))
+    
+  def _slurp(src : io.Source) = src.getLines.mkString("\n")
   implicit def responsePimp(resp : HttpServletResponse) = new {
     def respond(contentType : String, status : Int, args : (String,String)*)(foo : java.io.PrintWriter => Unit) = {
       resp.addHeader("Content-type", contentType)
@@ -119,11 +127,12 @@ object RDFServer {
       out.flush()
       out.close()
     }
-    def binary(contentType : String, file : String) { binary(contentType, new File(file)) }
-    def binary(contentType : String, file : File) {
+    def binary(contentType : String, file : URL) {
       resp.addHeader("Content-type", contentType)
-      resp.addHeader("Content-length", file.length().toString)
-      val in = new FileInputStream(file)
+      if(file.getProtocol() == "file") {
+        resp.addHeader("Content-length", new File(file.getPath()).length().toString)
+      }
+      val in = file.openStream()
       val out = resp.getOutputStream()
       val buf = new Array[Byte](4096)
       var read = 0
@@ -138,6 +147,35 @@ object RDFServer {
 
 class RDFServer(db : String) extends HttpServlet {
   import RDFServer._
+ 
+  implicit class URLPimps(url : URL) {
+    def exists = if(url.getProtocol() == "file") {
+      new File(url.getPath()).exists
+    } else {
+      true
+    }
+  }
+
+  implicit val resolve = new PathResolver {
+    def apply(fname : String) = try {
+      getServletContext().getResource(fname)
+    } catch {
+      case x : IllegalStateException =>
+        val cls = this.getClass()
+        val pd = cls.getProtectionDomain()
+        val cs = pd.getCodeSource()
+        val loc = cs.getLocation()
+        if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+          new URL("file:"+loc.getPath() + fname)
+        } else {
+          if(new File(fname).exists) {
+            new URL("file:"+fname)
+          } else {
+            new URL("file:../" + fname)
+          }
+        }
+    }
+  }
 
   private val mimeTypes = Map(
      )
@@ -292,10 +330,10 @@ class RDFServer(db : String) extends HttpServlet {
         send400(resp, YZ_NO_QUERY)
       }
     } else if(uri == DUMP_URI) {
-      resp.binary("application/x-gzip", DUMP_FILE)
-    } else if(uri == "/favicon.ico" && new File(resolve("assets/favicon.ico")).exists) {
+      resp.binary("application/x-gzip", resolve(DUMP_FILE))
+    } else if(uri == "/favicon.ico" && (resolve("assets/favicon.ico")).exists) {
       resp.binary("image/png", resolve("assets/favicon.ico"))
-    } else if(uri.startsWith(ASSETS_PATH) && new File(resolve(uri.drop(1))).exists()) {
+    } else if(uri.startsWith(ASSETS_PATH) && (resolve(uri.drop(1))).exists) {
       resp.binary(Files.probeContentType(new File(uri).toPath()), resolve(uri.drop(1)))
     } else if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
       if(req.getQueryString() != null) {

@@ -145,6 +145,7 @@ class RDFBackend(db : String) extends Backend {
         }
       }
     } while(rows.next())
+    ps.close()
     return Some(model)
   }
 
@@ -162,6 +163,7 @@ class RDFBackend(db : String) extends Backend {
         lookupBlanks(model, obj.asInstanceOf[Resource])
       }
     }
+    ps.close()
   }
 
 
@@ -186,6 +188,7 @@ class RDFBackend(db : String) extends Backend {
     while(rs.next()) {
       results += rs.getString(1)
     }
+    ps.close
     return results.toList
   }
 
@@ -196,6 +199,7 @@ class RDFBackend(db : String) extends Backend {
     val rs = ps.executeQuery()
     var n = 0
     if(!rs.next()) {
+      ps.close()
       return (false, Nil)
     }
     var results = collection.mutable.ListBuffer[String]()
@@ -204,6 +208,7 @@ class RDFBackend(db : String) extends Backend {
       n += 1
     } while(rs.next())
 
+    ps.close()
     if(n >= limit) {
       results.remove(n - 1)
       return (true, results.toList)
@@ -262,6 +267,7 @@ class RDFBackend(db : String) extends Backend {
             ps1.setString(3, RDFBackend.unicodeEscape(prop))
             ps1.setString(4, RDFBackend.unicodeEscape(obj))
             ps1.execute()
+            ps1.close()
             /* TODO: Causes all kinds of weird issues with HTML generation, fix later
              * if(obj.startsWith("<"+BASE_NAME)) {
               val (id2, frag2) = splitUri(obj)
@@ -271,6 +277,7 @@ class RDFBackend(db : String) extends Backend {
               ps2.setString(3, prop)
               ps2.setString(4, obj)
               ps2.execute()
+              ps2.close()
             }*/
           } else if(subj.startsWith("_:")) {
             val (id, frag) = ("<BLANK>", subj.drop(2))
@@ -282,6 +289,7 @@ class RDFBackend(db : String) extends Backend {
             ps1.setString(3, RDFBackend.unicodeEscape(prop))
             ps1.setString(4, RDFBackend.unicodeEscape(obj))
             ps1.execute()
+            ps1.close()
           }
         } catch {
           case t : Throwable =>
@@ -336,22 +344,23 @@ class RDFBackendGraph(conn : java.sql.Connection)  extends com.hp.hpl.jena.graph
     val s = m.getMatchSubject()
     val p = m.getMatchPredicate()
     val o = m.getMatchObject()
+    var ps : java.sql.PreparedStatement = null
     val rs : ResultSet = if(s == null) {
       if(p == null) {
         if(o == null) {
           throw new RuntimeException(YZ_QUERY_TOO_BROAD)
         } else {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where object=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where object=? and inverse=0")
           ps.setString(1, RDFBackend.to_n3(o))
           ps.executeQuery()        
         }
       } else {
         if(o == null) {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0")
           ps.setString(1, RDFBackend.to_n3(p))
           ps.executeQuery()
         } else {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0 and object=?")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0 and object=?")
           ps.setString(1, RDFBackend.to_n3(p))
           ps.setString(2, RDFBackend.to_n3(o))
           ps.executeQuery()
@@ -364,12 +373,12 @@ class RDFBackendGraph(conn : java.sql.Connection)  extends com.hp.hpl.jena.graph
       }
       if(p == null) {
         if(o == null) {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.executeQuery()
         } else {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.setString(3, RDFBackend.to_n3(o))
@@ -377,13 +386,13 @@ class RDFBackendGraph(conn : java.sql.Connection)  extends com.hp.hpl.jena.graph
         }
       } else {
         if(o == null) {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.setString(3, RDFBackend.to_n3(p))
           ps.executeQuery()
         } else {
-          val ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.setString(3, RDFBackend.to_n3(p))
@@ -392,6 +401,8 @@ class RDFBackendGraph(conn : java.sql.Connection)  extends com.hp.hpl.jena.graph
         }
       }
     }
+    if(ps != null) 
+      ps.close()
     return new SQLResultSetAsExtendedIterator(rs)
   }
 }
