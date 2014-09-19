@@ -3,20 +3,66 @@ package com.github.jmccrae.yuzu
 import com.github.jmccrae.yuzu.YuzuSettings._
 import com.github.jmccrae.yuzu.YuzuUserText._
 import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node, Graph}
-import com.hp.hpl.jena.util.iterator.ExtendedIterator
+import com.hp.hpl.jena.query.{Query, QueryExecution, QueryExecutionFactory, QueryFactory, ResultSetFormatter}
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
-import java.sql.{DriverManager, ResultSet}
-import java.io.FileInputStream
-import java.util.zip.GZIPInputStream
+import com.hp.hpl.jena.util.iterator.ExtendedIterator
 import gnu.getopt.Getopt
+import java.io.FileInputStream
+import java.sql.{DriverManager, ResultSet}
+import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
+import java.util.zip.GZIPInputStream
+
+trait SPARQLResult {
+  def result : Either[String, Model]
+  def resultType : ResultType
+}
 
 trait Backend {
-  def graph : Graph
+  def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
+    timeout : Int = 10) : SPARQLResult
   def lookup(id : String) : Option[Model]
   def listResources(offset : Int, limit : Int) : (Boolean,List[String])
   def search(query : String, property : Option[String], limit : Int = 20) : List[String]
   def load(inputStream : java.io.InputStream) : Unit
   def close() : Unit
+}
+
+class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable with SPARQLResult {
+  var result : Either[String, Model] = Left("")
+  var resultType : ResultType = error
+
+
+  def run() {
+   try {
+      if(query.isAskType()) {
+        val r = qx.execAsk()
+        resultType = sparql
+        result = Left(ResultSetFormatter.asXMLString(r))
+      } else if(query.isConstructType()) {
+        val model2 = ModelFactory.createDefaultModel()
+        val r = qx.execConstruct(model2)
+        resultType = rdfxml
+        result = Right(model2)
+      } else if(query.isDescribeType()) {
+        val model2 = ModelFactory.createDefaultModel()
+        val r = qx.execDescribe(model2)
+        resultType = rdfxml
+        result = Right(model2)
+      } else if(query.isSelectType()) {
+        val r = qx.execSelect()
+        resultType = sparql
+        result = Left(ResultSetFormatter.asXMLString(r))
+      } else {
+        resultType = error
+      }
+    } catch {
+      case x : Exception => {
+        x.printStackTrace()
+        resultType = error
+        result = Left(x.getMessage())
+      }
+    }
+  }
 }
 
 class RDFBackend(db : String) extends Backend {
@@ -244,6 +290,33 @@ class RDFBackend(db : String) extends Backend {
       cursor.close()
       conn.commit()
       conn.setAutoCommit(oldAutocommit)
+    }
+  }
+
+  def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String], timeout : Int = 10) : SPARQLResult = {
+    val backendModel = ModelFactory.createModelForGraph(graph)
+    val q = defaultGraphURI match {
+      case Some(uri) => QueryFactory.create(query, uri)
+      case None => QueryFactory.create(query)
+    }
+    val qx = SPARQL_ENDPOINT match {
+      case Some(endpoint) => {
+        QueryExecutionFactory.sparqlService(endpoint, q)
+      }
+      case None => {
+        QueryExecutionFactory.create(q, backendModel)
+      }
+    }
+    val ste = Executors.newSingleThreadExecutor()
+    val executor = new SPARQLExecutor(q, qx)
+    ste.submit(executor)
+    ste.shutdown()
+    ste.awaitTermination(timeout, TimeUnit.SECONDS)
+    if(!ste.isTerminated()) {
+      ste.shutdownNow()
+      throw new TimeoutException()
+    } else {
+      return executor
     }
   }
 }
