@@ -4,11 +4,10 @@ import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.jmccrae.yuzu.YuzuSettings._
 import org.apache.jena.riot.{RDFDataMgr, RDFFormat}
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
-import com.hp.hpl.jena.query.{Query, QueryExecution, QueryFactory, QueryExecutionFactory, ResultSetFormatter}
 import java.nio.file.Files
 import java.io.{ByteArrayOutputStream, PipedOutputStream, PipedInputStream, StringReader, InputStream,
 OutputStream, File, FileInputStream, StringWriter}
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.{TimeoutException}
 import javax.xml.transform.{TransformerFactory}
 import javax.xml.transform.stream.{StreamSource, StreamResult}
 import javax.servlet.http.{HttpServlet, HttpServletResponse, HttpServletRequest}
@@ -27,44 +26,6 @@ object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE))
 object nt extends ResultType("text/plain", Some(RDFFormat.NT))
 object jsonld extends ResultType("application/ld+json", Some(RDFFormat.RDFJSON))
 object error extends ResultType("text/html", None)
-
-class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable {
-  var result : Either[String, Model] = Left("")
-  var resultType : ResultType = error
-
-
-  def run() {
-   try {
-      if(query.isAskType()) {
-        val r = qx.execAsk()
-        resultType = sparql
-        result = Left(ResultSetFormatter.asXMLString(r))
-      } else if(query.isConstructType()) {
-        val model2 = ModelFactory.createDefaultModel()
-        val r = qx.execConstruct(model2)
-        resultType = rdfxml
-        result = Right(model2)
-      } else if(query.isDescribeType()) {
-        val model2 = ModelFactory.createDefaultModel()
-        val r = qx.execDescribe(model2)
-        resultType = rdfxml
-        result = Right(model2)
-      } else if(query.isSelectType()) {
-        val r = qx.execSelect()
-        resultType = sparql
-        result = Left(ResultSetFormatter.asXMLString(r))
-      } else {
-        resultType = error
-      }
-    } catch {
-      case x : Exception => {
-        x.printStackTrace()
-        resultType = error
-        result = Left(x.getMessage())
-      }
-    }
-  }
-}
 
 object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
@@ -181,41 +142,26 @@ class RDFServer(db : String) extends HttpServlet {
   private val mimeTypes = Map(
      )
   val backend : Backend = new RDFBackend(db)
-  lazy val backendModel : Model = ModelFactory.createModelForGraph(backend.graph)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
 
   def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     resp : HttpServletResponse, timeout : Int = 10) {
-      val q = defaultGraphURI match {
-        case Some(uri) => QueryFactory.create(query, uri)
-        case None => QueryFactory.create(query)
+      val executor = try {
+        backend.query(query, mimeType, defaultGraphURI, timeout)
+      } catch {
+        case x : TimeoutException => 
+          resp.sendError(SC_SERVICE_UNAVAILABLE, YZ_TIME_OUT)
+          return
       }
-      val qx = SPARQL_ENDPOINT match {
-        case Some(endpoint) => {
-          QueryExecutionFactory.sparqlService(endpoint, q)
-        }
-        case None => {
-          QueryExecutionFactory.create(q, backendModel)
-        }
-      }
-      val ste = Executors.newSingleThreadExecutor()
-      val executor = new SPARQLExecutor(q, qx)
-      ste.submit(executor)
-      ste.shutdown()
-      ste.awaitTermination(timeout, TimeUnit.SECONDS)
-      if(!ste.isTerminated()) {
-        ste.shutdownNow()
-        resp.sendError(SC_SERVICE_UNAVAILABLE, YZ_TIME_OUT)
-      } else {
-        if(executor.resultType == error) {
-          send400(resp)
-        } else if(mimeType == html) {
-          executor.result match {
-            case Left(data) => {
-              resp.addHeader("Content-type", "text/html")
-              resp.setStatus(SC_OK)
-              val tf = TransformerFactory.newInstance()
-              val xslDoc = new Template(slurp(resolve("xsl/sparql2html.xsl"))).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
+      if(executor.resultType == error) {
+        send400(resp)
+      } else if(mimeType == html) {
+        executor.result match {
+          case Left(data) => {
+            resp.addHeader("Content-type", "text/html")
+            resp.setStatus(SC_OK)
+            val tf = TransformerFactory.newInstance()
+            val xslDoc = new Template(slurp(resolve("xsl/sparql2html.xsl"))).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
 "prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
 "prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
 "prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
@@ -225,48 +171,47 @@ class RDFServer(db : String) extends HttpServlet {
 "prefix5qn" -> PREFIX5_QN, "prefix6qn" -> PREFIX6_QN,
 "prefix7qn" -> PREFIX7_QN, "prefix8qn" -> PREFIX8_QN,
 "prefix9qn" -> PREFIX9_QN)
-              val transformer = tf.newTransformer(new StreamSource(new StringReader(xslDoc)))
+            val transformer = tf.newTransformer(new StreamSource(new StringReader(xslDoc)))
 
-              val baos = new ByteArrayOutputStream()
-              transformer.transform(new StreamSource(new StringReader(data)), new StreamResult(baos))
-              baos.flush()
-              val out = resp.getWriter()
-              out.println(renderHTML("SPARQL Results", baos.toString()))
-              out.flush()
-              out.close()
-            }
-            case Right(model) => {
-              resp.addHeader("Content-type", "text/html")
-              resp.setStatus(SC_OK)
-              val out = resp.getWriter()
-              out.println(rdfxmlToHtml(model))
-              out.flush()
-              out.close()
-            }
+            val baos = new ByteArrayOutputStream()
+            transformer.transform(new StreamSource(new StringReader(data)), new StreamResult(baos))
+            baos.flush()
+            val out = resp.getWriter()
+            out.println(renderHTML("SPARQL Results", baos.toString()))
+            out.flush()
+            out.close()
           }
-        } else if(mimeType == sparql) {
-          executor.result match {
-            case Left(data) => {
-              resp.addHeader("Content-type", executor.resultType.mime)
-              resp.setStatus(SC_OK)
-              val out = resp.getWriter()
-              out.println(data)
-              out.flush()
-              out.close()
-            }
-            case Right(_) => throw new IllegalArgumentException("SPARQL results expected but received RDF model")
+          case Right(model) => {
+            resp.addHeader("Content-type", "text/html")
+            resp.setStatus(SC_OK)
+            val out = resp.getWriter()
+            out.println(rdfxmlToHtml(model))
+            out.flush()
+            out.close()
           }
-        } else {
-          executor.result match {
-            case Left(_) => throw new IllegalArgumentException("RDF results expected but received SPARQL results")
-            case Right(model) => {
-              resp.addHeader("Content-type", executor.resultType.mime) 
-              resp.setStatus(SC_OK)
-              val os = resp.getOutputStream()
-              RDFDataMgr.write(os, model, executor.resultType.jena.get)
-              os.flush()
-              os.close()
-            }
+        }
+      } else if(mimeType == sparql) {
+        executor.result match {
+          case Left(data) => {
+            resp.addHeader("Content-type", executor.resultType.mime)
+            resp.setStatus(SC_OK)
+            val out = resp.getWriter()
+            out.println(data)
+            out.flush()
+            out.close()
+          }
+          case Right(_) => throw new IllegalArgumentException("SPARQL results expected but received RDF model")
+        }
+      } else {
+        executor.result match {
+          case Left(_) => throw new IllegalArgumentException("RDF results expected but received SPARQL results")
+          case Right(model) => {
+            resp.addHeader("Content-type", executor.resultType.mime) 
+            resp.setStatus(SC_OK)
+            val os = resp.getOutputStream()
+            RDFDataMgr.write(os, model, executor.resultType.jena.get)
+            os.flush()
+            os.close()
           }
         }
       }

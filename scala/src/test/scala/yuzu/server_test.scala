@@ -18,7 +18,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
   override def beforeAll() {
     dbFile = File.createTempFile("test",".db")
     rdfServer = new RDFServer(dbFile.getPath())
-    rdfServer.backend.load(new java.io.ByteArrayInputStream( ("<%stest_resource> <http://www.w3.org/2000/01/rdf-schema#label> \"test\"@eng .\n" format BASE_NAME).getBytes()))
+    rdfServer.backend.load(new java.io.ByteArrayInputStream( ("<%stest_resource> <http://www.w3.org/2000/01/rdf-schema#label> \"test\"@eng .\n" format BASE_NAME).getBytes()), false)
 
   }
 
