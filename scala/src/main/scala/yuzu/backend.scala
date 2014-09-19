@@ -23,14 +23,13 @@ trait Backend {
   def lookup(id : String) : Option[Model]
   def listResources(offset : Int, limit : Int) : (Boolean,List[String])
   def search(query : String, property : Option[String], limit : Int = 20) : List[String]
-  def load(inputStream : java.io.InputStream) : Unit
+  def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
   def close() : Unit
 }
 
 class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable with SPARQLResult {
   var result : Either[String, Model] = Left("")
   var resultType : ResultType = error
-
 
   def run() {
    try {
@@ -213,7 +212,7 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
-  def load(inputStream : java.io.InputStream) {
+  def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) {
     def splitUri(subj : String) : (String, String) = {
       val (id2, frag) = if(subj contains '#') {
         (subj.slice(BASE_NAME.length, subj.indexOf('#')),
@@ -241,45 +240,55 @@ class RDFBackend(db : String) extends Backend {
         cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
       }
       var linesRead = 0
-      for(line <- io.Source.fromInputStream(inputStream).getLines) {
-        linesRead += 1
-        if(linesRead % 100000 == 0) {
-          System.err.print(".")
-          System.err.flush()
-          conn.commit()
-        }
-        val e = line.split(" ")
-        val subj = e(0).drop(1).dropRight(1)
-        if(subj.startsWith(BASE_NAME)) {
-          val (id, frag) = splitUri(subj)
-          val prop = e(1)
-          val obj = e.drop(2).dropRight(1).mkString(" ")
-          val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
-          ps1.setString(1, RDFBackend.unicodeEscape(id))
-          ps1.setString(2, RDFBackend.unicodeEscape(frag))
-          ps1.setString(3, RDFBackend.unicodeEscape(prop))
-          ps1.setString(4, RDFBackend.unicodeEscape(obj))
-          ps1.execute()
-          /* TODO: Causes all kinds of weird issues with HTML generation, fix later
-           * if(obj.startsWith("<"+BASE_NAME)) {
-            val (id2, frag2) = splitUri(obj)
-            val ps2 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 1)")
-            ps2.setString(1, id2)
-            ps2.setString(2, frag2)
-            ps2.setString(3, prop)
-            ps2.setString(4, obj)
-            ps2.execute()
-          }*/
-        } else if(subj.startsWith("_:")) {
-          val (id, frag) = ("<BLANK>", subj.drop(2))
-          val prop = e(1)
-          val obj = e.drop(2).dropRight(1).mkString(" ")
-          val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
-          ps1.setString(1, RDFBackend.unicodeEscape(id))
-          ps1.setString(2, RDFBackend.unicodeEscape(frag))
-          ps1.setString(3, RDFBackend.unicodeEscape(prop))
-          ps1.setString(4, RDFBackend.unicodeEscape(obj))
-          ps1.execute()
+      var lineIterator = io.Source.fromInputStream(inputStream).getLines
+      while(lineIterator.hasNext) {
+        try {
+          val line = lineIterator.next
+          linesRead += 1
+          if(linesRead % 100000 == 0) {
+            System.err.print(".")
+            System.err.flush()
+            conn.commit()
+          }
+          val e = line.split(" ")
+          val subj = e(0).drop(1).dropRight(1)
+          if(subj.startsWith(BASE_NAME)) {
+            val (id, frag) = splitUri(subj)
+            val prop = e(1)
+            val obj = e.drop(2).dropRight(1).mkString(" ")
+            val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
+            ps1.setString(1, RDFBackend.unicodeEscape(id))
+            ps1.setString(2, RDFBackend.unicodeEscape(frag))
+            ps1.setString(3, RDFBackend.unicodeEscape(prop))
+            ps1.setString(4, RDFBackend.unicodeEscape(obj))
+            ps1.execute()
+            /* TODO: Causes all kinds of weird issues with HTML generation, fix later
+             * if(obj.startsWith("<"+BASE_NAME)) {
+              val (id2, frag2) = splitUri(obj)
+              val ps2 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 1)")
+              ps2.setString(1, id2)
+              ps2.setString(2, frag2)
+              ps2.setString(3, prop)
+              ps2.setString(4, obj)
+              ps2.execute()
+            }*/
+          } else if(subj.startsWith("_:")) {
+            val (id, frag) = ("<BLANK>", subj.drop(2))
+            val prop = e(1)
+            val obj = e.drop(2).dropRight(1).mkString(" ")
+            val ps1 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 0)")
+            ps1.setString(1, RDFBackend.unicodeEscape(id))
+            ps1.setString(2, RDFBackend.unicodeEscape(frag))
+            ps1.setString(3, RDFBackend.unicodeEscape(prop))
+            ps1.setString(4, RDFBackend.unicodeEscape(obj))
+            ps1.execute()
+          }
+        } catch {
+          case t : Throwable =>
+            System.err.println("Error on line %d: %s" format (linesRead, t.getMessage()))
+            if(!ignoreErrors) {
+              throw t
+            }
         }
 
       }
@@ -506,13 +515,14 @@ object RDFBackend {
   }
 
   def main(args : Array[String]) {
-    val getopt = new Getopt("yuzubackend", args, "d:f:")
+    val getopt = new Getopt("yuzubackend", args, "d:f:e")
     var opts = collection.mutable.Map[String, String]()
     var c = 0
     while({c = getopt.getopt(); c } != -1) {
       c match {
         case 'd' => opts("-d") = getopt.getOptarg()
         case 'f' => opts("-f") = getopt.getOptarg()
+        case 'e' => opts("-e") = "true"
       }
     }
     val backend = new RDFBackend(opts.getOrElse("-d", DB_FILE))
@@ -521,7 +531,7 @@ object RDFBackend {
       case file @ endsGZ() => new GZIPInputStream(new FileInputStream(file))
       case file => new FileInputStream(file)
     }
-    backend.load(inputStream)
+    backend.load(inputStream, opts contains "-e")
     backend.close()
   }
 }

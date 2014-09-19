@@ -14,7 +14,7 @@ class BackendTest extends FlatSpec with Matchers {
     val file = File.createTempFile("test",".db")
     val backend = new RDFBackend(file.getPath())
     backend.load(new java.io.ByteArrayInputStream(
-      ("<%stest_resource> <http://www.w3.org/2000/01/rdf-schema#label> \"test\"@eng .\n" format BASE_NAME).getBytes()))
+      ("<%stest_resource> <http://www.w3.org/2000/01/rdf-schema#label> \"test\"@eng .\n" format BASE_NAME).getBytes()),false)
     try {
       test(backend)
     } finally {
@@ -37,13 +37,14 @@ class BackendTest extends FlatSpec with Matchers {
   "from_n3" should "accept valid n3 strings" in {
     val model = ModelFactory.createDefaultModel()
 
-    val rdfBackend = new RDFBackend(null)
 
-    rdfBackend.from_n3("<http://www.example.com>", model).toString should be ("http://www.example.com")
-    rdfBackend.from_n3("_:test", model).toString should be ("test")
-    rdfBackend.from_n3("\"test\"", model).toString should be ("test")
-    rdfBackend.from_n3("\"test\"@eng", model).toString should be ("test@eng")
-    rdfBackend.from_n3("\"test\"^^<http://www.w3.org/2001/XMLSchema#string>", model).toString should be ("test^^http://www.w3.org/2001/XMLSchema#string")
+    withBackend { rdfBackend => 
+      rdfBackend.from_n3("<http://www.example.com>", model).toString should be ("http://www.example.com")
+      rdfBackend.from_n3("_:test", model).toString should be ("test")
+      rdfBackend.from_n3("\"test\"", model).toString should be ("test")
+      rdfBackend.from_n3("\"test\"@eng", model).toString should be ("test@eng")
+      rdfBackend.from_n3("\"test\"^^<http://www.w3.org/2001/XMLSchema#string>", model).toString should be ("test^^http://www.w3.org/2001/XMLSchema#string")
+    }
   }
 
   "to_n3" should "create valid n3 strings" in {
