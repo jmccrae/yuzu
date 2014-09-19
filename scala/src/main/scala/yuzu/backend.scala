@@ -506,7 +506,8 @@ object RDFBackend {
     val sb = new StringBuilder(str)
     var i = 0
     while(i < sb.length) {
-      if(sb.slice(i,i+2).toString == "\\u") {
+      if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
+      //if(sb.slice(i,i+2).toString == "\\u") {
         sb.replace(i,i+6, Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString)
       }
       i += 1
