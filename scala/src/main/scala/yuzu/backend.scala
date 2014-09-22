@@ -176,7 +176,11 @@ class RDFBackend(db : String) extends Backend {
           conn.prepareStatement("select distinct subject from triples where property=? and object like ? limit ?")
         }
         ps2.setString(1, "<%s>" format p)
-        ps2.setString(2, "%%%s%%" format query)
+        if(EXACT_QUERY) {
+          ps2.setString(2, "\"s\"" format query)
+        } else {
+          ps2.setString(2, "%%%s%%" format query)
+        }
         ps2.setInt(3, limit)
         ps2
       } 
@@ -186,7 +190,11 @@ class RDFBackend(db : String) extends Backend {
         } else {
           conn.prepareStatement("select distinct subject from triples where object like ? limit ?")
         }
-        ps2.setString(1, "%%%s%%" format query)
+        if(EXACT_QUERY) {
+          ps2.setString(1, "\"s\"" format query)
+        } else {
+          ps2.setString(1, "%%%s%%" format query)
+        }
         ps2.setInt(2, limit)
         ps2
       }
