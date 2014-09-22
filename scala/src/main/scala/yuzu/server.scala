@@ -179,7 +179,7 @@ class RDFServer extends HttpServlet {
 
   private val mimeTypes = Map(
      )
-  lazy val db : String = getServletContext().getRealPath(db)
+  lazy val db : String = getServletContext().getRealPath(DB_FILE)
   lazy val backend : Backend = new RDFBackend(db)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
 
