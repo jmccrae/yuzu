@@ -158,7 +158,7 @@ class RDFServer extends HttpServlet {
 
   implicit val resolve = new PathResolver {
     def apply(fname : String) = try {
-      getServletContext().getResource("/"+fname)
+      getServletContext().getResource("/WEB-INF/classes/"+fname)
     } catch {
       case x : IllegalStateException =>
         val cls = this.getClass()
