@@ -1,0 +1,29 @@
+<h1>Yuzu Example Page</h1>
+
+
+<form action="/search/" method="get">
+    <fieldset>
+        <legend>Search</legend>
+        <div class="form-group">
+            <label for="property" class="col-lg-2 control-label">Property (optional)</label>
+            <div class="col-lg-10">
+                <input type="text" class="form-control" id="property" name="property">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="query" class="col-lg-2 control-label">Query</label>
+            <div class="col-lg-10">
+                <input type="text" class="form-control" id="query" name="query">
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="col-lg-12 col-lg-offset-11">
+                <button type="submit" class="btn btn-success">Search</button>
+            </div>
+        </div>
+    </fieldset>
+</form>
+
+<br>
+
+<a class="btn btn-primary btn-lg col-lg-offset-5" href="/list/">Resource Index</a>
