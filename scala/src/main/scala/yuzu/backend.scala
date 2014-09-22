@@ -8,7 +8,7 @@ import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
 import com.hp.hpl.jena.util.iterator.ExtendedIterator
 import gnu.getopt.Getopt
 import java.io.FileInputStream
-import java.sql.{DriverManager, ResultSet}
+import java.sql.{DriverManager, ResultSet, SQLException}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 import java.util.zip.GZIPInputStream
 
@@ -193,7 +193,11 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def listResources(offset : Int, limit : Int) : (Boolean,List[String]) = {
-    val ps = conn.prepareStatement("select distinct subject from triples limit ? offset ?")
+    val ps = try {
+      conn.prepareStatement("select distinct subject from triples limit ? offset ?")
+    } catch {
+      case x : SQLException => throw new RuntimeException("Database @ " + db + " not initialized", x)
+    }
     ps.setInt(1, limit + 1)
     ps.setInt(2, offset)
     val rs = ps.executeQuery()
