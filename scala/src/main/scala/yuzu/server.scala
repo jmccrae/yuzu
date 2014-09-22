@@ -145,7 +145,7 @@ object RDFServer {
   }
 }
 
-class RDFServer(db : String) extends HttpServlet {
+class RDFServer extends HttpServlet {
   import RDFServer._
  
   implicit class URLPimps(url : URL) {
@@ -179,7 +179,8 @@ class RDFServer(db : String) extends HttpServlet {
 
   private val mimeTypes = Map(
      )
-  val backend : Backend = new RDFBackend(db)
+  lazy val db : String = getServletContext().getRealPath(db)
+  lazy val backend : Backend = new RDFBackend(db)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
 
   def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
@@ -469,4 +470,4 @@ class RDFServer(db : String) extends HttpServlet {
 
 }
 
-class YuzuServlet extends RDFServer(DB_FILE)
+class YuzuServlet extends RDFServer
