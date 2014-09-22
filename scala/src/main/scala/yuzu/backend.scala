@@ -170,14 +170,22 @@ class RDFBackend(db : String) extends Backend {
   def search(query : String, property : Option[String], limit : Int = 20) : List[String] = {
     val ps = property match {
       case Some(p) => {
-        val ps2 = conn.prepareStatement("select distinct subject from triples where property=? and object like ? limit ?")
+        val ps2 = if(EXACT_QUERY) {
+          conn.prepareStatement("select distinct subject from triples where property=? and object=? limit ?")
+        } else {
+          conn.prepareStatement("select distinct subject from triples where property=? and object like ? limit ?")
+        }
         ps2.setString(1, "<%s>" format p)
         ps2.setString(2, "%%%s%%" format query)
         ps2.setInt(3, limit)
         ps2
       } 
       case None => {
-        val ps2 = conn.prepareStatement("select distinct subject from triples where object like ? limit ?")
+        val ps2 = if(EXACT_QUERY) {
+          conn.prepareStatement("select distinct subject from triples where object=? limit ?")
+        } else {
+          conn.prepareStatement("select distinct subject from triples where object like ? limit ?")
+        }
         ps2.setString(1, "%%%s%%" format query)
         ps2.setInt(2, limit)
         ps2

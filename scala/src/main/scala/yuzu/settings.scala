@@ -49,5 +49,7 @@ object YuzuSettings {
   val SPARQL_PATH = "/sparql"
   // Path to site contents list (set to null to disable)
   val LIST_PATH = "/list"
+  // Exact queries only
+  val EXACT_QUERY = false
 
 }
