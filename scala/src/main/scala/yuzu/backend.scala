@@ -8,7 +8,7 @@ import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
 import com.hp.hpl.jena.util.iterator.ExtendedIterator
 import gnu.getopt.Getopt
 import java.io.FileInputStream
-import java.sql.{DriverManager, ResultSet, SQLException}
+import java.sql.{DriverManager, PreparedStatement, ResultSet, SQLException}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 import java.util.zip.GZIPInputStream
 
@@ -360,70 +360,85 @@ class RDFBackend(db : String) extends Backend {
 
 class RDFBackendGraph(conn : java.sql.Connection)  extends com.hp.hpl.jena.graph.impl.GraphBase {
   protected def graphBaseFind(m : TripleMatch) : ExtendedIterator[Triple] = {
+    _graphBaseFind(m,0) match {
+      case Some((rs,ps)) =>
+        return new SQLResultSetAsExtendedIterator(rs,ps,m,0,this)
+      case None => 
+        return new NullExtendedIterator()
+    }
+  }
+
+  def _graphBaseFind(m : TripleMatch, offset : Int) : Option[(ResultSet,PreparedStatement)] = {
     val model = ModelFactory.createDefaultModel()
     val s = m.getMatchSubject()
     val p = m.getMatchPredicate()
     val o = m.getMatchObject()
-    var ps : java.sql.PreparedStatement = null
+    var ps : PreparedStatement = null
     val rs : ResultSet = if(s == null) {
       if(p == null) {
         if(o == null) {
           throw new RuntimeException(YZ_QUERY_TOO_BROAD)
         } else {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where object=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where object=? and inverse=0 limit 100 offset ?")
           ps.setString(1, RDFBackend.to_n3(o))
+          ps.setInt(2, offset)
           ps.executeQuery()        
         }
       } else {
         if(o == null) {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0 limit 100 offset ?")
           ps.setString(1, RDFBackend.to_n3(p))
+          ps.setInt(2, offset)
           ps.executeQuery()
         } else {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0 and object=?")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where property=? and inverse=0 and object=? limit 100 offset ?")
           ps.setString(1, RDFBackend.to_n3(p))
           ps.setString(2, RDFBackend.to_n3(o))
+          ps.setInt(3, offset)
           ps.executeQuery()
         }
       }
     } else {
       val (id, frag) = RDFBackend.unname(s.toString()) match {
         case Some((i,f)) => (i,f)
-        case None => return new NullExtendedIterator()
+        case None => 
+          return None
       }
       if(p == null) {
         if(o == null) {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0 limit 100 offset ?")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
+          ps.setInt(3, offset)
           ps.executeQuery()
         } else {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0 limit 100 offset ?")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.setString(3, RDFBackend.to_n3(o))
+          ps.setInt(4, offset)
           ps.executeQuery()
         }
       } else {
         if(o == null) {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0 limit 100 offset ?")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.setString(3, RDFBackend.to_n3(p))
+          ps.setInt(4, offset)
           ps.executeQuery()
         } else {
-          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0")
+          ps = conn.prepareStatement("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0 limit 100 offset ?")
           ps.setString(1, id)
           ps.setString(2, frag.getOrElse(""))
           ps.setString(3, RDFBackend.to_n3(p))
           ps.setString(4, RDFBackend.to_n3(o))
+          ps.setInt(5, offset)
           ps.executeQuery()
         }
       }
     }
-    if(ps != null) 
-      ps.close()
-    return new SQLResultSetAsExtendedIterator(rs)
+    return Some((rs,ps))
   }
 }
 
@@ -445,8 +460,10 @@ class NullExtendedIterator() extends ExtendedIterator[Triple] {
   def remove(): Unit = throw new UnsupportedOperationException()
 }
 
-class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Triple] {
-  def close() { rs.close() }
+class SQLResultSetAsExtendedIterator(_rs : ResultSet, ps : PreparedStatement, m : TripleMatch, _offset : Int, backend : RDFBackendGraph) extends ExtendedIterator[Triple] {
+  private var rs = _rs
+  private var offset = _offset
+  def close() { rs.close(); ps.close() }
   def andThen[X <: Triple](x : java.util.Iterator[X]) : ExtendedIterator[Triple] = throw new UnsupportedOperationException()
   def filterDrop(x : com.hp.hpl.jena.util.iterator.Filter[com.hp.hpl.jena.graph.Triple]):
   com.hp.hpl.jena.util.iterator.ExtendedIterator[com.hp.hpl.jena.graph.Triple] = throw new UnsupportedOperationException()
@@ -484,7 +501,9 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Tr
 
 
   private var _hasNext = rs.next()
-  def hasNext(): Boolean = _hasNext
+  def hasNext(): Boolean = {
+    _hasNext
+  }
   def next(): Triple = {
     val s = rs.getString("subject")
     val f = rs.getString("fragment")
@@ -493,6 +512,16 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet) extends ExtendedIterator[Tr
     val t = new Triple(NodeFactory.createURI(RDFBackend.name(s, Option(f))),
       prop_from_n3(p),
       from_n3(o))
+    offset += 1
+/*    if(offset % 100 == 0) {
+      backend._graphBaseFind(m, offset) match {
+        case Some((rs2,ps)) =>
+          rs = rs2
+        case None =>
+          _hasNext = false
+          return t
+      }
+    }     */
     _hasNext = rs.next()
 
     return t

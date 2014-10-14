@@ -157,23 +157,27 @@ class RDFServer extends HttpServlet {
   }
 
   implicit val resolve = new PathResolver {
+    private def resolveLocal(fname : String) = {
+      val cls = this.getClass()
+      val pd = cls.getProtectionDomain()
+      val cs = pd.getCodeSource()
+      val loc = cs.getLocation()
+      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+        new URL("file:"+loc.getPath() + fname)
+      } else {
+        if(new File(fname).exists) {
+          new URL("file:"+fname)
+        } else {
+          new URL("file:../" + fname)
+        }
+      }
+    }
+
     def apply(fname : String) = try {
-      getServletContext().getResource("/WEB-INF/classes/"+fname)
+      Option(getServletContext().getResource("/WEB-INF/classes/"+fname)).getOrElse(resolveLocal(fname))
     } catch {
       case x : IllegalStateException =>
-        val cls = this.getClass()
-        val pd = cls.getProtectionDomain()
-        val cs = pd.getCodeSource()
-        val loc = cs.getLocation()
-        if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
-          new URL("file:"+loc.getPath() + fname)
-        } else {
-          if(new File(fname).exists) {
-            new URL("file:"+fname)
-          } else {
-            new URL("file:../" + fname)
-          }
-        }
+        resolveLocal(fname)
     }
   }
 

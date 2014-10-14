@@ -21,7 +21,8 @@
                 xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
 
     <xsl:template match="/sparql:sparql">
-        <table class="sparql">
+        <h1>SPARQL Results</h1>
+        <table class="sparql table table-striped">
             <xsl:apply-templates select="sparql:head"/>
             <tbody>
                 <xsl:apply-templates select="sparql:results"/>
