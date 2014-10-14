@@ -344,12 +344,12 @@ class RDFServer extends HttpServlet {
             Option(qs.get("default-graph-uri")).map(_(0)), resp)
         } else {
           resp.respond("text/html", SC_OK) {
-            out => out.print(DISPLAY_NAME, slurp(resolve("html/sparql.html")))
+            out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html"))))
           }
         }
       } else {
         resp.respond("text/html", SC_OK) {
-          out => out.print(DISPLAY_NAME, slurp(resolve("html/sparql.html")))
+          out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html"))))
         }
       }
     } else if(LIST_PATH != null && (uri == LIST_PATH || uri == (LIST_PATH + "/"))) {
