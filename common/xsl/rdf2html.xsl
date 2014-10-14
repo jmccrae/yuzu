@@ -466,7 +466,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.json')"/>
+                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.json')"/>
                         </xsl:attribute>
                         JSON-LD
                     </a>
@@ -474,7 +474,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.nt')"/>
+                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.nt')"/>
                         </xsl:attribute>
                         N-Triples
                     </a>
@@ -482,7 +482,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.ttl')"/>
+                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.ttl')"/>
                         </xsl:attribute>
                         Turtle
                     </a>
@@ -490,7 +490,7 @@ xmlns:ontology="${base}ontology">
                 <li class="rdf_format">
                     <a>
                         <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(@rdf:about,'&base;'),'.rdf')"/>
+                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.rdf')"/>
                         </xsl:attribute>
                         RDF/XML
                     </a>
