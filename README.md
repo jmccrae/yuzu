@@ -4,7 +4,7 @@ Yuzu
 Yuzu is a micro-framework for publishing linked data. The goal of yuzu is to provide a small
 code base from which it is possible to quickly publish linked data for a variety of purposes.
 Yuzu is intended to be customised for any purpose and as such has a small and easy-to-understand
-code base. In addition Yuzu is maintained in two languages: Python and Scale
+code base. In addition Yuzu is maintained in two languages: Python and Scala
 
 Requirements
 ------------
