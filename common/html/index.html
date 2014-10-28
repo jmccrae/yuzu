@@ -10,11 +10,10 @@
 
             <select name="property" id="property" class="form-control">
                 <option value=''>Search all properties</option>
-                {{property_facets}}
+                {{#property_facets}}
+                <option value='{{uri}}'>{{label}}</option>
+                {{/property_facets}}
             </select>
-            <!--<div>
-                <input type="text" class="form-control" id="property" name="property">
-            </div>-->
             <div class="alert alert-danger">
                 Step 3. You should add some key properties for users to query in your resource by editing <tt>settings.scala</tt> or <tt>settings.py</tt>, please see the appropriate documentation
             </div>

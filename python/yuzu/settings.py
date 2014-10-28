@@ -47,7 +47,10 @@ LIST_PATH = "/list"
 # Exact queries only
 EXACT_QUERY = False
 # Properties to use as facets
-FACETS = {
-    "http://www.w3.org/2000/01/rdf-schema#label": "Label"
-}
+FACETS = [
+    {
+        "uri":"http://www.w3.org/2000/01/rdf-schema#label",
+        "label":"Label"
+    }
+]
 

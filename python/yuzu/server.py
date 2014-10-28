@@ -31,8 +31,6 @@ def resolve(fname):
     else:
         return "/common/" + fname
     
-property_facets = '\n'.join("<option value='%s'>%s</option>" % (k,v) for k,v in FACETS.items())
-
 class RDFServer:
     """The main web server class for Yuzu"""
     def __init__(self, db):
@@ -53,7 +51,7 @@ class RDFServer:
         @param text The page content
         """
         template = open(resolve("html/page.html")).read()
-        return unicode(pystache.render(template, {'title':title, 'content':text, 'property_facets':property_facets})).encode('utf-8')
+        return unicode(pystache.render(template, {'title':title, 'content':text})).encode('utf-8')
         #return template.substitute(title=title, content=text, property_facets=property_facets)
 
     @staticmethod
@@ -229,7 +227,7 @@ class RDFServer:
         # The welcome page
         if uri == "/" or uri == "/index.html":
             start_response('200 OK', [('Content-type', 'text/html')])
-            return [self.render_html(DISPLAY_NAME,open(resolve("html/index.html")).read())]
+            return [self.render_html(DISPLAY_NAME,pystache.render(open(resolve("html/index.html")).read(),{'property_facets':FACETS}))]
         # The license page
         if LICENSE_PATH and uri == LICENSE_PATH:
             start_response('200 OK', [('Content-type', 'text/html')])

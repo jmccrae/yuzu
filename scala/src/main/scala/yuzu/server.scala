@@ -36,12 +36,20 @@ trait PathResolver {
 class MustachePattern(m : Mustache) {
   def substitute(args : (String,Any)*) = {
     val out = new StringWriter()
-    val javaMap = new java.util.HashMap[String,Any]()
-    for((k,v) <- args) {
-      javaMap.put(k, v)
-    }
-    m.execute(out, javaMap)
+    m.execute(out, deepToJava(Map(args:_*)))
     out.toString
+  }
+
+  private def deepToJava(x : Any) : Any = x match {
+    case m : Map[_,_] => 
+      scala.collection.JavaConversions.mapAsJavaMap(m.map {
+        case (k,v) => k -> deepToJava(v)
+      })
+    case s : Seq[_] =>
+      scala.collection.JavaConversions.seqAsJavaList(s.map {
+        e => deepToJava(e)
+      })
+    case other => other
   }
 }
 
@@ -54,15 +62,9 @@ object mustache {
 object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
-  lazy val propertyFacets = {
-    (for((k,v) <- FACETS) yield {
-      "<option value='%s'>%s</option>" format (k,v)
-    }).mkString("\n")
-  }
-
   def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.html"))
-    template.substitute("title"-> title, "content" -> text, "property_facets" -> propertyFacets)
+    template.substitute("title"-> title, "content" -> text)
   }
 
   def send302(resp : HttpServletResponse, location : String) { resp.sendRedirect(location) }
@@ -320,7 +322,7 @@ class RDFServer extends HttpServlet {
 
     if(uri == "/" || uri == "/index.html") {
       resp.respond("text/html",SC_OK) {
-        out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/index.html"))))
+        out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS)))
       }
     } else if(LICENSE_PATH != null && uri == LICENSE_PATH) {
       resp.respond("text/html",SC_OK) {
@@ -436,15 +438,11 @@ class RDFServer extends HttpServlet {
         val hasNext = if(hasMore) { "" } else { "disabled" }
         val next = offset + limit
         val pages = "%d - %d" format(offset, offset + results.size)
-        val facets = (for((k,v) <- FACETS) yield {
+        val facets = (for(facet <- FACETS) yield {
           "<a href='/list/?prop=%s' class='btn btn-default'>%s</a>".format(
-            java.net.URLEncoder.encode(k, "UTF-8"), v)
+            java.net.URLEncoder.encode(facet("uri"), "UTF-8"), facet("label"))
         }).mkString("")
 
-        val buf = new StringBuilder()
-        buf ++= "<h1>" 
-        buf ++= YZ_INDEX 
-        buf ++= "</h1><table class='rdf_search table table-hover'>"
         resp.respond("text/html", SC_OK) {
           out => out.println(renderHTML(DISPLAY_NAME, 
             template.substitute(
