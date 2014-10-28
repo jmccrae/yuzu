@@ -8,7 +8,6 @@ object YuzuUserText {
   val YZ_NOT_FOUND_PAGE="The requested URL does not exist"
   val YZ_JSON_LD_NOT_INSTALLED="You requested a format not installed on this server"
   val YZ_NOT_IMPLEMENTED="Not Implemented"
-  val YZ_SEARCH="Search"
   val YZ_NO_QUERY="No Query"
   val YZ_NO_RESULTS="No Results"
   val YZ_BAD_QUERY="Bad query"

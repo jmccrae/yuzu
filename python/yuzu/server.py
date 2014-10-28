@@ -356,17 +356,11 @@ class RDFServer:
     def search(self, start_response, query, prop):
         start_response('200 OK',[('Content-type','text/html')])
         results = self.backend.search(query, prop)
-        if results:
-            buf = "<h1>" + YZ_SEARCH + "</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
-        else:
-            buf = "<h1>%s</h1><p>%s</p>" % (YZ_SEARCH, YZ_NO_RESULTS)
-        return [self.render_html(DISPLAY_NAME,buf)]
-
-
-    def build_list_table(self, values):
-        """Utility to build the list table items"""
-        for value in values:
-            yield "<tr class='rdf_search_full table-active'><td><a href='/%s'>%s</a></td></tr>" % (value, value)
+        print(results)
+        list_table = [{'link':'/'+result.decode('utf-8'),'label':result.decode('utf-8')} for result in results]
+        page = pystache.render(open(resolve('html/search.html')).read(),
+                {'results':list_table})
+        return [self.render_html(DISPLAY_NAME,unicode(page))]
 
 def application(environ, start_response):
     """Needed to start the app in mod_wsgi"""

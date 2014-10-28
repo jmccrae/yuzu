@@ -140,7 +140,7 @@ class RDFBackend(Store):
         else:
             cursor.execute("select distinct subject from triples where object like ? limit ?", ("%%%s%%" % value, limit))
         rows = cursor.fetchall()
-        return [uri for uri, in rows]
+        return [uri.encode('utf-8') for uri, in rows]
 
     def listInternal(self,id,frag,p,o,offset):
         """This function allows SPARQL queries directly on the database. See rdflib's Store

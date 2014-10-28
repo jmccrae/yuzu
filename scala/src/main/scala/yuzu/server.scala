@@ -461,30 +461,14 @@ class RDFServer extends HttpServlet {
 
   def search(resp : HttpServletResponse, query : String, property : Option[String]) {
     val buf = new StringBuilder()
-    val results = backend.search(query, property)
-    results match {
-       case Nil => {
-         buf ++= "<h1>%s</h1><p>%s</p>" format (YZ_SEARCH, YZ_NO_RESULTS)
-       }
-       case _ => {
-        buf ++= "<h1>" 
-        buf ++= YZ_SEARCH
-        buf ++= "</h1><table class='rdf_search table table-hover'>"
-        for(line <- buildListTable(results)) {
-          buf ++= line
-          buf ++= "\n"
-        }
-        buf ++= "</table>"
-      }
-   }
-    resp.respond("text/html", SC_OK) {
-      out => out.println(renderHTML(DISPLAY_NAME, buf.toString()))
+    val results = backend.search(query, property).map { result =>
+      Map("link" -> ("/" + result), "label" -> result)
     }
-  }
-
-  def buildListTable(values : Seq[String]) = {
-    for(value <- values) yield {
-      "<tr class='rdf_search_full table-active'><td><a href='/%s'>%s</a></td></tr>" format (value, value)
+    val page = mustache(resolve("html/search.html")).substitute(
+      "results" -> results
+    )
+    resp.respond("text/html", SC_OK) {
+      out => out.println(renderHTML(DISPLAY_NAME, page))
     }
   }
 
