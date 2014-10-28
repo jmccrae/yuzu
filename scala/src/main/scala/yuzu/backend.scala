@@ -18,14 +18,18 @@ trait SPARQLResult {
   def resultType : ResultType
 }
 
+case class SearchResult(_link : String, label : String) {
+  val link = CONTEXT + _link
+}
+
 trait Backend {
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) : SPARQLResult
   def lookup(id : String) : Option[Model]
-  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[String])
+  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult])
   def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String])
   def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
-  def search(query : String, property : Option[String], limit : Int = 20) : List[String]
+  def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
   def close() : Unit
 }
@@ -137,13 +141,13 @@ class RDFBackend(db : String) extends Backend {
   }
 
 
-  def search(query : String, property : Option[String], limit : Int = 20) : List[String] = {
+  def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult] = {
     val ps = property match {
       case Some(p) => {
         val ps2 = if(EXACT_QUERY) {
-          conn.prepareStatement("select distinct subject from triples where property=? and object=? limit ?")
+          conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? and object=? limit ?")
         } else {
-          conn.prepareStatement("select distinct subject from triples where property=? and object like ? limit ?")
+          conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? and object like ? limit ?")
         }
         ps2.setString(1, "<%s>" format p)
         if(EXACT_QUERY) {
@@ -156,9 +160,9 @@ class RDFBackend(db : String) extends Backend {
       } 
       case None => {
         val ps2 = if(EXACT_QUERY) {
-          conn.prepareStatement("select distinct subject from triples where object=? limit ?")
+          conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where object=? limit ?")
         } else {
-          conn.prepareStatement("select distinct subject from triples where object like ? limit ?")
+          conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where object like ? limit ?")
         }
         if(EXACT_QUERY) {
           ps2.setString(1, "\"%s\"" format query)
@@ -169,10 +173,17 @@ class RDFBackend(db : String) extends Backend {
         ps2
       }
     }
-    val results = collection.mutable.ListBuffer[String]()
+    val results = collection.mutable.ListBuffer[SearchResult]()
     val rs = ps.executeQuery()
     while(rs.next()) {
-      results += rs.getString(1)
+      rs.getString(2) match {
+        case null =>
+          results += SearchResult(rs.getString(1),rs.getString(1))
+        case "" =>
+          results += SearchResult(rs.getString(1),rs.getString(1))
+        case label =>
+          results += SearchResult(rs.getString(1),label)
+      }
     }
     ps.close
     return results.toList
@@ -264,26 +275,26 @@ class RDFBackend(db : String) extends Backend {
   }
 
    
-  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[String]) = {
+  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult]) = {
     val ps = try {
       prop match {
         case Some(p) => obj match {
           case Some(o) => 
-            val ps = conn.prepareStatement("select distinct subject from triples where property=? and object=? limit ? offset ?")
+            val ps = conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? and object=? limit ? offset ?")
             ps.setString(1,p)
             ps.setString(2,o)
             ps.setInt(3,limit+1)
             ps.setInt(4,offset)
             ps
           case None =>
-            val ps = conn.prepareStatement("select distinct subject from triples where property=? limit ? offset ?")
+            val ps = conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? limit ? offset ?")
             ps.setString(1,p)
             ps.setInt(2,limit+1)
             ps.setInt(3,offset)
             ps
         }
         case None =>
-          val ps = conn.prepareStatement("select distinct subject from triples limit ? offset ?")
+          val ps = conn.prepareStatement("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject limit ? offset ?")
           ps.setInt(1, limit + 1)
           ps.setInt(2, offset)
           ps
@@ -297,11 +308,15 @@ class RDFBackend(db : String) extends Backend {
       ps.close()
       return (false, Nil)
     }
-    var results = collection.mutable.ListBuffer[String]()
+    var results = collection.mutable.ListBuffer[SearchResult]()
     do {
       rs.getString(1) match {
         case "<BLANK>" => {}
-        case result => results += result
+        case result => rs.getString(2) match {
+          case null => results += SearchResult(result,result)
+          case "" => results += SearchResult(result,result)
+          case label => results += SearchResult(result,label)
+        }
       }
       n += 1
     } while(rs.next())
@@ -366,11 +381,14 @@ class RDFBackend(db : String) extends Backend {
       conn.setAutoCommit(false)
       cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
       cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
-      if(SPARQL_ENDPOINT == None) {
-        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-        cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
-        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
-      }
+      cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
+      cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
+      cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
+      cursor.execute("create table if not exists [labels] ([subject] TEXT, [label] TEXT, UNIQUE([subject]))")
+      cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
+      cursor.execute("create table if not exists [free_text] ([subject] TEXT, [word] TEXT, [property] TEXT)")
+      cursor.execute("create index if not exists k_free_text_word ON [free_text] ( word )")
+      cursor.execute("create index if not exists k_free_text_prop_word ON [free_text] ( word, property )")
       var linesRead = 0
       var lineIterator = io.Source.fromInputStream(inputStream).getLines
       while(lineIterator.hasNext) {
@@ -405,6 +423,17 @@ class RDFBackend(db : String) extends Backend {
               ps2.setString(4, "<"+subj+">")
               ps2.execute()
               ps2.close()
+            }
+
+            if(LABELS.contains(prop)) {
+              val ps2 = conn.prepareStatement("insert or ignore into labels values (?, ?)")
+              ps2.setString(1, id)
+              val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
+              ps2.setString(2, label)
+              if(label != "") {
+                ps2.execute()
+                ps2.close()
+              }
             }
           } else if(subj.startsWith("_:")) {
             val (id, frag) = ("<BLANK>", subj.drop(2))

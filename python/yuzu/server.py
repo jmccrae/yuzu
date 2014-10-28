@@ -3,13 +3,18 @@ import os
 import sys
 sys.path.append(os.path.dirname(__file__))
 import lxml.etree as et
-from cStringIO import StringIO
 from wsgiref.simple_server import make_server
-from urlparse import parse_qs
-from urllib import unquote_plus, quote_plus, urlopen
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+    from urlparse import parse_qs
+    from urllib import unquote_plus, quote_plus, urlopen
+else:
+    from io import StringIO
+    from urllib.parse import parse_qs,unquote_plus,quote_plus
+    from urllib.request import urlopen
 from rdflib import RDFS, URIRef, Graph
 from rdflib import plugin
-from rdflib.store import Store, VALID_STORE
+from rdflib.store import Store
 import getopt
 import time
 from os.path import exists
@@ -51,7 +56,7 @@ class RDFServer:
         @param text The page content
         """
         template = open(resolve("html/page.html")).read()
-        return unicode(pystache.render(template, {'title':title, 'content':text})).encode('utf-8')
+        return pystache.render(template, {'title':title, 'content':text})
         #return template.substitute(title=title, content=text, property_facets=property_facets)
 
     @staticmethod
@@ -69,16 +74,16 @@ class RDFServer:
         @param start_response The response object
         @param message The error message to display
         """
-        start_response('400 Bad Request', [('Content-type', 'text/html')])
-        return [RDFServer.render_html(YZ_BAD_REQUEST,message)]
+        start_response('400 Bad Request', [('Content-type', 'text/html; charset=utf-8')])
+        return [RDFServer.render_html(YZ_BAD_REQUEST,message).encode('utf-8')]
 
     @staticmethod
     def send404(start_response):
         """Send a 404 not found
         @param start_response The response object
         """
-        start_response('404 Not Found', [('Content-type', 'text/html')])
-        return [RDFServer.render_html(YZ_NOT_FOUND_TITLE,YZ_NOT_FOUND_PAGE)]
+        start_response('404 Not Found', [('Content-type', 'text/html; charset=utf-8')])
+        return [RDFServer.render_html(YZ_NOT_FOUND_TITLE,YZ_NOT_FOUND_PAGE).encode('utf-8')]
 
     @staticmethod
     def send501(start_response, message=YZ_JSON_LD_NOT_INSTALLED):
@@ -86,8 +91,8 @@ class RDFServer:
         @param start_response The response
         @param message The message
         """
-        start_response('501 Not Implemented', [('Content-type', 'text/plain')])
-        return [RDFServer.render_html(YZ_NOT_IMPLEMENTED,message)]
+        start_response('501 Not Implemented', [('Content-type', 'text/plain; charset=utf-8')])
+        return [RDFServer.render_html(YZ_NOT_IMPLEMENTED,message).encode('utf-8')]
 
     @staticmethod
     def best_mime_type(accept_string):
@@ -155,7 +160,7 @@ class RDFServer:
                 start_response('200 OK', [('Content-type',self.mime_types[result_type])])
                 return [str(result)]
             else:
-                start_response('200 OK', [('Content-type','text/html')])
+                start_response('200 OK', [('Content-type','text/html; charset=utf-8')])
                 dom = et.parse(StringIO(result))
                 xslt = et.parse(StringIO(str(pystache.render(open(resolve("xsl/sparql2html.xsl")).read(),{'base':BASE_NAME,
                     'prefix1uri':PREFIX1_URI, 'prefix1qn':PREFIX1_QN,
@@ -190,8 +195,8 @@ class RDFServer:
         @param title The page header to show (optional)
         """
         self.add_namespaces(graph)
-        dom = et.parse(StringIO(graph.serialize(format="pretty-xml")))
-        xslt = et.parse(StringIO(str(pystache.render(open(resolve("xsl/rdf2html.xsl")).read(),{'base':BASE_NAME,
+        dom = et.fromstring(graph.serialize(format="pretty-xml"))
+        xslt_doc = pystache.render(open(resolve("xsl/rdf2html.xsl")).read(),{'base':BASE_NAME,
                         'prefix1uri':PREFIX1_URI, 'prefix1qn':PREFIX1_QN,
                         'prefix2uri':PREFIX2_URI, 'prefix2qn':PREFIX2_QN,
                         'prefix3uri':PREFIX3_URI, 'prefix3qn':PREFIX3_QN,
@@ -201,7 +206,9 @@ class RDFServer:
                         'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
                         'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
                         'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN,
-                        'query':query}))))
+                        'query':query})
+        s = StringIO(xslt_doc)
+        xslt = et.parse(s)
         transform = et.XSLT(xslt)
         newdom = transform(dom)
         return self.render_html(title, et.tostring(newdom, pretty_print=True))
@@ -228,12 +235,12 @@ class RDFServer:
 
         # The welcome page
         if uri == "/" or uri == "/index.html":
-            start_response('200 OK', [('Content-type', 'text/html')])
-            return [self.render_html(DISPLAY_NAME,pystache.render(open(resolve("html/index.html")).read(),{'property_facets':FACETS}))]
+            start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
+            return [self.render_html(DISPLAY_NAME,pystache.render(open(resolve("html/index.html")).read(),{'property_facets':FACETS})).encode('utf-8')]
         # The license page
         if LICENSE_PATH and uri == LICENSE_PATH:
-            start_response('200 OK', [('Content-type', 'text/html')])
-            return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read())]
+            start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
+            return [self.render_html(DISPLAY_NAME,open(resolve("html/license.html")).read()).encode('utf-8')]
         # The search page
         elif SEARCH_PATH and (uri == SEARCH_PATH or uri == (SEARCH_PATH + "/")):
             if 'QUERY_STRING' in environ:
@@ -253,17 +260,18 @@ class RDFServer:
         elif uri == DUMP_URI:
             start_response('200 OK', [('Content-type', 'appliction/x-gzip'),
                                       ('Content-length', str(os.stat(DUMP_FILE).st_size))])
-            return open(resolve(DUMP_FILE), "rb").read()
+            return [open(resolve(DUMP_FILE), "rb").read()]
         # The favicon (i.e., the logo users see in the browser next to the title)
         elif uri.startswith("/favicon.ico") and exists(resolve("assets/favicon.ico")):
             start_response('200 OK', [('Content-type', 'image/png'),
                 ('Content-length', str(os.stat(resolve("assets/favicon.ico")).st_size))])
-            return open(resolve("assets/favicon.ico"), "rb").read()
+            return [open(resolve("assets/favicon.ico"), "rb").read()]
         # Any assets requests
         elif uri.startswith(ASSETS_PATH) and exists(resolve(uri[1:])):
             start_response('200 OK', [('Content-type', mimetypes.guess_type(uri)[0]),
                 ('Content-length', str(os.stat(resolve(uri[1:])).st_size))])
-            return open(resolve(uri[1:]), "rb").read()
+            x = open(resolve(uri[1:]), "rb").read()
+            return [x]
         # SPARQL requests
         elif SPARQL_PATH and (uri == SPARQL_PATH or uri == (SPARQL_PATH+"/")):
             if 'QUERY_STRING' in environ:
@@ -271,11 +279,11 @@ class RDFServer:
                 if 'query' in qs:
                     return self.sparql_query(qs['query'][0], mime, qs.get('default-graph-uri',[None])[0], start_response)
                 else:
-                    start_response('200 OK', [('Content-type', 'text/html')])
-                    return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
+                    start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
+                    return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read()).encode('utf-8')]
             else:
-                start_response('200 OK', [('Content-type', 'text/html')])
-                return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
+                start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
+                return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read()).encode('utf-8')]
         elif LIST_PATH and (uri == LIST_PATH or uri == (LIST_PATH + "/")):
             offset = 0
             prop = None
@@ -313,8 +321,8 @@ class RDFServer:
                 except Exception as e:
                     print (e)
                     return self.send501(start_response)
-            start_response('200 OK', [('Content-type', self.mime_types[mime]),('Vary','Accept'), ('Content-length', str(len(content)))])
-            return [content]
+            start_response('200 OK', [('Content-type', self.mime_types[mime] + "; charset=utf-8"),('Vary','Accept'), ('Content-length', str(len(content)))])
+            return [content.encode('utf-8')]
         else:
             return self.send404(start_response)
 
@@ -328,7 +336,7 @@ class RDFServer:
         if not results:
             return self.send404(start_response)
         template = open(resolve("html/list.html")).read()
-        list_table = [{'link':'/'+result.decode('utf-8'),'label':result.decode('utf-8')} for result in results]
+        list_table = [{'link':link,'label':label} for link,label in results]
         if offset > 0:
             has_prev = ""
         else:
@@ -344,7 +352,7 @@ class RDFServer:
             print(facet['uri'])
             facet['uri_enc'] = quote_plus(facet['uri'])
 
-        start_response('200 OK',[('Content-type','text/html')])
+        start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         mres = pystache.render(template,{
                 'facets':FACETS,
                 'results':list_table,
@@ -353,16 +361,16 @@ class RDFServer:
                 'has_next':has_next,
                 'next':nxt,
                 'pages':pages})
-        return [self.render_html(DISPLAY_NAME, unicode(mres))]
+        return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
     def search(self, start_response, query, prop):
-        start_response('200 OK',[('Content-type','text/html')])
+        start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         results = self.backend.search(query, prop)
         print(results)
-        list_table = [{'link':'/'+result.decode('utf-8'),'label':result.decode('utf-8')} for result in results]
+        list_table = [{'link':'/'+result,'label':result} for result in results]
         page = pystache.render(open(resolve('html/search.html')).read(),
                 {'results':list_table})
-        return [self.render_html(DISPLAY_NAME,unicode(page))]
+        return [self.render_html(DISPLAY_NAME,page).encode('utf-8')]
 
 def application(environ, start_response):
     """Needed to start the app in mod_wsgi"""

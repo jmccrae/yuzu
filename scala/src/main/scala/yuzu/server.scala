@@ -433,9 +433,6 @@ class RDFServer extends HttpServlet {
       }
       case _ => {
         val template = mustache(resolve("html/list.html"))
-        val listTable = results.map { result =>
-          Map("link" -> ("/" + result), "label" -> result)
-        }
         val hasPrev = if(offset > 0) { "" } else { "disabled" }
         val prev = math.max(offset - limit, 0)
         val hasNext = if(hasMore) { "" } else { "disabled" }
@@ -449,7 +446,7 @@ class RDFServer extends HttpServlet {
           out => out.println(renderHTML(DISPLAY_NAME, 
             template.substitute(
               "facets" -> facets,
-              "results" -> listTable,
+              "results" -> results,
               "has_prev" -> hasPrev,
               "prev" -> prev.toString,
               "has_next" -> hasNext,
@@ -462,9 +459,7 @@ class RDFServer extends HttpServlet {
 
   def search(resp : HttpServletResponse, query : String, property : Option[String]) {
     val buf = new StringBuilder()
-    val results = backend.search(query, property).map { result =>
-      Map("link" -> ("/" + result), "label" -> result)
-    }
+    val results = backend.search(query, property)
     val page = mustache(resolve("html/search.html")).substitute(
       "results" -> results
     )

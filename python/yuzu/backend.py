@@ -140,7 +140,7 @@ class RDFBackend(Store):
         else:
             cursor.execute("select distinct subject from triples where object like ? limit ?", ("%%%s%%" % value, limit))
         rows = cursor.fetchall()
-        return [uri.encode('utf-8') for uri, in rows]
+        return [uri for uri, in rows]
 
     def listInternal(self,id,frag,p,o,offset):
         """This function allows SPARQL queries directly on the database. See rdflib's Store
@@ -222,20 +222,24 @@ class RDFBackend(Store):
         cursor = conn.cursor()
         if prop:
             if obj:
-                cursor.execute("select distinct subject from triples where property=? and object=? limit ? offset ?", (prop, obj, limit + 1, offset))
+                cursor.execute("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? and object=? limit ? offset ?", (prop, obj, limit + 1, offset))
             else:
-                cursor.execute("select distinct subject from triples where property=? limit ? offset ?", (prop, limit + 1, offset))
+                cursor.execute("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? limit ? offset ?", (prop, limit + 1, offset))
         else:
-            cursor.execute("select distinct subject from triples limit ? offset ?", (limit + 1, offset))
-        # Yes count exists in SQL, it is very slow however
-        n = len(cursor.fetchall())
-        if n == 0:
-            conn.close()
-            return False, None
-        cursor.execute("select distinct subject from triples limit ? offset ?", (limit, offset))
-        refs = [uri.encode('utf-8') for uri, in cursor.fetchall() if uri != "<BLANK>"]
+            cursor.execute("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject limit ? offset ?", (limit + 1, offset))
+        row = cursor.fetchone()
+        n = 0
+        refs = []
+        while n < limit and row:
+            uri, label = row
+            if label:
+                refs.append((CONTEXT + uri, label))
+            else:
+                refs.append((CONTEXT + uri, uri))
+            n += 1
+            row = cursor.fetchone()
         conn.close()
-        return n >= limit, refs
+        return n == limit, refs
 
     def query(self, query, mime_type, default_graph_uri, timeout):
         """Execute a SPARQL query
@@ -287,10 +291,15 @@ class RDFBackend(Store):
         cursor = conn.cursor()
         cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
         cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
-        if not SPARQL_ENDPOINT:
-            cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-            cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
-            cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
+        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
+        cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
+        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
+        cursor.execute("create table if not exists [labels] ([subject] TEXT, [label] TEXT, UNIQUE([subject]))")
+        cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
+        cursor.execute("create table if not exists [free_text] ([subject] TEXT, [word] TEXT, [property] TEXT)")
+        cursor.execute("create index if not exists k_free_text_word ON [free_text] ( word )")
+        cursor.execute("create index if not exists k_free_text_prop_word ON [free_text] ( word, property )")
+ 
         lines_read = 0
         for line in input_stream:
             lines_read += 1
@@ -307,6 +316,11 @@ class RDFBackend(Store):
                 if obj.startswith("<" + BASE_NAME):
                     id, frag = self.split_uri(obj[1:-1])
                     cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
+                if prop in LABELS:
+                    label = obj[obj.index('"')+1:obj.rindex('"')]
+                    if label:
+                        cursor.execute("insert or ignore into labels values (?, ?)", (unicode_escape(id), unicode_escape(label)))
+
             elif e[0].startswith("_:"):
                 id, frag = "<BLANK>", e[0][2:]
                 prop = e[1]
@@ -320,8 +334,7 @@ class RDFBackend(Store):
         conn.close()
 
 # TODO: Make this faster
-def unicode_escape(string):
-    s = string.decode('utf-8')
+def unicode_escape(s):
     i = 0
     while i < len(s):
         if s[i:i+2] == "\\u":                

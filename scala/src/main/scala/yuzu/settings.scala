@@ -7,6 +7,10 @@ object YuzuSettings {
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
   val BASE_NAME = "http://localhost:8080/"
+  // The prefix that this servlet will be deployed, e.g. 
+  // if the servlet is at http://www.example.org/yuzu/ the context 
+  // is /yuzu/
+  val CONTEXT = "/"
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/example.nt.gz"
   // The local path to the data
@@ -55,4 +59,13 @@ object YuzuSettings {
   val FACETS = Seq(
     Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label")
   )
+  // Properties to use as labels
+  val LABELS = Set(
+    "<http://www.w3.org/2000/01/rdf-schema#label>",
+  "<http://xmlns.com/foaf/0.1/nick>",
+  "<http://purl.org/dc/elements/1.1/title>",
+  "<http://purl.org/rss/1.0/title>",
+  "<http://xmlns.com/foaf/0.1/name>"
+  )
+    
 }
