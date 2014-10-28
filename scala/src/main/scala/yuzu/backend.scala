@@ -97,10 +97,11 @@ class RDFBackend(db : String) extends Backend {
       if(i != 0) {
         val subject = from_n3(o, model)
         val property = prop_from_n3(p, model)
-        val obj = RDFBackend.name(id, Option(f))
+        val obj = model.getRDFNode(RDFBackend.name(id, Option(f)))
+        println(subject)
         subject match {
-          case r : Resource => r.addProperty(property, model.getRDFNode(obj))
-          case _ => {}
+          case r : Resource => r.addProperty(property, obj)
+          case _ => {println(subject)}
         }
       } else {
         val subject = model.getRDFNode(RDFBackend.name(id, Option(f)))
@@ -394,17 +395,17 @@ class RDFBackend(db : String) extends Backend {
             ps1.setString(4, RDFBackend.unicodeEscape(obj))
             ps1.execute()
             ps1.close()
-            /* TODO: Causes all kinds of weird issues with HTML generation, fix later
-             * if(obj.startsWith("<"+BASE_NAME)) {
-              val (id2, frag2) = splitUri(obj)
+            
+            if(obj.startsWith("<"+BASE_NAME)) {
+              val (id2, frag2) = splitUri(obj.drop(1).dropRight(1))
               val ps2 = conn.prepareStatement("insert into triples values (?, ?, ?, ?, 1)")
               ps2.setString(1, id2)
               ps2.setString(2, frag2)
               ps2.setString(3, prop)
-              ps2.setString(4, obj)
+              ps2.setString(4, "<"+subj+">")
               ps2.execute()
               ps2.close()
-            }*/
+            }
           } else if(subj.startsWith("_:")) {
             val (id, frag) = ("<BLANK>", subj.drop(2))
             val prop = e(1)

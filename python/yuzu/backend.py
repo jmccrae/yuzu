@@ -304,10 +304,9 @@ class RDFBackend(Store):
                 prop = e[1]
                 obj = " ".join(e[2:-1])
                 cursor.execute("insert into triples values (?, ?, ?, ?, 0)", (unicode_escape(id), unicode_escape(frag), unicode_escape(prop), unicode_escape(obj)))
-                # TODO: Causes all kinds of weird issues with HTML generation, fix later
-                #if obj.startswith("<" + BASE_NAME):
-                #    id, frag = self.split_uri(obj[1:-1])
-                #    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
+                if obj.startswith("<" + BASE_NAME):
+                    id, frag = self.split_uri(obj[1:-1])
+                    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", (id, frag, prop, "<"+subj+">"))
             elif e[0].startswith("_:"):
                 id, frag = "<BLANK>", e[0][2:]
                 prop = e[1]

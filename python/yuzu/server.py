@@ -148,6 +148,7 @@ class RDFServer:
            start_response('503 Service Unavailable', [('Content-type','text/plain')])
            return YZ_TIME_OUT
        else:
+           # This doesn't take into account describe queries!!!
             if result_type == "error":
                 return self.send400(start_response)
             elif mime_type != "html" or result_type != "sparql":
@@ -183,7 +184,7 @@ class RDFServer:
         graph.namespace_manager.bind(PREFIX8_QN, PREFIX8_URI)
         graph.namespace_manager.bind(PREFIX9_QN, PREFIX9_URI)
  
-    def rdfxml_to_html(self, graph, title=""):
+    def rdfxml_to_html(self, graph, query, title=""):
         """Convert RDF data to XML
         @param graph The RDFlib graph object
         @param title The page header to show (optional)
@@ -199,7 +200,8 @@ class RDFServer:
                         'prefix6uri':PREFIX6_URI, 'prefix6qn':PREFIX6_QN,
                         'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
                         'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
-                        'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN}))))
+                        'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN,
+                        'query':query}))))
         transform = et.XSLT(xslt)
         newdom = transform(dom)
         return self.render_html(title, et.tostring(newdom, pretty_print=True))
@@ -303,7 +305,7 @@ class RDFServer:
             else:
                 title = id
             if mime == "html":
-                content = self.rdfxml_to_html(graph, title)
+                content = self.rdfxml_to_html(graph, BASE_NAME + id, title)
             else:
                 try:
                     self.add_namespaces(graph)

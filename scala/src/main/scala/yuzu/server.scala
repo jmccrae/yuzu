@@ -239,7 +239,7 @@ class RDFServer extends HttpServlet {
             resp.addHeader("Content-type", "text/html")
             resp.setStatus(SC_OK)
             val out = resp.getWriter()
-            out.println(rdfxmlToHtml(model))
+            out.println(rdfxmlToHtml(model,None))
             out.flush()
             out.close()
           }
@@ -285,14 +285,15 @@ class RDFServer extends HttpServlet {
   }
  
   
-  def rdfxmlToHtml(model : Model, title : String = "") : String = {
+  def rdfxmlToHtml(model : Model, query : Option[String], title : String = "") : String = {
     val tf = TransformerFactory.newInstance()
     addNamespaces(model)
     val xslt = mustache(resolve("xsl/rdf2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
 "prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
 "prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
 "prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
-"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI)
+"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI,
+"query" -> query.getOrElse(""))
     val transformer = tf.newTransformer(new StreamSource(new StringReader(xslt)))
     transformer.setOutputProperty(javax.xml.transform.OutputKeys.METHOD, "html")
     val rdfData = new StringWriter()
@@ -401,7 +402,7 @@ class RDFServer extends HttpServlet {
                                             model.createProperty(RDFS, "label"),
                                             null).map(_.getObject().toString()).mkString(", ")
           val content = if(mime == html) {
-            rdfxmlToHtml(model,  title)
+            rdfxmlToHtml(model, Some(BASE_NAME + id), title)
           } else {
             val out = new java.io.StringWriter()
             addNamespaces(model)

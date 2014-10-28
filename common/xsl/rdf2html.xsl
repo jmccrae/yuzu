@@ -70,7 +70,43 @@ xmlns:ontology="{{base}}ontology">
 <xsl:variable name="apos">'</xsl:variable>
   
 <xsl:template match="/rdf:RDF">  
-  <p>
+    <div>
+    {{#query}}
+    <xsl:for-each select="//*[@rdf:about='{{query}}']">
+       <h1>
+            <xsl:call-template name="display-uri">
+                <xsl:with-param name="text" select="@rdf:about"/>
+            </xsl:call-template>
+            <img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/>
+      </h1>
+      <xsl:call-template name="rdf_links"/>
+      <xsl:if test="name()!='rdf:Description'">
+          <h5>Instance of: 
+              <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">
+                  <xsl:attribute name="href">
+                      <xsl:value-of select="concat(namespace-uri(),local-name())"/>
+                  </xsl:attribute>
+                  <xsl:value-of select="name()"/>
+              </a>
+          </h5>
+      </xsl:if>
+      <xsl:call-template name="forprop"/>
+    </xsl:for-each>
+    <xsl:for-each select="*[@rdf:about!='{{query}}']">
+        <xsl:choose>
+            <xsl:when test="starts-with(@rdf:about,'{{query}}')">
+                <xsl:call-template name="parent_fragment"/>
+            </xsl:when>
+            <xsl:when test="*/*[@rdf:about='{{query}}']">
+                <xsl:call-template name="inverse"/>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:comment>Unrecognized data</xsl:comment>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:for-each>
+    {{/query}}
+    {{^query}}
       <h1>
           <xsl:choose>
               <xsl:when test="count(*) = 1">
@@ -97,7 +133,36 @@ xmlns:ontology="{{base}}ontology">
           </xsl:if>
           <xsl:call-template name="forprop"/>
       </xsl:for-each>
-  </p>
+      {{/query}}
+  </div>
+</xsl:template>
+
+<xsl:template name="parent_fragment">
+    <xsl:comment>TODO</xsl:comment>
+</xsl:template>
+
+<xsl:template name="inverse">
+    <xsl:for-each select="*">
+        <table class="rdf rdf_main table">
+            <tr>
+                <td>Is <a href="{concat(namespace-uri(),local-name())}">
+                        <xsl:value-of select="name()"/></a> of
+                </td>
+                <td>
+                    <a href="{../@rdf:about}">
+                        <xsl:choose>
+                            <xsl:when test="starts-with(../@rdf:about,'&base;')">
+                                <xsl:value-of select="substring-after(../@rdf:about,'&base;')"/>
+                            </xsl:when>
+                            <xsl:otherwise>
+                                <xsl:value-of select="../@rdf:about"/>
+                            </xsl:otherwise>
+                        </xsl:choose>
+                    </a>
+                </td>
+            </tr>
+        </table>
+    </xsl:for-each>
 </xsl:template>
 
 <xsl:template name="forprop">
@@ -462,40 +527,40 @@ xmlns:ontology="{{base}}ontology">
 </xsl:template>
 
     <xsl:template name="rdf_links">
-            <ul id="rdf_format_list">
-                <li class="rdf_format">
-                    <a>
-                        <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.json')"/>
-                        </xsl:attribute>
-                        JSON-LD
-                    </a>
-                </li>
-                <li class="rdf_format">
-                    <a>
-                        <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.nt')"/>
-                        </xsl:attribute>
-                        N-Triples
-                    </a>
-                </li>
-                <li class="rdf_format">
-                    <a>
-                        <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.ttl')"/>
-                        </xsl:attribute>
-                        Turtle
-                    </a>
-                </li>
-                <li class="rdf_format">
-                    <a>
-                        <xsl:attribute name="href">
-                            <xsl:value-of select="concat('/',substring-after(*/@rdf:about,'&base;'),'.rdf')"/>
-                        </xsl:attribute>
-                        RDF/XML
-                    </a>
-                </li>
-            </ul>
+        <ul id="rdf_format_list">
+            <li class="rdf_format">
+                {{#query}}
+                <a href="{{query}}.json">JSON-LD</a>
+                {{/query}}
+                {{^query}}
+                <a href="{concat('/',substring-after(*/@rdf:about,'&base;'),'.json')}">JSON-LD</a>
+                {{/query}}
+            </li>
+            <li class="rdf_format">
+                {{#query}}
+                <a href="{{query}}.nt">N-Triples</a>
+                {{/query}}
+                {{^query}}
+                <a href="{concat('/',substring-after(*/@rdf:about,'&base;'),'.nt')}">N-Triples</a>
+                {{/query}}
+            </li>
+            <li class="rdf_format">
+                {{#query}}
+                <a href="{{query}}.ttl">Turtle</a>
+                {{/query}}
+                {{^query}}
+                <a href="{concat('/',substring-after(*/@rdf:about,'&base;'),'.ttl')}">Turtle</a>
+                {{/query}}
+            </li>
+            <li class="rdf_format">
+                {{#query}}
+                <a href="{{query}}.rdf">RDF/XML</a>
+                {{/query}}
+                {{^query}}
+                <a href="{concat('/',substring-after(*/@rdf:about,'&base;'),'.rdf')}">RDF/XML</a>
+                {{/query}}
+            </li>
+        </ul>
     </xsl:template>
 
 
