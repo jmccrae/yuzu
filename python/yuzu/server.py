@@ -326,7 +326,7 @@ class RDFServer:
         if not results:
             return self.send404(start_response)
         template = open(resolve("html/list.html")).read()
-        list_table = "\n".join(self.build_list_table(results))
+        list_table = [{'link':'/'+result.decode('utf-8'),'label':result.decode('utf-8')} for result in results]
         if offset > 0:
             has_prev = ""
         else:
@@ -337,12 +337,15 @@ class RDFServer:
         else:
             has_next = "disabled"
         nxt = offset + limit
-        pages = "%d - %d" % (offset, offset + len(results))
+        pages = "%d - %d" % (offset + 1, offset + len(results) + 1)
+        for facet in FACETS:
+            print(facet['uri'])
+            facet['uri_enc'] = quote_plus(facet['uri'])
 
         start_response('200 OK',[('Content-type','text/html')])
         mres = pystache.render(template,{
-                'facets':"",
-                'results':list_table.decode('utf-8'),
+                'facets':FACETS,
+                'results':list_table,
                 'has_prev':has_prev,
                 'prev':prev,
                 'has_next':has_next,

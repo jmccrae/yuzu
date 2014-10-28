@@ -439,7 +439,7 @@ class RDFServer extends HttpServlet {
         val prev = math.max(offset - limit, 0)
         val hasNext = if(hasMore) { "" } else { "disabled" }
         val next = offset + limit
-        val pages = "%d - %d" format(offset, offset + results.size)
+        val pages = "%d - %d" format(offset + 1, offset + results.size)
         val facets = FACETS.map { facet =>
           facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
         }
