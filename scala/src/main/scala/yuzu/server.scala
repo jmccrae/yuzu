@@ -35,23 +35,15 @@ trait PathResolver {
 object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
-//  def resolve(fname : String) = try {
-//    val cls = this.getClass()
-//    val pd = cls.getProtectionDomain()
-//    val cs = pd.getCodeSource()
-//    val loc = cs.getLocation()
-//    if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
-//      loc.getPath() + fname
-//    } else {
-//      "../common/" + fname
-//    }
-//  } catch {
-//    case x : Exception =>  "../common/" + fname
-//  }
+  lazy val propertyFacets = {
+    (for((k,v) <- FACETS) yield {
+      "<option value='%s'>%s</option>" format (k,v)
+    }).mkString("\n")
+  }
 
   def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
     val template = new Template(slurp(resolve("html/page.html")))
-    template.substitute("title"-> title, "content" -> text)
+    template.substitute("title"-> title, "content" -> text, "property_facets" -> propertyFacets)
   }
 
   def send302(resp : HttpServletResponse, location : String) { resp.sendRedirect(location) }
@@ -181,8 +173,6 @@ class RDFServer extends HttpServlet {
     }
   }
 
-  private val mimeTypes = Map(
-     )
   lazy val db : String = DB_FILE
   lazy val backend : Backend = new RDFBackend(db)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
@@ -370,7 +360,16 @@ class RDFServer extends HttpServlet {
           }
         } else { 0 }
       } else { 0 }
-      listResources(resp, offset)
+      val property2 = req.getParameter("prop")
+      val property = if(property2 == null || property2 == "") {
+        None
+      } else if(property2.startsWith("<") && property2.endsWith(">")) {
+        Some(property2)
+      } else {
+        Some("<" + property2 + ">")
+      }
+      val obj = Option(req.getParameter("obj"))
+      listResources(resp, offset, property, obj)
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
       val modelOption = backend.lookup(id)
@@ -403,37 +402,40 @@ class RDFServer extends HttpServlet {
     }
   }}
 
-  def listResources(resp : HttpServletResponse, offset : Int) {
+  def listResources(resp : HttpServletResponse, offset : Int, property : Option[String], obj : Option[String]) {
     val limit = 20
-    val (hasMore, results) = backend.listResources(offset, limit)
+    val (hasMore, results) = backend.listResources(offset, limit, property, obj)
     results match {
       case Nil => {
         send404(resp)
       }
       case _ => {
+        val template = Template(slurp(resolve("html/list.html")))
+        val listTable = buildListTable(results).mkString("\n")
+        val hasPrev = if(offset > 0) { "" } else { "disabled" }
+        val prev = math.max(offset - limit, 0)
+        val hasNext = if(hasMore) { "" } else { "disabled" }
+        val next = offset + limit
+        val pages = "%d - %d" format(offset, offset + results.size)
+        val facets = (for((k,v) <- FACETS) yield {
+          "<a href='/list/?prop=%s' class='btn btn-default'>%s</a>".format(
+            java.net.URLEncoder.encode(k, "UTF-8"), v)
+        }).mkString("")
+
         val buf = new StringBuilder()
         buf ++= "<h1>" 
         buf ++= YZ_INDEX 
         buf ++= "</h1><table class='rdf_search table table-hover'>"
-        for(line <-  buildListTable(results)) {
-          buf ++= line
-          buf ++= "\n"
-        }
-        buf ++="</table><ul class='pager'>"
-        if(offset > 0) {
-            buf ++= "<li class='previous'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" format (max(offset - limit, 0))
-        } else {
-            buf ++= "<li class='previous disabled'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" format (max(offset - limit, 0))
-        }
-        buf ++= "<li>%d - %d</li>" format (offset, offset + results.size)
-        if(hasMore) {
-            buf ++= "<li class='next'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" format (offset + limit)
-        } else {
-            buf ++= "<li class='next disabled'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" format (offset + limit)
-        }
-        buf ++= "</ul>"
         resp.respond("text/html", SC_OK) {
-          out => out.println(renderHTML(DISPLAY_NAME, buf.toString()))
+          out => out.println(renderHTML(DISPLAY_NAME, 
+            template.substitute(
+              "facets" -> facets,
+              "results" -> listTable,
+              "has_prev" -> hasPrev,
+              "prev" -> prev.toString,
+              "has_next" -> hasNext,
+              "next" -> next.toString,
+              "pages" -> pages)))
         }
       }
     }
@@ -462,7 +464,7 @@ class RDFServer extends HttpServlet {
     }
   }
 
-  def buildListTable(values : List[String]) = {
+  def buildListTable(values : Seq[String]) = {
     for(value <- values) yield {
       "<tr class='rdf_search_full table-active'><td><a href='/%s'>%s</a></td></tr>" format (value, value)
     }

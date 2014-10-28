@@ -10,7 +10,6 @@ from urllib import unquote_plus, quote_plus, urlopen
 from rdflib import RDFS, URIRef, Graph
 from rdflib import plugin
 from rdflib.store import Store, VALID_STORE
-import multiprocessing
 import getopt
 import time
 from os.path import exists
@@ -31,39 +30,8 @@ def resolve(fname):
         return os.path.dirname(__file__) + "/../common/" + fname
     else:
         return "/common/" + fname
-
-class SPARQLExecutor(multiprocessing.Process):
-    """Executes a SPARQL query as a background process"""
-    def __init__(self, query, mime_type, default_graph_uri, pipe, graph):
-        multiprocessing.Process.__init__(self)
-        self.result = None
-        self.result_type = None
-        self.query = str(query)
-        self.mime_type = mime_type
-        self.default_graph_uri = default_graph_uri
-        self.pipe = pipe
-        self.graph = graph
-
-
-    def run(self):
-        try:
-            if self.default_graph_uri:
-                qres = self.graph.query(self.query, initNs=self.default_graph_uri)
-            else:
-                qres = self.graph.query(self.query)#, initNs=self.default_graph_uri)
-        except Exception as e:
-            print(e)
-            self.pipe.send(('error', YZ_BAD_REQUEST))
-            return
-        if qres.type == "CONSTRUCT" or qres.type == "DESCRIBE":
-            if self.mime_type == "html" or self.mime_type == "json-ld":
-                self.mime_type == "pretty-xml"
-            self.pipe.send((self.mime_type, qres.serialize(format=self.mime_type)))
-        elif self.mime_type == 'sparql' or self.mime_type == 'html':
-            self.pipe.send(('sparql', qres.serialize()))
-        else:
-            self.pipe.send(('error', YZ_BAD_MIME))
-
+    
+property_facets = '\n'.join("<option value='%s'>%s</option>" % (k,v) for k,v in FACETS.items())
 
 class RDFServer:
     """The main web server class for Yuzu"""
@@ -77,6 +45,7 @@ class RDFServer:
                  )])
         self.backend = RDFBackend(db)
 
+
     @staticmethod
     def render_html(title, text):
         """Apply the standard template to some more HTML. This method is used in the creation of most pages
@@ -84,7 +53,7 @@ class RDFServer:
         @param text The page content
         """
         template = Template(open(resolve("html/page.html")).read())
-        return template.substitute(title=title, content=text)
+        return template.substitute(title=title, content=text, property_facets=property_facets)
 
     @staticmethod
     def send302(start_response, location):
@@ -174,55 +143,34 @@ class RDFServer:
                                 best_mime = "sparql"
         return best_mime
 
-
     def sparql_query(self, query, mime_type, default_graph_uri, start_response, timeout=10):
-        """Execute a SPARQL query
-        @param query The query string
-        @param mime_type The requested MIME type
-        @param default_graph_uri The default graph URI
-        @param start_response The response object
-        @param timeout The timeout (in seconds) on the query
-        """
-        if SPARQL_ENDPOINT:
-            graph = Graph('SPARQLStore')
-            graph.open(SPARQL_ENDPOINT)
-        else:
-            graph = Graph(self.backend)
-        try:
-            parent, child = multiprocessing.Pipe()
-            executor = SPARQLExecutor(query, mime_type, default_graph_uri, child, graph)
-            executor.start()
-            executor.join(timeout)
-            if executor.is_alive():
-                start_response('503 Service Unavailable', [('Content-type','text/plain')])
-                executor.terminate()
-                return YZ_TIME_OUT
+       timed_out, result_type, result = self.backend.query(query,mime_type, default_graph_uri, timeout)
+       if timed_out:
+           start_response('503 Service Unavailable', [('Content-type','text/plain')])
+           return YZ_TIME_OUT
+       else:
+            if result_type == "error":
+                return self.send400(start_response)
+            elif mime_type != "html" or result_type != "sparql":
+                start_response('200 OK', [('Content-type',self.mime_types[result_type])])
+                return [str(result)]
             else:
-                result_type, result = parent.recv()
-                if result_type == "error":
-                    return self.send400(start_response)
-                elif mime_type != "html" or result_type != "sparql":
-                    start_response('200 OK', [('Content-type',self.mime_types[result_type])])
-                    return [str(result)]
-                else:
-                    start_response('200 OK', [('Content-type','text/html')])
-                    dom = et.parse(StringIO(result))
-                    xslt = et.parse(StringIO(Template(open(resolve("xsl/sparql2html.xsl")).read()).substitute(base=BASE_NAME,
-                        prefix1uri=PREFIX1_URI, prefix1qn=PREFIX1_QN,
-                        prefix2uri=PREFIX2_URI, prefix2qn=PREFIX2_QN,
-                        prefix3uri=PREFIX3_URI, prefix3qn=PREFIX3_QN,
-                        prefix4uri=PREFIX4_URI, prefix4qn=PREFIX4_QN,
-                        prefix5uri=PREFIX5_URI, prefix5qn=PREFIX5_QN,
-                        prefix6uri=PREFIX6_URI, prefix6qn=PREFIX6_QN,
-                        prefix7uri=PREFIX7_URI, prefix7qn=PREFIX7_QN,
-                        prefix8uri=PREFIX8_URI, prefix8qn=PREFIX8_QN,
-                        prefix9uri=PREFIX9_URI, prefix9qn=PREFIX9_QN)))
+                start_response('200 OK', [('Content-type','text/html')])
+                dom = et.parse(StringIO(result))
+                xslt = et.parse(StringIO(Template(open(resolve("xsl/sparql2html.xsl")).read()).substitute(base=BASE_NAME,
+                    prefix1uri=PREFIX1_URI, prefix1qn=PREFIX1_QN,
+                    prefix2uri=PREFIX2_URI, prefix2qn=PREFIX2_QN,
+                    prefix3uri=PREFIX3_URI, prefix3qn=PREFIX3_QN,
+                    prefix4uri=PREFIX4_URI, prefix4qn=PREFIX4_QN,
+                    prefix5uri=PREFIX5_URI, prefix5qn=PREFIX5_QN,
+                    prefix6uri=PREFIX6_URI, prefix6qn=PREFIX6_QN,
+                    prefix7uri=PREFIX7_URI, prefix7qn=PREFIX7_QN,
+                    prefix8uri=PREFIX8_URI, prefix8qn=PREFIX8_QN,
+                    prefix9uri=PREFIX9_URI, prefix9qn=PREFIX9_QN)))
 
-                    transform = et.XSLT(xslt)
-                    new_dom = transform(dom)
-                    return self.render_html("SPARQL Results", et.tostring(new_dom, pretty_print=True))
-        finally:
-            graph.close()
+                transform = et.XSLT(xslt)
+                new_dom = transform(dom)
+                return self.render_html("SPARQL Results", et.tostring(new_dom, pretty_print=True))
 
     def add_namespaces(self, graph):
         graph.namespace_manager.bind("ontology", BASE_NAME+"ontology#")
@@ -235,8 +183,7 @@ class RDFServer:
         graph.namespace_manager.bind(PREFIX7_QN, PREFIX7_URI)
         graph.namespace_manager.bind(PREFIX8_QN, PREFIX8_URI)
         graph.namespace_manager.bind(PREFIX9_QN, PREFIX9_URI)
-
-
+ 
     def rdfxml_to_html(self, graph, title=""):
         """Convert RDF data to XML
         @param graph The RDFlib graph object
@@ -330,6 +277,8 @@ class RDFServer:
                 return [self.render_html(DISPLAY_NAME,open(resolve("html/sparql.html")).read())]
         elif LIST_PATH and (uri == LIST_PATH or uri == (LIST_PATH + "/")):
             offset = 0
+            prop = None
+            obj = None
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
                 if 'offset' in qs:
@@ -337,7 +286,12 @@ class RDFServer:
                         offset = int(qs['offset'][0])
                     except ValueError:
                         return self.send400(start_response)
-            return self.list_resources(start_response, offset)
+                if 'prop' in qs:
+                    prop = qs['prop']
+                if 'obj' in qs:
+                    obj = qs['obj']                   
+            
+            return self.list_resources(start_response, offset, prop, obj)
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id,_ = re.findall("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
@@ -363,29 +317,39 @@ class RDFServer:
         else:
             return self.send404(start_response)
 
-    def list_resources(self, start_response, offset):
+    def list_resources(self, start_response, offset, prop, obj):
         """Build the list resources page
         @param start_response The response object
         @param offset The offset to show from
         """
         limit = 20
-        has_more, results = self.backend.list_resources(offset, limit)
+        has_more, results = self.backend.list_resources(offset, limit, prop, obj)
         if not results:
-            print(YZ_NO_DATA)
             return self.send404(start_response)
-        start_response('200 OK',[('Content-type','text/html')])
-        buf = "<h1>"+ YZ_INDEX + "</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table><ul class='pager'>"
+        template = Template(open(resolve("html/list.html")).read())
+        list_table = "\n".join(self.build_list_table(results))
         if offset > 0:
-            buf = buf + "<li class='previous'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" % (max(offset - limit, 0))
+            has_prev = ""
         else:
-            buf = buf + "<li class='previous disabled'><a href='/list/?offset=%d'>&lt;&lt;</a></li>" % (max(offset - limit, 0))
-        buf = buf + "<li>%d - %d</li>" % (offset, offset + len(results))
+            has_prev = "disabled"
+        prev = max(offset - limit, 0)
         if has_more:
-            buf = buf + "<li class='next'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" % (offset + limit)
+            has_next = ""
         else:
-            buf = buf + "<li class='next disabled'><a href='/list/?offset=%s' class='btn btn-default'>&gt;&gt;</a></li>" % (offset + limit)
-        buf = buf + "</ul>"
-        return [self.render_html(DISPLAY_NAME,buf.encode())]
+            has_next = "disabled"
+        nxt = offset + limit
+        pages = "%d - %d" % (offset, offset + len(results))
+
+        start_response('200 OK',[('Content-type','text/html')])
+        return [self.render_html(DISPLAY_NAME,
+            template.substitute(
+                facets="",
+                results=list_table,
+                has_prev=has_prev,
+                prev=prev,
+                has_next=has_next,
+                next=nxt,
+                pages=pages).encode('utf-8'))]
 
     def search(self, start_response, query, prop):
         start_response('200 OK',[('Content-type','text/html')])
@@ -394,7 +358,7 @@ class RDFServer:
             buf = "<h1>" + YZ_SEARCH + "</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
         else:
             buf = "<h1>%s</h1><p>%s</p>" % (YZ_SEARCH, YZ_NO_RESULTS)
-        return [self.render_html(DISPLAY_NAME,buf.encode())]
+        return [self.render_html(DISPLAY_NAME,buf.encode('utf-8'))]
 
 
     def build_list_table(self, values):

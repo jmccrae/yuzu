@@ -51,5 +51,8 @@ object YuzuSettings {
   val LIST_PATH = "/list"
   // Exact queries only
   val EXACT_QUERY = false
-
+  // Properties to use as facets
+  val FACETS = Map(
+    "http://www.w3.org/2000/01/rdf-schema#label" -> "Label"
+  )
 }

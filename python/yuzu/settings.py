@@ -44,4 +44,10 @@ ASSETS_PATH = "/assets/"
 SPARQL_PATH = "/sparql"
 # Path to site contents list (set to None to disable)
 LIST_PATH = "/list"
+# Exact queries only
+EXACT_QUERY = False
+# Properties to use as facets
+FACETS = {
+    "http://www.w3.org/2000/01/rdf-schema#label": "Label"
+}
 

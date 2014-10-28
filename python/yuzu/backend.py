@@ -5,11 +5,46 @@ import sqlite3
 import sys
 import getopt
 import gzip
+import multiprocessing
 
 from yuzu.settings import *
 from yuzu.user_text import *
 
 __author__ = 'John P. McCrae'
+
+class SPARQLExecutor(multiprocessing.Process):
+    """Executes a SPARQL query as a background process"""
+    def __init__(self, query, mime_type, default_graph_uri, pipe, graph):
+        multiprocessing.Process.__init__(self)
+        self.result = None
+        self.result_type = None
+        self.query = str(query)
+        self.mime_type = mime_type
+        self.default_graph_uri = default_graph_uri
+        self.pipe = pipe
+        self.graph = graph
+
+
+    def run(self):
+        try:
+            if self.default_graph_uri:
+                qres = self.graph.query(self.query, initNs=self.default_graph_uri)
+            else:
+                qres = self.graph.query(self.query)#, initNs=self.default_graph_uri)
+        except Exception as e:
+            print(e)
+            self.pipe.send(('error', YZ_BAD_REQUEST))
+            return
+        if qres.type == "CONSTRUCT" or qres.type == "DESCRIBE":
+            if self.mime_type == "html" or self.mime_type == "json-ld":
+                self.mime_type == "pretty-xml"
+            self.pipe.send((self.mime_type, qres.serialize(format=self.mime_type)))
+        elif self.mime_type == 'sparql' or self.mime_type == 'html':
+            self.pipe.send(('sparql', qres.serialize()))
+        else:
+            self.pipe.send(('error', YZ_BAD_MIME))
+
+
 
 
 class RDFBackend(Store):
@@ -23,7 +58,9 @@ class RDFBackend(Store):
         @param frag The fragment or None for the root element
         @return A URIRef with the URI
         """
-        if frag:
+        if id == "<BLANK>":
+            return BNode(frag)
+        elif frag:
             return URIRef("%s%s#%s" % (BASE_NAME, id, frag))
         else:
             return URIRef("%s%s" % (BASE_NAME, id))
@@ -55,7 +92,7 @@ class RDFBackend(Store):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
 
-        cursor.execute("select fragment, property, object, inverse from triples where subject=?", (id,))
+        cursor.execute("select fragment, property, object, inverse from triples where subject=?", (unicode_escape(id),))
         rows = cursor.fetchall()
         if rows:
             for f, p, o, i in rows:
@@ -105,16 +142,15 @@ class RDFBackend(Store):
         rows = cursor.fetchall()
         return [uri for uri, in rows]
 
-    def triples(self, triple, context=None):
+    def listInternal(self,id,frag,p,o,offset):
         """This function allows SPARQL queries directly on the database. See rdflib's Store
         """
-        s, p, o = triple
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-        if s == None:
+        if id == None:
             if p == None:
                 if o == None:
-                    raise Exception(YZ_QUERY_TOO_BROAD)
+                    cursor.execute("select subject, fragment, property, object from triples where inverse=0")
                 else:
                     cursor.execute("select subject, fragment, property, object from triples where object=? and inverse=0", (o.n3(),))
             else:
@@ -138,9 +174,44 @@ class RDFBackend(Store):
                     cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0", (id, frag, p.n3()))
                 else:
                     cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0", (id, frag, p.n3(), o.n3()))
+        return cursor
+    
+
+    def triples(self, triple, context=None):
+        s, p, o = triple
+        if s:
+            s2 = self.unname(str(s))
+            if s2:
+                id, frag = s2
+            else:
+                return []
+        else:
+            id, frag = None, None
+
+        cursor = listInternal(id,frag,p,o)
         return [((URIRef(self.name(s,f)), from_n3(p), from_n3(o)), None) for s,f,p,o in cursor.fetchall()]
 
-    def list_resources(self, offset, limit):
+    def list(self, subj, prop, obj, offset, limit):
+        if subj:
+            s2 = self.unname(subj)
+            if s2:
+                id, frag = s2
+            else:
+                return (False, [])
+        else:
+            id,frag = None,None
+        cursor = self.listInternal(id,frag,prop,obj,offset)
+        triples = []
+        row = cursor.fetchone()
+        while len(triples) < limit and row:
+            i,f,p,o = row
+            s = self.name(i,f)
+            triples.append((s,p,o))
+            row = cursor.fetchone()
+        return cursor.fetchone() != None, triples
+
+
+    def list_resources(self, offset, limit, prop = None, obj = None):
         """
         Produce the list of all pages in the resource
         @param offset Where to start
@@ -149,17 +220,49 @@ class RDFBackend(Store):
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-
-        cursor.execute("select distinct subject from triples limit ? offset ?", (limit + 1, offset))
+        if prop:
+            if obj:
+                cursor.execute("select distinct subject from triples where property=? and object=? limit ? offset ?", (prop, obj, limit + 1, offset))
+            else:
+                cursor.execute("select distinct subject from triples where property=? limit ? offset ?", (prop, limit + 1, offset))
+        else:
+            cursor.execute("select distinct subject from triples limit ? offset ?", (limit + 1, offset))
         # Yes count exists in SQL, it is very slow however
         n = len(cursor.fetchall())
         if n == 0:
             conn.close()
             return False, None
         cursor.execute("select distinct subject from triples limit ? offset ?", (limit, offset))
-        refs = [uri for uri, in cursor.fetchall()]
+        refs = [uri for uri, in cursor.fetchall() if uri != "<BLANK>"]
         conn.close()
         return n >= limit, refs
+
+    def query(self, query, mime_type, default_graph_uri, timeout):
+        """Execute a SPARQL query
+        @param query The query string
+        @param mime_type The requested MIME type
+        @param default_graph_uri The default graph URI
+        @param start_response The response object
+        @param timeout The timeout (in seconds) on the query
+        """
+        if SPARQL_ENDPOINT:
+            graph = Graph('SPARQLStore')
+            graph.open(SPARQL_ENDPOINT)
+        else:
+            graph = Graph(self)
+        try:
+            parent, child = multiprocessing.Pipe()
+            executor = SPARQLExecutor(query, mime_type, default_graph_uri, child, graph)
+            executor.start()
+            executor.join(timeout)
+            timed_out = executor.is_alive()
+            if timed_out:
+                executor.terminate()
+            result_type, result = parent.recv()
+            return timed_out, result_type, result
+        finally:
+            graph.close()
+ 
 
 
     @staticmethod
@@ -219,7 +322,7 @@ class RDFBackend(Store):
 
 # TODO: Make this faster
 def unicode_escape(string):
-    s = string.decode()
+    s = string.decode('utf-8')
     i = 0
     while i < len(s):
         if s[i:i+2] == "\\u":                

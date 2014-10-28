@@ -22,7 +22,9 @@ trait Backend {
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) : SPARQLResult
   def lookup(id : String) : Option[Model]
-  def listResources(offset : Int, limit : Int) : (Boolean,List[String])
+  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[String])
+  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String])
+  def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) : List[String]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
   def close() : Unit
@@ -95,12 +97,13 @@ class RDFBackend(db : String) extends Backend {
       if(i != 0) {
         val subject = from_n3(o, model)
         val property = prop_from_n3(p, model)
-        val obj = model.createResource(RDFBackend.name(id, Option(f)))
+        val obj = RDFBackend.name(id, Option(f))
         subject match {
-          case r : Resource => r.addProperty(property, obj)
+          case r : Resource => r.addProperty(property, model.getRDFNode(obj))
+          case _ => {}
         }
       } else {
-        val subject = model.createResource(RDFBackend.name(id, Option(f)))
+        val subject = model.getRDFNode(RDFBackend.name(id, Option(f)))
         val property = prop_from_n3(p, model)
         val obj = from_n3(o, model)
         subject match {
@@ -174,13 +177,13 @@ class RDFBackend(db : String) extends Backend {
     return results.toList
   }
 
-  private[yuzu] def list(subj : Option[String], frag : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0) : (ResultSet, PreparedStatement) = {
+  private[yuzu] def listInternal(subj : Option[String], frag : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0) : (ResultSet, PreparedStatement) = {
     var ps : PreparedStatement = null
     val rs : ResultSet = subj match {
       case None => prop match {
         case None => obj match {
           case None => 
-            ps = conn.prepareStatement("select subject, fragment, property, object where inverse=0")
+            ps = conn.prepareStatement("select subject, fragment, property, object from triples where inverse=0")
             ps.executeQuery()
           case Some(o) =>
             ps = conn.prepareStatement("select subject, fragment, property, object from triples where object=? and inverse=0")
@@ -233,14 +236,92 @@ class RDFBackend(db : String) extends Backend {
     return (rs,ps)
   }
 
-  def listResources(offset : Int, limit : Int) : (Boolean,List[String]) = {
+  def list(subj : Option[String], prop : Option[String], obj : Option[String], 
+    offset : Int = 0, limit : Int = 20) : (Boolean, Seq[Triple]) = {
+    val (id,frag) = subj match {
+      case Some(s) => RDFBackend.unname(s) match {
+        case Some((i,f)) => (Some(i),f)
+        case None => return (false,Nil)
+      }
+      case None => (None,None)
+    }
+    val (rs, ps) = listInternal(id,frag,prop,obj,offset)
+    val model = ModelFactory.createDefaultModel()
+    try {
+      var results = collection.mutable.ListBuffer[Triple]()
+      while(results.size < limit && rs.next()) {
+        val subject = RDFBackend.name(rs.getString(1), Some(rs.getString(2)))
+        val property = from_n3(rs.getString(3),model).asNode()
+        val obj = from_n3(rs.getString(4),model).asNode()
+        results += new Triple(subject,property,obj)
+      }
+      return (rs.next(), results.toSeq)
+    } finally {
+      rs.close()
+      ps.close()
+    }
+  }
+
+   
+  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[String]) = {
     val ps = try {
-      conn.prepareStatement("select distinct subject from triples limit ? offset ?")
+      prop match {
+        case Some(p) => obj match {
+          case Some(o) => 
+            val ps = conn.prepareStatement("select distinct subject from triples where property=? and object=? limit ? offset ?")
+            ps.setString(1,p)
+            ps.setString(2,o)
+            ps.setInt(3,limit+1)
+            ps.setInt(4,offset)
+            ps
+          case None =>
+            val ps = conn.prepareStatement("select distinct subject from triples where property=? limit ? offset ?")
+            ps.setString(1,p)
+            ps.setInt(2,limit+1)
+            ps.setInt(3,offset)
+            ps
+        }
+        case None =>
+          val ps = conn.prepareStatement("select distinct subject from triples limit ? offset ?")
+          ps.setInt(1, limit + 1)
+          ps.setInt(2, offset)
+          ps
+      }
     } catch {
       case x : SQLException => throw new RuntimeException("Database @ " + db + " not initialized", x)
     }
-    ps.setInt(1, limit + 1)
-    ps.setInt(2, offset)
+   val rs = ps.executeQuery()
+    var n = 0
+    if(!rs.next()) {
+      ps.close()
+      return (false, Nil)
+    }
+    var results = collection.mutable.ListBuffer[String]()
+    do {
+      rs.getString(1) match {
+        case "<BLANK>" => {}
+        case result => results += result
+      }
+      n += 1
+    } while(rs.next())
+    ps.close()
+    if(n >= limit) {
+      results.remove(n - 1)
+      return (true, results.toSeq)
+    } else {
+      return (false, results.toSeq)
+    }
+  }
+
+  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String]) = {
+    val ps = try {
+      conn.prepareStatement("select distinct object from triples where property=? limit ? offset ?")
+    } catch {
+      case x : SQLException => throw new RuntimeException("Database @ " + db + " not initialized", x)
+    }
+    ps.setString(1,prop)
+    ps.setInt(2,limit+1)
+    ps.setInt(3,offset)
     val rs = ps.executeQuery()
     var n = 0
     if(!rs.next()) {
@@ -252,15 +333,15 @@ class RDFBackend(db : String) extends Backend {
       results += rs.getString(1)
       n += 1
     } while(rs.next())
-
     ps.close()
     if(n >= limit) {
       results.remove(n - 1)
-      return (true, results.toList)
+      return (true, results.toSeq)
     } else {
-      return (false, results.toList)
+      return (false, results.toSeq)
     }
   }
+
 
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) {
     def splitUri(subj : String) : (String, String) = {
@@ -386,10 +467,18 @@ class RDFBackend(db : String) extends Backend {
 
 object RDFBackend {
 
-  def name(id : String, frag : Option[String]) = frag match {
-    case Some("") => "%s%s" format (BASE_NAME, id)
-    case Some(f) => "%s%s#%s" format (BASE_NAME, id, f)
-    case None => "%s%s" format (BASE_NAME, id)
+  def name(id : String, frag : Option[String]) = {
+    if(id == "<BLANK>") {
+      NodeFactory.createAnon(AnonId.create(frag.get))
+    } else {
+      NodeFactory.createURI(
+        frag match {
+          case Some("") => "%s%s" format (BASE_NAME, id)
+          case Some(f) => "%s%s#%s" format (BASE_NAME, id, f)
+          case None => "%s%s" format (BASE_NAME, id)
+        }
+      )
+    }
   }
 
   def unname(uri : String) = if(uri.startsWith(BASE_NAME)) {

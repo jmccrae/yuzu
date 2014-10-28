@@ -66,9 +66,9 @@ class RDFBackendGraph(backend : RDFBackend)  extends com.hp.hpl.jena.graph.impl.
         case None => 
           return None
       }
-      Some(backend.list(Some(id),frag,Option(p).map(RDFBackend.to_n3),Option(o).map(RDFBackend.to_n3)))
+      Some(backend.listInternal(Some(id),frag,Option(p).map(RDFBackend.to_n3),Option(o).map(RDFBackend.to_n3)))
     } else {
-      Some(backend.list(None, None, Option(p).map(RDFBackend.to_n3), Option(o).map(RDFBackend.to_n3)))
+      Some(backend.listInternal(None, None, Option(p).map(RDFBackend.to_n3), Option(o).map(RDFBackend.to_n3)))
     }
   }
 }
@@ -138,7 +138,7 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet, ps : PreparedStatement) ext
     val f = rs.getString("fragment")
     val p = rs.getString("property")
     val o = rs.getString("object")
-    val t = new Triple(NodeFactory.createURI(RDFBackend.name(s, Option(f))),
+    val t = new Triple(RDFBackend.name(s, Option(f)),
       prop_from_n3(p),
       from_n3(o))
     _hasNext = rs.next()

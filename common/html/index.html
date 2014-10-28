@@ -7,6 +7,11 @@
         <legend>Search</legend>
         <div class="form-group">
             <label for="property" class="control-label">Property</label><br>
+
+            <select name="property" id="property" class="form-control">
+                <option value=''>Search all properties</option>
+                ${property_facets}
+            </select>
             <!--<div>
                 <input type="text" class="form-control" id="property" name="property">
             </div>-->
