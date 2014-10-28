@@ -432,16 +432,17 @@ class RDFServer extends HttpServlet {
       }
       case _ => {
         val template = mustache(resolve("html/list.html"))
-        val listTable = buildListTable(results).mkString("\n")
+        val listTable = results.map { result =>
+          Map("link" -> ("/" + result), "label" -> result)
+        }
         val hasPrev = if(offset > 0) { "" } else { "disabled" }
         val prev = math.max(offset - limit, 0)
         val hasNext = if(hasMore) { "" } else { "disabled" }
         val next = offset + limit
         val pages = "%d - %d" format(offset, offset + results.size)
-        val facets = (for(facet <- FACETS) yield {
-          "<a href='/list/?prop=%s' class='btn btn-default'>%s</a>".format(
-            java.net.URLEncoder.encode(facet("uri"), "UTF-8"), facet("label"))
-        }).mkString("")
+        val facets = FACETS.map { facet =>
+          facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
+        }
 
         resp.respond("text/html", SC_OK) {
           out => out.println(renderHTML(DISPLAY_NAME, 

@@ -6,12 +6,16 @@
     <div class="col-lg-2">
         <h4>List by:</h4>
         <div class="btn-group-vertical btn-block">
-            {{{facets}}}
+            {{#facets}}
+                <a href='/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
+            {{/facets}}
         </div>
     </div>
     <div class="col-lg-10">
         <table class='rdf_search table table-hover'>
-            {{{results}}}
+            {{#results}}
+                <tr class='rdf_search_full table-active'><td><a href='{{link}}'>{{label}}</a></td></tr>
+            {{/results}}
         </table>
     </div>
 </div>
