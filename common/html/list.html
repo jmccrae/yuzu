@@ -6,18 +6,18 @@
     <div class="col-lg-2">
         <h4>List by:</h4>
         <div class="btn-group-vertical btn-block">
-            ${facets}
+            {{{facets}}}
         </div>
     </div>
     <div class="col-lg-10">
         <table class='rdf_search table table-hover'>
-            ${results}
+            {{{results}}}
         </table>
     </div>
 </div>
 <div class="row">
     <div class="btn-group pull-right">
-        <a href='/list/?offset=${prev}' class='btn btn-default ${has_prev}'>&lt;&lt;</a>
-        <a href='#' class='btn btn-default'>${pages}</a>
-        <a href='/list/?offset=${next}' class='btn btn-default class=${has_prev}'>&gt;&gt;</a>
+        <a href='/list/?offset={{prev}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
+        <a href='#' class='btn btn-default'>{{pages}}</a>
+        <a href='/list/?offset={{next}}' class='btn btn-default class={{has_prev}}'>&gt;&gt;</a>
     </ul>

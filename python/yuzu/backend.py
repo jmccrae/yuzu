@@ -233,7 +233,7 @@ class RDFBackend(Store):
             conn.close()
             return False, None
         cursor.execute("select distinct subject from triples limit ? offset ?", (limit, offset))
-        refs = [uri for uri, in cursor.fetchall() if uri != "<BLANK>"]
+        refs = [uri.encode('utf-8') for uri, in cursor.fetchall() if uri != "<BLANK>"]
         conn.close()
         return n >= limit, refs
 

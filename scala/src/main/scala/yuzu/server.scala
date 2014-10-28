@@ -2,6 +2,7 @@ package com.github.jmccrae.yuzu
 
 import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.jmccrae.yuzu.YuzuSettings._
+import com.github.mustachejava.{DefaultMustacheFactory, Mustache}
 import org.apache.jena.riot.{RDFDataMgr, RDFFormat}
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
 import java.net.URL
@@ -32,6 +33,24 @@ trait PathResolver {
   def apply(fname : String) : URL
 }
 
+class MustachePattern(m : Mustache) {
+  def substitute(args : (String,Any)*) = {
+    val out = new StringWriter()
+    val javaMap = new java.util.HashMap[String,Any]()
+    for((k,v) <- args) {
+      javaMap.put(k, v)
+    }
+    m.execute(out, javaMap)
+    out.toString
+  }
+}
+
+object mustache {
+  val mf = new DefaultMustacheFactory()
+  def apply(pattern : String) = new MustachePattern(mf.compile(new StringReader(pattern),pattern))
+  def apply(file : URL) = new MustachePattern(mf.compile(new java.io.InputStreamReader(file.openStream()),file.toString))
+}
+
 object RDFServer {
   val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
@@ -42,7 +61,7 @@ object RDFServer {
   }
 
   def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
-    val template = new Template(slurp(resolve("html/page.html")))
+    val template = mustache(resolve("html/page.html"))
     template.substitute("title"-> title, "content" -> text, "property_facets" -> propertyFacets)
   }
 
@@ -194,7 +213,7 @@ class RDFServer extends HttpServlet {
             resp.addHeader("Content-type", "text/html")
             resp.setStatus(SC_OK)
             val tf = TransformerFactory.newInstance()
-            val xslDoc = new Template(slurp(resolve("xsl/sparql2html.xsl"))).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
+            val xslDoc = mustache(resolve("xsl/sparql2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
 "prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
 "prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
 "prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
@@ -267,7 +286,7 @@ class RDFServer extends HttpServlet {
   def rdfxmlToHtml(model : Model, title : String = "") : String = {
     val tf = TransformerFactory.newInstance()
     addNamespaces(model)
-    val xslt = new Template(slurp(resolve("xsl/rdf2html.xsl"))).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
+    val xslt = mustache(resolve("xsl/rdf2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
 "prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
 "prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
 "prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
@@ -410,7 +429,7 @@ class RDFServer extends HttpServlet {
         send404(resp)
       }
       case _ => {
-        val template = Template(slurp(resolve("html/list.html")))
+        val template = mustache(resolve("html/list.html"))
         val listTable = buildListTable(results).mkString("\n")
         val hasPrev = if(offset > 0) { "" } else { "disabled" }
         val prev = math.max(offset - limit, 0)

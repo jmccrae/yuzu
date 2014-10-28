@@ -57,7 +57,7 @@ class BackendTest extends FlatSpec with Matchers {
   }
     
   "name" should "work" in {
-    RDFBackend.name("test", Some("test")) should be (BASE_NAME + "test#test")
+    RDFBackend.name("test", Some("test")).toString should be (BASE_NAME + "test#test")
   }
 
   "unname" should "work" in {

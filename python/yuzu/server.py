@@ -13,10 +13,10 @@ from rdflib.store import Store, VALID_STORE
 import getopt
 import time
 from os.path import exists
-from string import Template
 import sqlite3
 import cgi
 import mimetypes
+import pystache
 
 from yuzu.backend import RDFBackend
 from yuzu.settings import *
@@ -52,8 +52,9 @@ class RDFServer:
         @param title The page title (in the header)
         @param text The page content
         """
-        template = Template(open(resolve("html/page.html")).read())
-        return template.substitute(title=title, content=text, property_facets=property_facets)
+        template = open(resolve("html/page.html")).read()
+        return unicode(pystache.render(template, {'title':title, 'content':text, 'property_facets':property_facets})).encode('utf-8')
+        #return template.substitute(title=title, content=text, property_facets=property_facets)
 
     @staticmethod
     def send302(start_response, location):
@@ -157,16 +158,16 @@ class RDFServer:
             else:
                 start_response('200 OK', [('Content-type','text/html')])
                 dom = et.parse(StringIO(result))
-                xslt = et.parse(StringIO(Template(open(resolve("xsl/sparql2html.xsl")).read()).substitute(base=BASE_NAME,
-                    prefix1uri=PREFIX1_URI, prefix1qn=PREFIX1_QN,
-                    prefix2uri=PREFIX2_URI, prefix2qn=PREFIX2_QN,
-                    prefix3uri=PREFIX3_URI, prefix3qn=PREFIX3_QN,
-                    prefix4uri=PREFIX4_URI, prefix4qn=PREFIX4_QN,
-                    prefix5uri=PREFIX5_URI, prefix5qn=PREFIX5_QN,
-                    prefix6uri=PREFIX6_URI, prefix6qn=PREFIX6_QN,
-                    prefix7uri=PREFIX7_URI, prefix7qn=PREFIX7_QN,
-                    prefix8uri=PREFIX8_URI, prefix8qn=PREFIX8_QN,
-                    prefix9uri=PREFIX9_URI, prefix9qn=PREFIX9_QN)))
+                xslt = et.parse(StringIO(str(pystache.render(open(resolve("xsl/sparql2html.xsl")).read(),{'base':BASE_NAME,
+                    'prefix1uri':PREFIX1_URI, 'prefix1qn':PREFIX1_QN,
+                    'prefix2uri':PREFIX2_URI, 'prefix2qn':PREFIX2_QN,
+                    'prefix3uri':PREFIX3_URI, 'prefix3qn':PREFIX3_QN,
+                    'prefix4uri':PREFIX4_URI, 'prefix4qn':PREFIX4_QN,
+                    'prefix5uri':PREFIX5_URI, 'prefix5qn':PREFIX5_QN,
+                    'prefix6uri':PREFIX6_URI, 'prefix6qn':PREFIX6_QN,
+                    'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
+                    'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
+                    'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN}))))
 
                 transform = et.XSLT(xslt)
                 new_dom = transform(dom)
@@ -191,16 +192,16 @@ class RDFServer:
         """
         self.add_namespaces(graph)
         dom = et.parse(StringIO(graph.serialize(format="pretty-xml")))
-        xslt = et.parse(StringIO(Template(open(resolve("xsl/rdf2html.xsl")).read()).substitute(base=BASE_NAME,
-                        prefix1uri=PREFIX1_URI, prefix1qn=PREFIX1_QN,
-                        prefix2uri=PREFIX2_URI, prefix2qn=PREFIX2_QN,
-                        prefix3uri=PREFIX3_URI, prefix3qn=PREFIX3_QN,
-                        prefix4uri=PREFIX4_URI, prefix4qn=PREFIX4_QN,
-                        prefix5uri=PREFIX5_URI, prefix5qn=PREFIX5_QN,
-                        prefix6uri=PREFIX6_URI, prefix6qn=PREFIX6_QN,
-                        prefix7uri=PREFIX7_URI, prefix7qn=PREFIX7_QN,
-                        prefix8uri=PREFIX8_URI, prefix8qn=PREFIX8_QN,
-                        prefix9uri=PREFIX9_URI, prefix9qn=PREFIX9_QN)))
+        xslt = et.parse(StringIO(str(pystache.render(open(resolve("xsl/rdf2html.xsl")).read(),{'base':BASE_NAME,
+                        'prefix1uri':PREFIX1_URI, 'prefix1qn':PREFIX1_QN,
+                        'prefix2uri':PREFIX2_URI, 'prefix2qn':PREFIX2_QN,
+                        'prefix3uri':PREFIX3_URI, 'prefix3qn':PREFIX3_QN,
+                        'prefix4uri':PREFIX4_URI, 'prefix4qn':PREFIX4_QN,
+                        'prefix5uri':PREFIX5_URI, 'prefix5qn':PREFIX5_QN,
+                        'prefix6uri':PREFIX6_URI, 'prefix6qn':PREFIX6_QN,
+                        'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
+                        'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
+                        'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN}))))
         transform = et.XSLT(xslt)
         newdom = transform(dom)
         return self.render_html(title, et.tostring(newdom, pretty_print=True))
@@ -326,7 +327,7 @@ class RDFServer:
         has_more, results = self.backend.list_resources(offset, limit, prop, obj)
         if not results:
             return self.send404(start_response)
-        template = Template(open(resolve("html/list.html")).read())
+        template = open(resolve("html/list.html")).read()
         list_table = "\n".join(self.build_list_table(results))
         if offset > 0:
             has_prev = ""
@@ -341,15 +342,15 @@ class RDFServer:
         pages = "%d - %d" % (offset, offset + len(results))
 
         start_response('200 OK',[('Content-type','text/html')])
-        return [self.render_html(DISPLAY_NAME,
-            template.substitute(
-                facets="",
-                results=list_table,
-                has_prev=has_prev,
-                prev=prev,
-                has_next=has_next,
-                next=nxt,
-                pages=pages).encode('utf-8'))]
+        mres = pystache.render(template,{
+                'facets':"",
+                'results':list_table.decode('utf-8'),
+                'has_prev':has_prev,
+                'prev':prev,
+                'has_next':has_next,
+                'next':nxt,
+                'pages':pages})
+        return [self.render_html(DISPLAY_NAME, unicode(mres))]
 
     def search(self, start_response, query, prop):
         start_response('200 OK',[('Content-type','text/html')])
@@ -358,7 +359,7 @@ class RDFServer:
             buf = "<h1>" + YZ_SEARCH + "</h1><table class='rdf_search table table-hover'>" + "\n".join(self.build_list_table(results)) + "</table>"
         else:
             buf = "<h1>%s</h1><p>%s</p>" % (YZ_SEARCH, YZ_NO_RESULTS)
-        return [self.render_html(DISPLAY_NAME,buf.encode('utf-8'))]
+        return [self.render_html(DISPLAY_NAME,buf)]
 
 
     def build_list_table(self, values):

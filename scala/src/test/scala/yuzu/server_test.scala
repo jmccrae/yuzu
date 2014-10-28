@@ -127,7 +127,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
     val mockResponse = mock[HttpServletResponse]
     val out = new StringWriter()
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
-    rdfServer.listResources(mockResponse, 0)
+    rdfServer.listResources(mockResponse, 0, None, None)
     assert(out.toString() contains "href='/test_resource'")
   }
 
