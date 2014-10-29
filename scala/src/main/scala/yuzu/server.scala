@@ -2,13 +2,13 @@ package com.github.jmccrae.yuzu
 
 import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.jmccrae.yuzu.YuzuSettings._
-import com.github.mustachejava.{DefaultMustacheFactory, Mustache}
+import com.github.mustachejava.{DefaultMustacheFactory, Mustache, MustacheResolver}
 import org.apache.jena.riot.{RDFDataMgr, RDFFormat}
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
 import java.net.URL
 import java.nio.file.Files
 import java.io.{ByteArrayOutputStream, PipedOutputStream, PipedInputStream, StringReader, InputStream,
-OutputStream, File, FileInputStream, StringWriter}
+OutputStream, File, FileInputStream, StringWriter, FileNotFoundException}
 import java.util.concurrent.{TimeoutException}
 import javax.xml.transform.{TransformerFactory}
 import javax.xml.transform.stream.{StreamSource, StreamResult}
@@ -39,6 +39,12 @@ class MustachePattern(m : Mustache) {
     m.execute(out, deepToJava(Map(args:_*)))
     out.toString
   }
+  def generate(obj : Any) = {
+    val out = new StringWriter()
+    m.execute(out, obj)
+    out.toString
+  }
+
 
   private def deepToJava(x : Any) : Any = x match {
     case Some(x) => deepToJava(x)
@@ -57,8 +63,20 @@ class MustachePattern(m : Mustache) {
 
 object mustache {
   val mf = new DefaultMustacheFactory()
+  private var inited = false
   def apply(pattern : String) = new MustachePattern(mf.compile(new StringReader(pattern),pattern))
   def apply(file : URL) = new MustachePattern(mf.compile(new java.io.InputStreamReader(file.openStream()),file.toString))
+  def rdf2html(implicit resolve : PathResolver) = {
+    val resolver = new MustacheResolver {
+      def getReader(resourceName : String) = new java.io.InputStreamReader(resourceName match {
+        case "triple" => resolve("html/triple.mustache").openStream()
+        case "rdf2html" => resolve("html/rdf2html.mustache").openStream()
+        case _ => throw new FileNotFoundException()
+      })
+    }
+    val mf = new DefaultMustacheFactory(resolver)
+    new MustachePattern(mf.compile("rdf2html"))
+  }
 }
 
 object RDFServer {
@@ -287,8 +305,13 @@ class RDFServer extends HttpServlet {
   }
  
   
-  def rdfxmlToHtml(model : Model, query : Option[String], title : String = "") : String = {
-    val tf = TransformerFactory.newInstance()
+  def rdfxmlToHtml(model : Model, query : Option[String], title : String = "") : String = query match {
+    case Some(q) =>
+      val elem = QueryElement.fromModel(model, q)
+      return renderHTML(title, mustache.rdf2html.generate(elem))
+    case None =>
+      throw new UnsupportedOperationException("TODO")
+/*    val tf = TransformerFactory.newInstance()
     addNamespaces(model)
     val xslt = mustache(resolve("xsl/rdf2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
 "prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
@@ -302,7 +325,7 @@ class RDFServer extends HttpServlet {
     RDFDataMgr.write(rdfData, model, RDFFormat.RDFXML_PRETTY)
     val out = new StringWriter()
     transformer.transform(new StreamSource(new StringReader(rdfData.toString())), new StreamResult(out))
-    return renderHTML(title, out.toString())
+    return renderHTML(title, out.toString())*/
   }
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {

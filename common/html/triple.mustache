@@ -1,0 +1,40 @@
+<tr>
+    <td>
+        {{#prop}}
+            <a href="{{uri}}">{{display}}</a>
+        {{/prop}}
+    </td>
+    <td>
+        {{#obj}}
+            {{#triples?}}
+                <span property="{{#prop}}{{uri}}{{/prop}}">
+                <table class="rdf table table-hover" resource="{{uri}}">
+                {{#triples}}
+                    {{> triple}}
+                {{/triples}}
+                </table>
+                </span>
+            {{/triples?}}
+            {{^triples?}}
+                {{#literal}}
+                    <span property="{{#prop}}{{uri}}{{/prop}}">{{display}}</span>
+                    {{#lang}}
+                        <span class="pull-right"><img src="/assets/flag/{{lang}}.gif"/></span>
+                    {{/lang}}
+                    {{#datatype}}
+                        <span class="pull-right disabled"><a href="{{uri}}">{{display}}</a></span>
+                    {{/datatype}}
+                {{/literal}}
+                {{^literal}}
+                    {{#bnode}}
+                        <i>Anonymous Node</i>
+                    {{/bnode}}
+                    {{^bnode}}
+                        <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}">{{display}}</a>
+                    {{/bnode}}
+                {{/literal}}
+            {{/triples?}}
+        {{/obj}}
+        </span>
+    </td>
+</tr>
