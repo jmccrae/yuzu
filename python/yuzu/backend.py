@@ -238,11 +238,37 @@ class RDFBackend(Store):
             if label:
                 refs.append({'link':CONTEXT + uri, 'label':label})
             else:
-                refs.append({'link':CONTEXT + uri, 'lable': uri})
+                refs.append({'link':CONTEXT + uri, 'label': uri})
             n += 1
             row = cursor.fetchone()
         conn.close()
         return n == limit, refs
+
+    def list_values(self, offset, limit, prop):
+        """
+        Produce a list of all possible values for a particular property
+        @param offset Where to start listing
+        @param limit Number of values to list
+        @param prop The property to list for
+        @return A tuple consisting of a boolean indicating if there are more results and list of values that exist (as N3)
+        """
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+        if not offset:
+            offset = 0
+        cursor.execute("select distinct object from triples where property=? limit ? offset ?",
+                (prop, limit + 1, offset))
+        row = cursor.fetchone()
+        n = 0
+        results = []
+        while n < limit and row:
+            obj, = row
+            results.append(obj)
+            n += 1
+            row = cursor.fetchone()
+        conn.close()
+        return n == limit, results
+
 
     def query(self, query, mime_type, default_graph_uri, timeout):
         """Execute a SPARQL query

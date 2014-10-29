@@ -288,6 +288,7 @@ class RDFServer:
             offset = 0
             prop = None
             obj = None
+            obj_offset = None
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
                 if 'offset' in qs:
@@ -296,11 +297,13 @@ class RDFServer:
                     except ValueError:
                         return self.send400(start_response)
                 if 'prop' in qs:
-                    prop = qs['prop']
+                    prop = "<%s>" % qs['prop'][0]
                 if 'obj' in qs:
-                    obj = qs['obj']                   
+                    obj = qs['obj'][0]              
+                if 'obj_offset' in qs and re.match("\d+", qs['obj_offset']):
+                    obj_offset = int(qs['obj_offset'][0])
             
-            return self.list_resources(start_response, offset, prop, obj)
+            return self.list_resources(start_response, offset, prop, obj, obj_offset)
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id,_ = re.findall("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri)[0]
@@ -326,15 +329,13 @@ class RDFServer:
         else:
             return self.send404(start_response)
 
-    def list_resources(self, start_response, offset, prop, obj):
+    def list_resources(self, start_response, offset, prop, obj, obj_offset):
         """Build the list resources page
         @param start_response The response object
         @param offset The offset to show from
         """
         limit = 20
         has_more, results = self.backend.list_resources(offset, limit, prop, obj)
-        if not results:
-            return self.send404(start_response)
         template = open(resolve("html/list.html")).read()
         if offset > 0:
             has_prev = ""
@@ -347,19 +348,38 @@ class RDFServer:
             has_next = "disabled"
         nxt = offset + limit
         pages = "%d - %d" % (offset + 1, offset + len(results) + 1)
+        facets = []
         for facet in FACETS:
-            print(facet['uri'])
             facet['uri_enc'] = quote_plus(facet['uri'])
+            if ("<%s>" % facet['uri']) != prop:
+                facets.append(facet)
+        more_values = False
+        values = []
+        prop_facet = None
+        if prop:
+            p = prop[1:-1]
+            for facet in FACETS:
+                if facet['uri'] == p:
+                    prop_facet = facet
+            mv, val_results = self.backend.list_values(obj_offset, 20, prop)
+            more_values = mv
+            values = [{
+                'prop_uri': prop_facet['uri_enc'],
+                'value_enc': quote_plus(v),
+                'value': v} for v in val_results]
 
         start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         mres = pystache.render(template,{
-                'facets':FACETS,
+                'facets':facets,
                 'results':results,
                 'has_prev':has_prev,
                 'prev':prev,
                 'has_next':has_next,
                 'next':nxt,
-                'pages':pages})
+                'pages':pages,
+                'property':prop_facet,
+                'values':values,
+                'more_values':more_values})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
     def search(self, start_response, query, prop):

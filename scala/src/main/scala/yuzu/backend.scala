@@ -144,9 +144,7 @@ class RDFBackend(db : String) extends Backend {
     val ps = property match {
       case Some(p) => {
         sqlexecute(conn, "select distinct free_text.subject, label from free_text left outer join labels on free_text.subject = labels.subject where property=? and object match ? limit ?",
-          "<%s>" format p,
-          query,
-          limit)
+          "<%s>" format p, query, limit)
       } 
       case None => {
         sqlexecute(conn, "select distinct free_text.subject, label from free_text left outer join labels on free_text.subject = labels.subject where object match ? limit ?",
@@ -336,7 +334,7 @@ class RDFBackend(db : String) extends Backend {
       cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
       cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
       try {
-        cursor.execute("create virtual table free_text using fts4( [subject] TEXT, property TEXT NOT NULL, object TEXT)")
+        cursor.execute("create virtual table free_text using fts4( [subject] TEXT, property TEXT NOT NULL, object TEXT NOT NULL)")
       } catch {
         case x : SQLException =>
           // Ignore

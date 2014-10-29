@@ -41,6 +41,8 @@ class MustachePattern(m : Mustache) {
   }
 
   private def deepToJava(x : Any) : Any = x match {
+    case Some(x) => deepToJava(x)
+    case None => null
     case m : Map[_,_] => 
       scala.collection.JavaConversions.mapAsJavaMap(m.map {
         case (k,v) => k -> deepToJava(v)
@@ -391,7 +393,13 @@ class RDFServer extends HttpServlet {
         Some("<" + property2 + ">")
       }
       val obj = Option(req.getParameter("obj"))
-      listResources(resp, offset, property, obj)
+      val numRegex = "(\\d+)".r
+      val objOffset = req.getParameter("obj_offset") match {
+        case null => None
+        case numRegex(i) => Some(i.toInt)
+        case _ => None
+      }
+      listResources(resp, offset, property, obj, objOffset)
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
       val modelOption = backend.lookup(id)
@@ -424,36 +432,57 @@ class RDFServer extends HttpServlet {
     }
   }}
 
-  def listResources(resp : HttpServletResponse, offset : Int, property : Option[String], obj : Option[String]) {
+  def listResources(resp : HttpServletResponse, offset : Int, property : Option[String], obj : Option[String], obj_offset : Option[Int]) {
     val limit = 20
     val (hasMore, results) = backend.listResources(offset, limit, property, obj)
-    results match {
-      case Nil => {
-        send404(resp)
-      }
-      case _ => {
-        val template = mustache(resolve("html/list.html"))
-        val hasPrev = if(offset > 0) { "" } else { "disabled" }
-        val prev = math.max(offset - limit, 0)
-        val hasNext = if(hasMore) { "" } else { "disabled" }
-        val next = offset + limit
-        val pages = "%d - %d" format(offset + 1, offset + results.size)
-        val facets = FACETS.map { facet =>
-          facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
+    val template = mustache(resolve("html/list.html"))
+    val hasPrev = if(offset > 0) { "" } else { "disabled" }
+    val prev = math.max(offset - limit, 0)
+    val hasNext = if(hasMore) { "" } else { "disabled" }
+    val next = offset + limit
+    val pages = "%d - %d" format(offset + 1, offset + results.size)
+    val facets = FACETS.map { facet =>
+      facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
+    } filter { facet =>
+      Some("<" + facet("uri") + ">") != property
+    }
+    val propFacet = property match {
+      case Some(p2) =>
+        val p = p2.drop(1).dropRight(1)
+        val facet = FACETS.find(_("uri") == p).getOrElse(Map("uri"->p,"label"->p))
+        facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
+      case None =>
+        Map()
+    }        
+    val (moreValues, values) = property match {
+      case Some(p) =>
+        backend.listValues(obj_offset.getOrElse(0),20,p) match {
+          case (b,vs) => (
+            if(b) { Some(obj_offset.getOrElse(0)+20) } else { None }, 
+            vs.map { v => Map[String,String](
+              "prop_uri" -> propFacet.get("uri_enc"),
+              "value_enc" -> java.net.URLEncoder.encode(v, "UTF-8"),
+              "value" -> v
+          )})
         }
+      case None =>
+        (None, Nil)
+    }
+        
 
-        resp.respond("text/html", SC_OK) {
-          out => out.println(renderHTML(DISPLAY_NAME, 
-            template.substitute(
-              "facets" -> facets,
-              "results" -> results,
-              "has_prev" -> hasPrev,
-              "prev" -> prev.toString,
-              "has_next" -> hasNext,
-              "next" -> next.toString,
-              "pages" -> pages)))
-        }
-      }
+    resp.respond("text/html", SC_OK) {
+      out => out.println(renderHTML(DISPLAY_NAME, 
+        template.substitute(
+          "facets" -> facets,
+          "results" -> results,
+          "has_prev" -> hasPrev,
+          "prev" -> prev.toString,
+          "has_next" -> hasNext,
+          "next" -> next.toString,
+          "pages" -> pages,
+          "property" -> propFacet,
+          "values" -> values,
+          "more_values" -> moreValues)))
     }
   }
 
