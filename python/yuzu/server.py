@@ -215,7 +215,7 @@ class RDFServer:
 
     def application(self, environ, start_response):
         """The entry point for all queries (see WSGI docs for more details)"""
-        uri = environ['PATH_INFO']
+        uri = environ['PATH_INFO'].encode('latin-1').decode()
 
         # Guess the file type required
         if re.match(".*\.html", uri):
@@ -336,7 +336,6 @@ class RDFServer:
         if not results:
             return self.send404(start_response)
         template = open(resolve("html/list.html")).read()
-        list_table = [{'link':link,'label':label} for link,label in results]
         if offset > 0:
             has_prev = ""
         else:
@@ -355,7 +354,7 @@ class RDFServer:
         start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         mres = pystache.render(template,{
                 'facets':FACETS,
-                'results':list_table,
+                'results':results,
                 'has_prev':has_prev,
                 'prev':prev,
                 'has_next':has_next,
@@ -366,10 +365,8 @@ class RDFServer:
     def search(self, start_response, query, prop):
         start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         results = self.backend.search(query, prop)
-        print(results)
-        list_table = [{'link':'/'+result,'label':result} for result in results]
         page = pystache.render(open(resolve('html/search.html')).read(),
-                {'results':list_table})
+                {'results':results})
         return [self.render_html(DISPLAY_NAME,page).encode('utf-8')]
 
 def application(environ, start_response):

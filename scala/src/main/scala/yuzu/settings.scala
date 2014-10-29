@@ -53,8 +53,6 @@ object YuzuSettings {
   val SPARQL_PATH = "/sparql"
   // Path to site contents list (set to null to disable)
   val LIST_PATH = "/list"
-  // Exact queries only
-  val EXACT_QUERY = false
   // Properties to use as facets
   val FACETS = Seq(
     Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label")
