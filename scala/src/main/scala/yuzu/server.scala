@@ -36,7 +36,7 @@ trait PathResolver {
 class MustachePattern(m : Mustache) {
   def substitute(args : (String,Any)*) = {
     val out = new StringWriter()
-    m.execute(out, deepToJava(Map("context" -> "CONTEXT", args:_*)))
+    m.execute(out, deepToJava(Map((("context" -> "CONTEXT") +: args):_*)))
     out.toString
   }
   def generate(obj : Any) = {
