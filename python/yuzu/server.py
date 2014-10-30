@@ -22,6 +22,7 @@ import sqlite3
 import cgi
 import mimetypes
 import pystache
+from copy import copy
 
 from yuzu.backend import RDFBackend
 from yuzu.settings import *
@@ -353,20 +354,16 @@ class RDFServer:
             facet['uri_enc'] = quote_plus(facet['uri'])
             if ("<%s>" % facet['uri']) != prop:
                 facets.append(facet)
-        more_values = False
-        values = []
-        prop_facet = None
-        if prop:
-            p = prop[1:-1]
-            for facet in FACETS:
-                if facet['uri'] == p:
-                    prop_facet = facet
-            mv, val_results = self.backend.list_values(obj_offset, 20, prop)
-            more_values = mv
-            values = [{
-                'prop_uri': prop_facet['uri_enc'],
-                'value_enc': quote_plus(v),
-                'value': v} for v in val_results]
+            else:
+                facet = copy(facet)
+                mv, val_results = self.backend.list_values(obj_offset, 20, prop)
+                facet['values'] = [{
+                    'prop_uri': facet['uri_enc'],
+                    'value_enc': quote_plus(v),
+                    'value': v} for v in val_results]
+                if mv:
+                    facet['more_values'] = obj_offset + 20
+                facets.append(facet)
 
         start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         mres = pystache.render(template,{
@@ -377,9 +374,7 @@ class RDFServer:
                 'has_next':has_next,
                 'next':nxt,
                 'pages':pages,
-                'property':prop_facet,
-                'values':values,
-                'more_values':more_values, 'context':CONTEXT})
+                'context':CONTEXT})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
     def search(self, start_response, query, prop):

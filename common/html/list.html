@@ -5,20 +5,21 @@
 <div class="row">
     <div class="col-lg-2">
         <h4>List by:</h4>
-        <div class="btn-group-vertical btn-block">
-            {{#property}}
-            <a href='{{context}}/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
-                <ul class="list-group">
+        <div class="list-group">
+            {{#facets}}
+            <a href='{{context}}/list/?prop={{uri_enc}}' class="list-group-item active">{{label}}</a>
+            {{#values?}}
+                <div class="list-group">
+            {{/values?}}
                 {{#values}}
-                <li class="list-group-item"><a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}'>{{value}}</a></li>
+                <a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}' class="list-group-item">{{value}}</a>
                 {{/values}}
                 {{#more_values}}
-                <li class="list-group-item"><a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}'>More values...</a></li>
+                <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}' class="list-group-item">More values...</a>
                 {{/more_values}}
-                </ul>
-            {{/property}}                
-            {{#facets}}
-            <a href='{{context}}/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
+                {{#values?}}
+                </div>
+            {{/values?}}
             {{/facets}}
         </div>
     </div>

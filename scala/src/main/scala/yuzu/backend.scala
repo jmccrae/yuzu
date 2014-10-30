@@ -280,12 +280,8 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String]) = {
-    val ps = try {
-      sqlexecute(conn, "select distinct object from triples where property=? limit ? offset ?", 
+    val ps = sqlexecute(conn, "select distinct object from triples where property=? limit ? offset ?", 
         prop, limit + 1, offset)
-    } catch {
-      case x : SQLException => throw new RuntimeException("Database @ " + db + " not initialized", x)
-    }
     val rs = ps.executeQuery()
     var n = 0
     if(!rs.next()) {
@@ -338,7 +334,7 @@ class RDFBackend(db : String) extends Backend {
         case x : SQLException =>
           // Ignore
       }
-      cursor.execute("create table if not exists [labels] ([subject] TEXT, [label] TEXT, UNIQUE([subject]))")
+      cursor.execute("create table if not exists [labels] ([subject] TEXT PRIMARY KEY, [label] TEXT)")
       cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
       var linesRead = 0
       var lineIterator = io.Source.fromInputStream(inputStream).getLines
