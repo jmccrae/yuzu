@@ -473,9 +473,9 @@ class RDFServer extends HttpServlet {
       case Some(p2) =>
         val p = p2.drop(1).dropRight(1)
         val facet = FACETS.find(_("uri") == p).getOrElse(Map("uri"->p,"label"->p))
-        facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
+        Some(facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8")))
       case None =>
-        Map()
+        None
     }        
     val (moreValues, values) = property match {
       case Some(p) =>

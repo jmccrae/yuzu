@@ -12,10 +12,10 @@
                 {{#values}}
                 <li class="list-group-item"><a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}'>{{value}}</a></li>
                 {{/values}}
-                </ul>
                 {{#more_values}}
-                <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}'>More values...</a>
+                <li class="list-group-item"><a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}'>More values...</a></li>
                 {{/more_values}}
+                </ul>
             {{/property}}                
             {{#facets}}
             <a href='{{context}}/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>

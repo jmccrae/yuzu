@@ -102,7 +102,6 @@ class RDFBackend(db : String) extends Backend {
         val subject = from_n3(o, model)
         val property = prop_from_n3(p, model)
         val obj = model.getRDFNode(RDFBackend.name(id, Option(f)))
-        println(subject)
         subject match {
           case r : Resource => r.addProperty(property, obj)
           case _ => {println(subject)}

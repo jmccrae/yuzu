@@ -10,13 +10,15 @@ case class Element(val display : String,
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
   val triples : JList[TripleFrag] = null, val datatype : Element = null,
-  val bnode : Boolean = false)
+  val bnode : Boolean = false) {
+    override def toString = display
+  }
 
 class QueryElement(main : Element,
   subs : JList[Element],
   inverse : JList[TripleFrag])
 
-class TripleFrag(val prop : Element, val obj : Element)
+case class TripleFrag(val prop : Element, val obj : Element)
 
 trait URIDisplayer {
   def apply(uri : RDFNode) : String
@@ -83,9 +85,11 @@ object QueryElement {
     val triples = elem.listProperties() map { stat =>
       new TripleFrag(fromNode(stat.getPredicate()), fromNode(stat.getObject()))
     }
+    val t = triples.toList
+    println(t)
     Element(DISPLAYER.apply(elem),
       uri=elem.getURI(),
-      triples=triples.toSeq,
+      triples=t,
       classOf=classOf)
   }
 
@@ -94,9 +98,11 @@ object QueryElement {
       val triples = (r.listProperties() map { stat =>
         new TripleFrag(fromNode(stat.getPredicate()), fromNode(stat.getObject()))
       }).toList
+      val t = triples.toList
+      println(t)
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
-        triples=triples,
+        triples=t,
         bnode=(!r.isURIResource()))
     case l : Literal =>
       Element(DISPLAYER.apply(l), 
@@ -105,6 +111,10 @@ object QueryElement {
         datatype=fromDT(l.getDatatype()))
   }
 
-  def fromDT(dt : RDFDatatype) = Element(DISPLAYER.apply(dt),
+  def fromDT(dt : RDFDatatype) = if(dt != null) {
+    Element(DISPLAYER.apply(dt),
       uri=dt.getURI())
+  } else {
+    null
+  }
 }
