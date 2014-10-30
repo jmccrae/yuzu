@@ -7,7 +7,7 @@ BASE_NAME = "http://localhost:8080/"
 # The prefix that this servlet will be deployed, e.g. 
 # if the servlet is at http://www.example.org/yuzu/ the context 
 # is /yuzu/
-CONTEXT = "/"
+CONTEXT = ""
 # The data download will be at BASE_NAME + DUMP_URI
 DUMP_URI = "/dump.nt.gz"
 # The local path to the data

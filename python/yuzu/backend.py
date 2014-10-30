@@ -143,7 +143,7 @@ class RDFBackend(Store):
                     (query, limit))
         rows = cursor.fetchall()
         conn.close()
-        return [{'link':CONTEXT + uri, 'label':label} for uri, label in rows]
+        return [{'link':CONTEXT + "/" + uri, 'label':label} for uri, label in rows]
 
     def listInternal(self,id,frag,p,o,offset):
         """This function allows SPARQL queries directly on the database. See rdflib's Store
@@ -236,9 +236,9 @@ class RDFBackend(Store):
         while n < limit and row:
             uri, label = row
             if label:
-                refs.append({'link':CONTEXT + uri, 'label':label})
+                refs.append({'link':CONTEXT + "/" + uri, 'label':label})
             else:
-                refs.append({'link':CONTEXT + uri, 'label': uri})
+                refs.append({'link':CONTEXT + "/" + uri, 'label': uri})
             n += 1
             row = cursor.fetchone()
         conn.close()

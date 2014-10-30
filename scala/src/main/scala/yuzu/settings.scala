@@ -9,8 +9,8 @@ object YuzuSettings {
   val BASE_NAME = "http://localhost:8080/"
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
-  // is /yuzu/
-  val CONTEXT = "/"
+  // is /yuzu
+  val CONTEXT = ""
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/example.nt.gz"
   // The local path to the data

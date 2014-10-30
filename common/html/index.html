@@ -2,7 +2,7 @@
 
 
 <div class="col-lg-4">
-<form action="/search/" method="get">
+    <form action="{{context}}/search/" method="get">
     <fieldset>
         <legend>Search</legend>
         <div class="form-group">
@@ -42,8 +42,8 @@
     </div>
 
     <div>
-        <a class="btn btn-default btn-lg col-lg-offset-2" href="/list/">Resource Index</a>
+        <a class="btn btn-default btn-lg col-lg-offset-2" href="{{context}}/list/">Resource Index</a>
 
-        <a class="btn btn-default btn-lg col-lg-offset-2" href="/sparql/">Advanced Search</a>
+        <a class="btn btn-default btn-lg col-lg-offset-2" href="{{context}}/sparql/">Advanced Search</a>
     </div>
 </div>

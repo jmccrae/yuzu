@@ -7,18 +7,18 @@
         <h4>List by:</h4>
         <div class="btn-group-vertical btn-block">
             {{#property}}
-                <a href='/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
+            <a href='{{context}}/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
                 <ul class="list-group">
                 {{#values}}
-                <li class="list-group-item"><a href='/list?prop={{prop_uri}}&obj={{value_enc}}'>{{value}}</a></li>
+                <li class="list-group-item"><a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}'>{{value}}</a></li>
                 {{/values}}
                 </ul>
                 {{#more_values}}
-                <a href='/list/?prop={{uri_enc}}&obj_offset={{more_values}}'>More values...</a>
+                <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}'>More values...</a>
                 {{/more_values}}
             {{/property}}                
             {{#facets}}
-                <a href='/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
+            <a href='{{context}}/list/?prop={{uri_enc}}' class='btn btn-default'>{{label}}</a>
             {{/facets}}
         </div>
     </div>
@@ -32,7 +32,7 @@
 </div>
 <div class="row">
     <div class="btn-group pull-right">
-        <a href='/list/?offset={{prev}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
+        <a href='{{context}}/list/?offset={{prev}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
         <a href='#' class='btn btn-default'>{{pages}}</a>
-        <a href='/list/?offset={{next}}' class='btn btn-default class={{has_prev}}'>&gt;&gt;</a>
+        <a href='{{context}}/list/?offset={{next}}' class='btn btn-default class={{has_prev}}'>&gt;&gt;</a>
     </ul>

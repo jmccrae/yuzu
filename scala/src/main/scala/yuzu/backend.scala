@@ -19,7 +19,7 @@ trait SPARQLResult {
 }
 
 case class SearchResult(_link : String, label : String) {
-  val link = CONTEXT + _link
+  val link = CONTEXT + "/" + _link
 }
 
 trait Backend {
@@ -376,7 +376,7 @@ class RDFBackend(db : String) extends Backend {
               ps2.close()
             }
 
-            if(LABELS.contains(prop)) {
+            if(LABELS.contains(prop) && frag == "") {
               val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
               val ps2 = sqlexecute(conn, "insert or ignore into labels values (?, ?)",
                 id, label)
@@ -503,8 +503,12 @@ object RDFBackend {
     var i = 0
     while(i < sb.length) {
       if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
-      //if(sb.slice(i,i+2).toString == "\\u") {
-        sb.replace(i,i+6, Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString)
+        try {
+          sb.replace(i,i+6, Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString)
+        } catch {
+          case x : NumberFormatException => 
+            System.err.println("Bad unicode string %s" format sb.slice(i,i+6))
+        }
       }
       i += 1
     }

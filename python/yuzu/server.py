@@ -56,7 +56,7 @@ class RDFServer:
         @param text The page content
         """
         template = open(resolve("html/page.html")).read()
-        return pystache.render(template, {'title':title, 'content':text})
+        return pystache.render(template, {'title':title, 'content':text, 'context':CONTEXT})
         #return template.substitute(title=title, content=text, property_facets=property_facets)
 
     @staticmethod
@@ -171,7 +171,7 @@ class RDFServer:
                     'prefix6uri':PREFIX6_URI, 'prefix6qn':PREFIX6_QN,
                     'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
                     'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
-                    'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN}))))
+                    'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN, 'context':CONTEXT}))))
 
                 transform = et.XSLT(xslt)
                 new_dom = transform(dom)
@@ -206,7 +206,7 @@ class RDFServer:
                         'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
                         'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
                         'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN,
-                        'query':query})
+                        'query':query, 'context':CONTEXT})
         s = StringIO(xslt_doc)
         xslt = et.parse(s)
         transform = et.XSLT(xslt)
@@ -236,7 +236,7 @@ class RDFServer:
         # The welcome page
         if uri == "/" or uri == "/index.html":
             start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
-            return [self.render_html(DISPLAY_NAME,pystache.render(open(resolve("html/index.html")).read(),{'property_facets':FACETS})).encode('utf-8')]
+            return [self.render_html(DISPLAY_NAME,pystache.render(open(resolve("html/index.html")).read(),{'property_facets':FACETS, 'context':CONTEXT})).encode('utf-8')]
         # The license page
         if LICENSE_PATH and uri == LICENSE_PATH:
             start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
@@ -379,14 +379,14 @@ class RDFServer:
                 'pages':pages,
                 'property':prop_facet,
                 'values':values,
-                'more_values':more_values})
+                'more_values':more_values, 'context':CONTEXT})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
     def search(self, start_response, query, prop):
         start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
         results = self.backend.search(query, prop)
         page = pystache.render(open(resolve('html/search.html')).read(),
-                {'results':results})
+                {'results':results, 'context':CONTEXT})
         return [self.render_html(DISPLAY_NAME,page).encode('utf-8')]
 
 def application(environ, start_response):
