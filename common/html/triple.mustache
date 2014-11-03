@@ -6,7 +6,7 @@
     </td>
     <td>
         {{#obj}}
-            {{#triples?}}
+            {{#has_triples}}
                 <span property="{{#prop}}{{uri}}{{/prop}}">
                 <table class="rdf table table-hover" resource="{{uri}}">
                 {{#triples}}
@@ -14,8 +14,8 @@
                 {{/triples}}
                 </table>
                 </span>
-            {{/triples?}}
-            {{^triples?}}
+            {{/has_triples}}
+            {{^has_triples}}
                 {{#literal}}
                     <span property="{{#prop}}{{uri}}{{/prop}}">{{display}}</span>
                     {{#lang}}
@@ -33,7 +33,7 @@
                         <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}">{{display}}</a>
                     {{/bnode}}
                 {{/literal}}
-            {{/triples?}}
+            {{/has_triples}}
         {{/obj}}
         </span>
     </td>

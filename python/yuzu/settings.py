@@ -1,11 +1,13 @@
+from rdflib.term import Literal, URIRef
+from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
 # This file contains all relevant configuration for the system
 
 # The location where this server is to be deployed to
 # Only URIs in the dump that start with this address will be published
 # Should end with a trailing /
 BASE_NAME = "http://localhost:8080/"
-# The prefix that this servlet will be deployed, e.g. 
-# if the servlet is at http://www.example.org/yuzu/ the context 
+# The prefix that this servlet will be deployed, e.g.
+# if the servlet is at http://www.example.org/yuzu/ the context
 # is /yuzu/
 CONTEXT = ""
 # The data download will be at BASE_NAME + DUMP_URI
@@ -16,7 +18,8 @@ DUMP_FILE = "../example.nt.gz"
 DB_FILE = "db.sqlite"
 # The name of the server
 DISPLAY_NAME = "Yuzu Example"
-# The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
+# The extra namespaces to be abbreviated in HTML and RDF/XML
+# documents if desired
 PREFIX1_URI = "http://www.example.com/"
 PREFIX1_QN = "ex1"
 PREFIX2_URI = "http://www.example.com/"
@@ -51,15 +54,64 @@ LIST_PATH = "/list"
 # Properties to use as facets
 FACETS = [
     {
-        "uri":"http://www.w3.org/2000/01/rdf-schema#label",
-        "label":"Label"
+        "uri": "http://www.w3.org/2000/01/rdf-schema#label",
+        "label": "Label"
     }
 ]
 # Properties to use as labels
-LABELS = [ 
-  "<http://www.w3.org/2000/01/rdf-schema#label>",
-  "<http://xmlns.com/foaf/0.1/nick>",
-  "<http://purl.org/dc/elements/1.1/title>",
-  "<http://purl.org/rss/1.0/title>",
-  "<http://xmlns.com/foaf/0.1/name>"
+LABELS = [
+    "<http://www.w3.org/2000/01/rdf-schema#label>",
+    "<http://xmlns.com/foaf/0.1/nick>",
+    "<http://purl.org/dc/elements/1.1/title>",
+    "<http://purl.org/rss/1.0/title>",
+    "<http://xmlns.com/foaf/0.1/name>"
 ]
+
+
+class DefaultDisplayer:
+    def uri_to_str(self, uri):
+        if uri.startswith(BASE_NAME):
+            return "%s" % uri[len(BASE_NAME):]
+        elif uri.startswith(PREFIX1_URI):
+            return "%s:%s" % (PREFIX1_QN, uri[len(PREFIX1_URI):])
+        elif uri.startswith(PREFIX2_URI):
+            return "%s:%s" % (PREFIX2_QN, uri[len(PREFIX2_URI):])
+        elif uri.startswith(PREFIX3_URI):
+            return "%s:%s" % (PREFIX3_QN, uri[len(PREFIX3_URI):])
+        elif uri.startswith(PREFIX4_URI):
+            return "%s:%s" % (PREFIX4_QN, uri[len(PREFIX4_URI):])
+        elif uri.startswith(PREFIX5_URI):
+            return "%s:%s" % (PREFIX5_QN, uri[len(PREFIX5_URI):])
+        elif uri.startswith(PREFIX6_URI):
+            return "%s:%s" % (PREFIX6_QN, uri[len(PREFIX6_URI):])
+        elif uri.startswith(PREFIX7_URI):
+            return "%s:%s" % (PREFIX7_QN, uri[len(PREFIX7_URI):])
+        elif uri.startswith(PREFIX8_URI):
+            return "%s:%s" % (PREFIX8_QN, uri[len(PREFIX8_URI):])
+        elif uri.startswith(PREFIX9_URI):
+            return "%s:%s" % (PREFIX9_QN, uri[len(PREFIX9_URI):])
+        elif uri.startswith(str(RDF)):
+            return uri[len(str(RDF)):]
+        elif uri.startswith(str(RDFS)):
+            return uri[len(str(RDFS)):]
+        elif uri.startswith(str(OWL)):
+            return uri[len(str(OWL)):]
+        elif uri.startswith(str(DC)):
+            return uri[len(str(DC)):]
+        elif uri.startswith(str(DCTERMS)):
+            return uri[len(str(DCTERMS)):]
+        elif uri.startswith(str(XSD)):
+            return uri[len(str(XSD)):]
+        else:
+            return uri
+
+    def apply(self, node):
+        if type(node) == URIRef:
+            return self.uri_to_str(str(node))
+        elif type(node) == Literal:
+            return str(node)
+        else:
+            return ""
+
+# Displayer to show URIs
+DISPLAYER = DefaultDisplayer()

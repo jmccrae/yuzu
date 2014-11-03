@@ -3,7 +3,7 @@ package com.github.jmccrae.yuzu
 import com.github.jmccrae.yuzu.YuzuSettings._
 import com.github.jmccrae.yuzu.YuzuUserText._
 import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node, Graph}
-import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
+import com.hp.hpl.jena.rdf.model.{Literal, Model, ModelFactory, AnonId, Resource}
 import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import gnu.getopt.Getopt
 import java.io.FileInputStream
@@ -18,16 +18,15 @@ trait SPARQLResult {
   def resultType : ResultType
 }
 
-case class SearchResult(_link : String, label : String) {
-  val link = CONTEXT + "/" + _link
-}
+case class SearchResult(link : String, label : String)
+
 
 trait Backend {
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) : SPARQLResult
   def lookup(id : String) : Option[Model]
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult])
-  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String])
+  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResult])
   def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
@@ -155,11 +154,11 @@ class RDFBackend(db : String) extends Backend {
     while(rs.next()) {
       rs.getString(2) match {
         case null =>
-          results += SearchResult(rs.getString(1),rs.getString(1))
+          results += SearchResult(CONTEXT+"/"+rs.getString(1),rs.getString(1))
         case "" =>
-          results += SearchResult(rs.getString(1),rs.getString(1))
+          results += SearchResult(CONTEXT+"/"+rs.getString(1),rs.getString(1))
         case label =>
-          results += SearchResult(rs.getString(1),label)
+          results += SearchResult(CONTEXT+"/"+rs.getString(1),label)
       }
     }
     rs.close
@@ -232,7 +231,7 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def getLabel(s : String) : Option[String] = {
-    val ps = sqlexecute(conn, "select distinct label from labels where subject=? limit 1", s)
+    val ps = sqlexecute(conn, "select label from labels where subject=?", s)
     try {
       val rs = ps.executeQuery() 
       try {
@@ -280,7 +279,7 @@ class RDFBackend(db : String) extends Backend {
     do {
       rs.getString(1) match {
         case "<BLANK>" => {}
-        case result => results += SearchResult(result, getLabel(result).getOrElse(result))
+        case result => results += SearchResult(CONTEXT+"/"+result, getLabel(result).getOrElse(result))
       }
       n += 1
     } while(rs.next())
@@ -294,7 +293,7 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
-  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String]) = {
+  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResult]) = {
     val ps = sqlexecute(conn, "select distinct object, count(*) from triples where property=? group by object order by count(*) desc limit ? offset ?", 
         prop, limit + 1, offset)
     val rs = ps.executeQuery()
@@ -303,9 +302,25 @@ class RDFBackend(db : String) extends Backend {
       ps.close()
       return (false, Nil)
     }
-    var results = collection.mutable.ListBuffer[String]()
+    val model = ModelFactory.createDefaultModel()
+    var results = collection.mutable.ListBuffer[SearchResult]()
     do {
-      results += rs.getString(1)
+      val n3 = rs.getString(1)
+      from_n3(rs.getString(1), model) match {
+        case l : Literal => 
+          results += SearchResult(n3, l.getValue().toString())
+        case r : Resource =>
+          if(r.getURI() != null) {
+            unname(r.getURI()) match {
+              case Some((s,_)) => 
+                results += SearchResult(n3, 
+                  getLabel(s).getOrElse(s))
+              case None =>
+                results += SearchResult(n3,
+                  DISPLAYER.uriToStr(r.getURI()))
+            }
+          } 
+      }
       n += 1
     } while(rs.next())
     rs.close()

@@ -1,5 +1,6 @@
 from rdflib import *
 from rdflib.util import from_n3
+from rdflib.term import Literal, URIRef
 from rdflib.store import Store
 import sqlite3
 import sys
@@ -202,17 +203,22 @@ class RDFBackend(Store):
             else:
                 return (False, [])
         else:
-            id,frag = None,None
-        cursor = self.listInternal(id,frag,prop,obj,offset)
+            id, frag = None, None
+        cursor = self.listInternal(id, frag, prop, obj, offset)
         triples = []
         row = cursor.fetchone()
         while len(triples) < limit and row:
-            i,f,p,o = row
-            s = self.name(i,f)
-            triples.append((s,p,o))
+            i, f, p, o = row
+            s = self.name(i, f)
+            triples.append((s, p, o))
             row = cursor.fetchone()
         return cursor.fetchone() != None, triples
 
+    def get_label(self, conn, s):
+        cursor = conn.cursor()
+        cursor.execute("select label from labels where subject=?", (s,))
+        l, = cursor.fetchone()
+        return l
 
     def list_resources(self, offset, limit, prop = None, obj = None):
         """
@@ -225,20 +231,22 @@ class RDFBackend(Store):
         cursor = conn.cursor()
         if prop:
             if obj:
-                cursor.execute("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? and object=? limit ? offset ?", (prop, obj, limit + 1, offset))
+                cursor.execute("select distinct subject from triples where property=? and object=? limit ? offset ?", (prop, obj, limit + 1, offset))
             else:
-                cursor.execute("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? limit ? offset ?", (prop, limit + 1, offset))
+                cursor.execute("select distinct subject from triples where property=? limit ? offset ?", (prop, limit + 1, offset))
         else:
-            cursor.execute("select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject limit ? offset ?", (limit + 1, offset))
+            cursor.execute("select distinct subject from triples limit ? offset ?", (limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         refs = []
         while n < limit and row:
-            uri, label = row
-            if label:
-                refs.append({'link':CONTEXT + "/" + uri, 'label':label})
-            else:
-                refs.append({'link':CONTEXT + "/" + uri, 'label': uri})
+            uri, = row
+            if uri != "<BLANK>":
+                label = self.get_label(conn, uri)
+                if label:
+                    refs.append({'link': CONTEXT + "/" + uri, 'label': label})
+                else:
+                    refs.append({'link': CONTEXT + "/" + uri, 'label': uri})
             n += 1
             row = cursor.fetchone()
         conn.close()
@@ -263,7 +271,20 @@ class RDFBackend(Store):
         results = []
         while n < limit and row:
             obj, = row
-            results.append(obj)
+            n3 = from_n3(obj)
+            if type(n3) == Literal:
+                results.append({'link': obj, 'label': n3.value })
+            elif type(n3) == Resource:
+                u = unname(str(n3))
+                if u:
+                    s, _ = u
+                    label = self.get_label(conn, s)
+                    if label:
+                        results.append({'link': obj, 'label': label })
+                    else:
+                        results.append({'link': obj, 'label': s })
+                else:
+                    results.append({'link': obj, 'label': DISPLAYER(str(n3))})
             n += 1
             row = cursor.fetchone()
         conn.close()

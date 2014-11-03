@@ -76,5 +76,7 @@ object YuzuSettings {
   "<http://purl.org/rss/1.0/title>",
   "<http://xmlns.com/foaf/0.1/name>"
   )
+  // The displayer for URIs
+  val DISPLAYER = DefaultDisplayer
     
 }

@@ -471,8 +471,8 @@ class RDFServer extends HttpServlet {
         facet ++ Map("uri_enc" -> uri_enc, 
           "values" -> vs.map { v => Map[String,String](
                   "prop_uri" -> uri_enc,
-                  "value_enc" -> java.net.URLEncoder.encode(v, "UTF-8"),
-                  "value" -> v
+                  "value_enc" -> java.net.URLEncoder.encode(v.link, "UTF-8"),
+                  "value" -> v.label.take(100)
                 )},
           "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0)+20) } else { None }))
       } else {
