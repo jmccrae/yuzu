@@ -12,14 +12,10 @@ else:
     from io import StringIO
     from urllib.parse import parse_qs,unquote_plus,quote_plus
     from urllib.request import urlopen
-from rdflib import RDFS, URIRef, Graph
-from rdflib import plugin
+from rdflib import RDFS, URIRef
 from rdflib.store import Store
 import getopt
-import time
 from os.path import exists
-import sqlite3
-import cgi
 import mimetypes
 import pystache
 
@@ -29,13 +25,15 @@ from yuzu.user_text import *
 
 __author__ = 'John P. McCrae'
 
+
 def resolve(fname):
     """Resolve a local path name so that it works when the app is deployed"""
     if os.path.dirname(__file__):
         return os.path.dirname(__file__) + "/../common/" + fname
     else:
         return "/common/" + fname
-    
+   
+
 class RDFServer:
     """The main web server class for Yuzu"""
     def __init__(self, db):
@@ -299,10 +297,10 @@ class RDFServer:
                 if 'prop' in qs:
                     prop = "<%s>" % qs['prop'][0]
                 if 'obj' in qs:
-                    obj = qs['obj'][0]              
+                    obj = qs['obj'][0]             
                 if 'obj_offset' in qs and re.match("\d+", qs['obj_offset']):
                     obj_offset = int(qs['obj_offset'][0])
-            
+           
             return self.list_resources(start_response, offset, prop, obj, obj_offset)
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
@@ -368,18 +366,19 @@ class RDFServer:
                 'value_enc': quote_plus(v),
                 'value': v} for v in val_results]
 
-        start_response('200 OK',[('Content-type','text/html; charset=utf-8')])
-        mres = pystache.render(template,{
-                'facets':facets,
-                'results':results,
-                'has_prev':has_prev,
-                'prev':prev,
-                'has_next':has_next,
-                'next':nxt,
-                'pages':pages,
-                'property':prop_facet,
-                'values':values,
-                'more_values':more_values, 'context':CONTEXT})
+        start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
+        mres = pystache.render(template, {
+                'facets': facets,
+                'results': results,
+                'has_prev': has_prev,
+                'prev': prev,
+                'has_next': has_next,
+                'next': nxt,
+                'pages': pages,
+                'property': prop_facet,
+                'values': values,
+                'more_values': more_values, 
+                'context': CONTEXT})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
     def search(self, start_response, query, prop):
