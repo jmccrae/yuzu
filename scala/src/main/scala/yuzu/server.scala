@@ -465,33 +465,20 @@ class RDFServer extends HttpServlet {
     val next = offset + limit
     val pages = "%d - %d" format(offset + 1, offset + results.size)
     val facets = FACETS.map { facet =>
-      facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8"))
-    } filter { facet =>
-      Some("<" + facet("uri") + ">") != property
-    }
-    val propFacet = property match {
-      case Some(p2) =>
-        val p = p2.drop(1).dropRight(1)
-        val facet = FACETS.find(_("uri") == p).getOrElse(Map("uri"->p,"label"->p))
-        Some(facet + ("uri_enc" -> java.net.URLEncoder.encode(facet("uri"), "UTF-8")))
-      case None =>
-        None
-    }        
-    val (moreValues, values) = property match {
-      case Some(p) =>
-        backend.listValues(obj_offset.getOrElse(0),20,p) match {
-          case (b,vs) => (
-            if(b) { Some(obj_offset.getOrElse(0)+20) } else { None }, 
-            vs.map { v => Map[String,String](
-              "prop_uri" -> propFacet.get("uri_enc"),
-              "value_enc" -> java.net.URLEncoder.encode(v, "UTF-8"),
-              "value" -> v
-          )})
-        }
-      case None =>
-        (None, Nil)
-    }
-        
+      val uri_enc = java.net.URLEncoder.encode(facet("uri"), "UTF-8")
+      if(property != None && ("<" + facet("uri") + ">") == property.get) {
+        val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
+        facet ++ Map("uri_enc" -> uri_enc, 
+          "values" -> vs.map { v => Map[String,String](
+                  "prop_uri" -> uri_enc,
+                  "value_enc" -> java.net.URLEncoder.encode(v, "UTF-8"),
+                  "value" -> v
+                )},
+          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0)+20) } else { None }))
+      } else {
+        facet + ("uri_enc" -> uri_enc)
+      }
+    } 
 
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, 
@@ -502,10 +489,7 @@ class RDFServer extends HttpServlet {
           "prev" -> prev.toString,
           "has_next" -> hasNext,
           "next" -> next.toString,
-          "pages" -> pages,
-          "property" -> propFacet,
-          "values" -> values,
-          "more_values" -> moreValues)))
+          "pages" -> pages)))
     }
   }
 

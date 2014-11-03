@@ -59,7 +59,9 @@ object QueryElement {
         uri.drop(DC_11.getURI().size)
       } else if(uri.startsWith(DCTerms.getURI())) {
         uri.drop(DCTerms.getURI().size)
-      } else {
+      } else if(uri.startsWith(XSD.getURI())) {
+        uri.drop(XSD.getURI().size)
+       } else {
         uri
       }
     }
@@ -86,7 +88,6 @@ object QueryElement {
       new TripleFrag(fromNode(stat.getPredicate()), fromNode(stat.getObject()))
     }
     val t = triples.toList
-    println(t)
     Element(DISPLAYER.apply(elem),
       uri=elem.getURI(),
       triples=t,
@@ -99,7 +100,6 @@ object QueryElement {
         new TripleFrag(fromNode(stat.getPredicate()), fromNode(stat.getObject()))
       }).toList
       val t = triples.toList
-      println(t)
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
         triples=t,
