@@ -7,11 +7,13 @@ import sys
 import getopt
 import gzip
 import multiprocessing
+import traceback
 
 from yuzu.settings import *
 from yuzu.user_text import *
 
 __author__ = 'John P. McCrae'
+
 
 class SPARQLExecutor(multiprocessing.Process):
     """Executes a SPARQL query as a background process"""
@@ -25,27 +27,27 @@ class SPARQLExecutor(multiprocessing.Process):
         self.pipe = pipe
         self.graph = graph
 
-
     def run(self):
         try:
             if self.default_graph_uri:
-                qres = self.graph.query(self.query, initNs=self.default_graph_uri)
+                qres = self.graph.query(self.query,
+                                        initNs=self.default_graph_uri)
             else:
-                qres = self.graph.query(self.query)#, initNs=self.default_graph_uri)
+                qres = self.graph.query(self.query)
         except Exception as e:
+            traceback.print_exc()
             print(e)
             self.pipe.send(('error', YZ_BAD_REQUEST))
             return
         if qres.type == "CONSTRUCT" or qres.type == "DESCRIBE":
             if self.mime_type == "html" or self.mime_type == "json-ld":
                 self.mime_type == "pretty-xml"
-            self.pipe.send((self.mime_type, qres.serialize(format=self.mime_type)))
+            self.pipe.send((self.mime_type,
+                            qres.serialize(format=self.mime_type)))
         elif self.mime_type == 'sparql' or self.mime_type == 'html':
             self.pipe.send(('sparql', qres.serialize()))
         else:
             self.pipe.send(('error', YZ_BAD_MIME))
-
-
 
 
 class RDFBackend(Store):
@@ -179,7 +181,6 @@ class RDFBackend(Store):
                 else:
                     cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0", (id, frag, p.n3(), o.n3()))
         return cursor
-    
 
     def triples(self, triple, context=None):
         s, p, o = triple
@@ -192,8 +193,9 @@ class RDFBackend(Store):
         else:
             id, frag = None, None
 
-        cursor = listInternal(id,frag,p,o)
-        return [((URIRef(self.name(s,f)), from_n3(p), from_n3(o)), None) for s,f,p,o in cursor.fetchall()]
+        cursor = self.listInternal(id, frag, p, o, 0)
+        return [((self.name(s3, f), from_n3(p2), from_n3(o2)), None)
+                for s3, f, p2, o2 in cursor.fetchall()]
 
     def list(self, subj, prop, obj, offset, limit):
         if subj:
@@ -290,8 +292,7 @@ class RDFBackend(Store):
         conn.close()
         return n == limit, results
 
-
-    def query(self, query, mime_type, default_graph_uri, timeout):
+    def sparql_query(self, q, mime_type, default_graph_uri, timeout):
         """Execute a SPARQL query
         @param query The query string
         @param mime_type The requested MIME type
@@ -306,7 +307,8 @@ class RDFBackend(Store):
             graph = Graph(self)
         try:
             parent, child = multiprocessing.Pipe()
-            executor = SPARQLExecutor(query, mime_type, default_graph_uri, child, graph)
+            executor = SPARQLExecutor(q, mime_type, default_graph_uri,
+                                      child, graph)
             executor.start()
             executor.join(timeout)
             timed_out = executor.is_alive()

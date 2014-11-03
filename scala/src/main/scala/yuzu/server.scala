@@ -113,7 +113,7 @@ object RDFServer {
   }
  
 
-  def bestMimeType(acceptString : String) : ResultType = {
+  def bestMimeType(acceptString : String, deflt : ResultType) : ResultType = {
     val accepts = acceptString.split("\\s*,\\s*")
     for(accept <- accepts) {
       mimeToResultType(accept) match {
@@ -138,7 +138,7 @@ object RDFServer {
       }
     }
     if(weightedAccepts.isEmpty) {
-      return html
+      return deflt
     } else {
       return weightedAccepts.maxBy(_._1)._2
     }
@@ -340,8 +340,12 @@ class RDFServer extends HttpServlet {
       nt
     } else if(uri.matches(".*\\.json")) {
       jsonld
-    } else if(req.getHeader("Accept") != null) { // TEST THIS
-      bestMimeType(req.getHeader("Accept"))
+    } else if(req.getHeader("Accept") != null) {
+      if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
+        bestMimeType(req.getHeader("Accept"), sparql)
+      } else {
+        bestMimeType(req.getHeader("Accept"), html)
+      }
     } else {
       html
     }

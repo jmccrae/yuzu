@@ -111,7 +111,7 @@ class RDFServer:
                                       message).encode('utf-8')]
 
     @staticmethod
-    def best_mime_type(accept_string):
+    def best_mime_type(accept_string, default):
         """Guess the MIME type from the Accept string
         @param accept_string The accept string passed to the server
         @result The best file type to serve
@@ -132,7 +132,7 @@ class RDFServer:
             elif accept == "application/sparql-results+xml":
                 return "sparql"
         best_q = -1
-        best_mime = "html"
+        best_mime = default
         for accept in accepts:
             if ";" in accept:
                 mime = re.split("\s*;\s*", accept)[0]
@@ -170,7 +170,7 @@ class RDFServer:
 
     def sparql_query(self, query, mime_type, default_graph_uri,
                      start_response, timeout=10):
-        timed_out, result_type, result = self.backend.query(
+        timed_out, result_type, result = self.backend.sparql_query(
             query, mime_type, default_graph_uri, timeout)
         if timed_out:
             start_response('503 Service Unavailable', [('Content-type',
@@ -183,12 +183,12 @@ class RDFServer:
             elif mime_type != "html" or result_type != "sparql":
                 start_response('200 OK', [('Content-type',
                                            self.mime_types[result_type])])
-                return [str(result)]
+                return [result]
             else:
                 start_response('200 OK', [('Content-type',
                                            'text/html; charset=utf-8')])
-                dom = et.parse(StringIO(result))
-                xslt = et.parse(StringIO(
+                dom = et.fromstring(result)
+                xslt = et.fromstring(
                     str(pystache.render(
                         open(resolve("xsl/sparql2html.xsl")).read(),
                         {'base': BASE_NAME,
@@ -201,13 +201,15 @@ class RDFServer:
                          'prefix7uri': PREFIX7_URI, 'prefix7qn': PREFIX7_QN,
                          'prefix8uri': PREFIX8_URI, 'prefix8qn': PREFIX8_QN,
                          'prefix9uri': PREFIX9_URI, 'prefix9qn': PREFIX9_QN,
-                         'context': CONTEXT}))))
+                         'context': CONTEXT})))
 
                 transform = et.XSLT(xslt)
                 new_dom = transform(dom)
-                return self.render_html(
+                result = self.render_html(
                     "SPARQL Results",
                     et.tostring(new_dom, pretty_print=True))
+                print(result)
+                return [result.encode('utf-8')]
 
     def add_namespaces(self, graph):
         graph.namespace_manager.bind("ontology", BASE_NAME+"ontology#")
@@ -267,7 +269,11 @@ class RDFServer:
         elif re.match(".*\.json", uri):
             mime = "json-ld"
         elif 'HTTP_ACCEPT' in environ:
-            mime = self.best_mime_type(environ['HTTP_ACCEPT'])
+            if (SPARQL_PATH and
+                    (uri == SPARQL_PATH or uri == (SPARQL_PATH+"/"))):
+                mime = self.best_mime_type(environ['HTTP_ACCEPT'], "sparql")
+            else:
+                mime = self.best_mime_type(environ['HTTP_ACCEPT'], "html")
         else:
             mime = "html"
 
