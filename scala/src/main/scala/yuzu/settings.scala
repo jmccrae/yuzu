@@ -29,7 +29,7 @@ object YuzuSettings {
   val PREFIX3_QN = "cmd"
   val PREFIX4_URI = "http://purl.org/dc/terms/"
   val PREFIX4_QN = "dct"
-  val PREFIX5_URI = "http://www.resourcebook.eu/lremap#"
+  val PREFIX5_URI = "http://www.resourcebook.eu/lremap/owl/lremap_resource.owl#"
   val PREFIX5_QN = "lremap"
   val PREFIX6_URI = "http://purl.org/ms-lod/MetaShare.ttl#"
   val PREFIX6_QN = "metashare"
