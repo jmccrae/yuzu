@@ -162,6 +162,7 @@ class RDFBackend(db : String) extends Backend {
           results += SearchResult(rs.getString(1),label)
       }
     }
+    rs.close
     ps.close
     return results.toList
   }
@@ -230,6 +231,23 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
+  def getLabel(s : String) : Option[String] = {
+    val ps = sqlexecute(conn, "select distinct label from labels where subject=? limit 1", s)
+    try {
+      val rs = ps.executeQuery() 
+      try {
+        if(rs.next()) {
+          return Some(rs.getString(1))
+        } else {
+          return None
+        }
+      } finally {
+        rs.close()
+      }
+    } finally {
+      ps.close()
+    }
+  }
    
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult]) = {
     val ps = try {
@@ -237,16 +255,16 @@ class RDFBackend(db : String) extends Backend {
         case Some(p) => obj match {
           case Some(o) => 
             sqlexecute(conn, 
-              "select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? and object=? limit ? offset ?",
+              "select distinct subject from triples where property=? and object=? limit ? offset ?",
               p, o, limit+1, offset)
           case None =>
             sqlexecute(conn, 
-              "select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject where property=? limit ? offset ?",
+              "select distinct subject from triples where property=? limit ? offset ?",
               p, limit+1, offset)
         }
         case None =>
           sqlexecute(conn, 
-            "select distinct triples.subject, label from triples left outer join labels on triples.subject = labels.subject limit ? offset ?",
+            "select distinct subject from triples limit ? offset ?",
             limit + 1, offset)
       }
     } catch {
@@ -262,14 +280,11 @@ class RDFBackend(db : String) extends Backend {
     do {
       rs.getString(1) match {
         case "<BLANK>" => {}
-        case result => rs.getString(2) match {
-          case null => results += SearchResult(result,result)
-          case "" => results += SearchResult(result,result)
-          case label => results += SearchResult(result,label)
-        }
+        case result => results += SearchResult(result, getLabel(result).getOrElse(result))
       }
       n += 1
     } while(rs.next())
+    rs.close()
     ps.close()
     if(n >= limit) {
       results.remove(n - 1)
@@ -280,12 +295,8 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[String]) = {
-    val ps = try {
-      sqlexecute(conn, "select distinct object from triples where property=? limit ? offset ?", 
+    val ps = sqlexecute(conn, "select distinct object, count(*) from triples where property=? group by object order by count(*) desc limit ? offset ?", 
         prop, limit + 1, offset)
-    } catch {
-      case x : SQLException => throw new RuntimeException("Database @ " + db + " not initialized", x)
-    }
     val rs = ps.executeQuery()
     var n = 0
     if(!rs.next()) {
@@ -297,6 +308,7 @@ class RDFBackend(db : String) extends Backend {
       results += rs.getString(1)
       n += 1
     } while(rs.next())
+    rs.close()
     ps.close()
     if(n >= limit) {
       results.remove(n - 1)
@@ -338,7 +350,7 @@ class RDFBackend(db : String) extends Backend {
         case x : SQLException =>
           // Ignore
       }
-      cursor.execute("create table if not exists [labels] ([subject] TEXT, [label] TEXT, UNIQUE([subject]))")
+      cursor.execute("create table if not exists [labels] ([subject] TEXT PRIMARY KEY, [label] TEXT)")
       cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
       var linesRead = 0
       var lineIterator = io.Source.fromInputStream(inputStream).getLines
