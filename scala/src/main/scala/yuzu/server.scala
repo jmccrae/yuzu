@@ -351,8 +351,15 @@ class RDFServer extends HttpServlet {
     }
 
     if(uri == "/" || uri == "/index.html") {
-      resp.respond("text/html",SC_OK) {
-        out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS)))
+      if(!new File(DB_FILE).exists) {
+        resp.respond("text/html", SC_OK) {
+          _.println(renderHTML(DISPLAY_NAME,
+            mustache(resolve("html/onboarding.html")).substitute()))
+        }
+      } else {
+       resp.respond("text/html",SC_OK) {
+          out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS)))
+        }
       }
     } else if(LICENSE_PATH != null && uri == LICENSE_PATH) {
       resp.respond("text/html",SC_OK) {
@@ -427,6 +434,11 @@ class RDFServer extends HttpServlet {
         case _ => None
       }
       listResources(resp, offset, property, obj, objOffset)
+    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri)).exists) {
+      resp.respond("text/html", SC_OK) {
+        out => out.println(renderHTML(DISPLAY_NAME, 
+          mustache(resolve("html/%s.html" format uri)).substitute()))
+      }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
       val modelOption = backend.lookup(id)
