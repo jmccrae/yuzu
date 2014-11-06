@@ -37,18 +37,26 @@
         }
     </script>
 </head>
-<body>
-<div class="container">
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="page-header">
-                <h1><a href="{{context}}/"><img src="{{context}}/assets/logo.png"/></a>LingHub</h1>
+<body style="padding-top:70px;">
+    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;">
+        <div class="container">
+            <div class="navbar-header">
+                <a href="{{context}}/"><img src="{{context}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
             </div>
         </div>
     </div>
-    <div class="row">
-        {{{content}}}
+    <div class="container">
+        <div class="row">
+            {{{content}}}
+        </div>
     </div>
-</div>
+
+    <div class="navbar navbar-fixed-bottom">
+        <div class="container">
+            <div class="row">
+                LingHub is developed by the LIDER project. This site is a test instance!
+            </div>
+        </div>
+    </div>
 </body>
 </html>

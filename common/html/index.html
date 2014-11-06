@@ -1,7 +1,11 @@
-<h1>Welcome to the LIDER LingHub</h1>
+<div class="jumbotron" style="background-image:url('{{context}}/assets/book.jpg');overflow:hidden;background-size:100%;">
+    <h1><b>Discover language resources for your needs</b></h1>
+    <p><a class="btn btn-info btn-lg pull-right" href="{{context}}/list/">Browse</a></p>
+</div>
 
-
-<div class="col-lg-4">
+</div>
+<div class="row">
+<div class="col-lg-6 col-lg-offset-3">
     <form action="{{context}}/search/" method="get">
     <fieldset>
         <legend>Search</legend>
@@ -22,20 +26,13 @@
             </div>
         </div>
         <div class="form-group">
-            <div>
+            <div class="pull-right">
                 <button type="submit" class="btn btn-success">Search</button>
+                <a class="btn btn-default" href="{{context}}/sparql/">Advanced Search</a>
             </div>
         </div>
+
     </fieldset>
 </form>
-
-<br>
-
 </div>
-<div class="col-lg-8">
-    <div>
-        <a class="btn btn-default btn-lg col-lg-offset-2" href="{{context}}/list/">Resource Index</a>
 
-        <a class="btn btn-default btn-lg col-lg-offset-2" href="{{context}}/sparql/">Advanced Search</a>
-    </div>
-</div>
