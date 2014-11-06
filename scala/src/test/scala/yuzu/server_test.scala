@@ -67,10 +67,10 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
   }
 
   "server" should "negotiate best mime type" in {
-    assert(RDFServer.bestMimeType("application/rdf+xml,text/html") === rdfxml)
-    assert(RDFServer.bestMimeType("text/html;q=0.9,application/rdf+xml") === rdfxml)
-    assert(RDFServer.bestMimeType("text/html;q=0.4,application/rdf+xml;q=0.9") === rdfxml)
-    assert(RDFServer.bestMimeType("application/pdf") === html)
+    assert(RDFServer.bestMimeType("application/rdf+xml,text/html", html) === rdfxml)
+    assert(RDFServer.bestMimeType("text/html;q=0.9,application/rdf+xml", html) === rdfxml)
+    assert(RDFServer.bestMimeType("text/html;q=0.4,application/rdf+xml;q=0.9", html) === rdfxml)
+    assert(RDFServer.bestMimeType("application/pdf", html) === html)
   }
 
   "server" should "answer SPARQL queries" in {
@@ -109,7 +109,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
     model.createResource(BASE_NAME + "test_resource").
       addProperty(model.createProperty("http://www.w3.org/2000/01/rdf-schema#", "label"),
         model.createLiteral("test"))
-    val result = rdfServer.rdfxmlToHtml(model, None)
+    val result = rdfServer.rdfxmlToHtml(model, Some(BASE_NAME + "test_resource"))
     assert(result contains "<body")
   }
 

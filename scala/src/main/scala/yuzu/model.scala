@@ -101,11 +101,17 @@ object QueryElement {
       classOf=classOf)
   }
 
-  def fromNode(node : RDFNode) : Element = node match {
+  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {
     case r : Resource =>
-      val triples = (r.listProperties() map { stat =>
-        new TripleFrag(fromNode(stat.getPredicate()), fromNode(stat.getObject()))
-      }).toList
+      val triples = if(!stack.contains(node)) {
+        (r.listProperties() map { stat =>
+          val pred = stat.getPredicate()
+          val obj = stat.getObject()
+          new TripleFrag(fromNode(pred, pred :: stack), fromNode(obj, obj :: stack))
+        }).toList
+      } else {
+        Nil
+      }
       val t = triples.toList
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
