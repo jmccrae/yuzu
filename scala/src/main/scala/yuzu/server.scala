@@ -495,7 +495,6 @@ class RDFServer extends HttpServlet {
         facet + ("uri_enc" -> uri_enc)
       }
     } 
-
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, 
         template.substitute(
@@ -521,7 +520,7 @@ class RDFServer extends HttpServlet {
   }
 
   override def destroy() {
-    backend.close()
+    //backend.close()
   }
 
 }

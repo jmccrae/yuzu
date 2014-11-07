@@ -30,7 +30,6 @@ trait Backend {
   def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
-  def close() : Unit
 }
 
 
@@ -43,10 +42,11 @@ class RDFBackend(db : String) extends Backend {
     case x : ClassNotFoundException => throw new RuntimeException("No SQLite Driver", x)
   }
 
-  private val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
-
-  def close() {
-    if(!conn.isClosed()) {
+  def withConn[A](foo : Connection => A) = {
+    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
+    try {
+      foo(conn)
+    } finally {
       conn.close()
     }
   }
@@ -85,7 +85,7 @@ class RDFBackend(db : String) extends Backend {
     throw new IllegalArgumentException("Not N3: %s" format n3)
   }
 
-  def lookup(id : String) : Option[Model] = {
+  def lookup(id : String) : Option[Model] = withConn { conn =>
     val ps = sqlexecute(conn, "select fragment, property, object, inverse from triples where subject=?", id)
     val rows = ps.executeQuery()
     if(!rows.next()) {
@@ -121,24 +121,26 @@ class RDFBackend(db : String) extends Backend {
     return Some(model)
   }
 
-  def lookupBlanks(model : Model, bn : Resource) {
-    val ps = sqlexecute(conn,"select property, object from triples where subject=\"<BLANK>\" and fragment=?",  bn.getId().getLabelString())
-    val rows = ps.executeQuery()
-    while(rows.next()) {
-      val p = rows.getString(1)
-      val o = rows.getString(2)
-      val property = prop_from_n3(p, model)
-      val obj = from_n3(o, model)
-      bn.addProperty(property, obj)
-      if(o.startsWith("_:")) {
-        lookupBlanks(model, obj.asInstanceOf[Resource])
+  def lookupBlanks(model : Model, bn : Resource) { 
+    withConn { conn =>
+      val ps = sqlexecute(conn,"select property, object from triples where subject=\"<BLANK>\" and fragment=?",  bn.getId().getLabelString())
+      val rows = ps.executeQuery()
+      while(rows.next()) {
+        val p = rows.getString(1)
+        val o = rows.getString(2)
+        val property = prop_from_n3(p, model)
+        val obj = from_n3(o, model)
+        bn.addProperty(property, obj)
+        if(o.startsWith("_:")) {
+          lookupBlanks(model, obj.asInstanceOf[Resource])
+        }
       }
+      ps.close()
     }
-    ps.close()
   }
 
 
-  def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult] = {
+  def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult] = withConn { conn =>
     val ps = property match {
       case Some(p) => {
         sqlexecute(conn, "select distinct free_text.subject, label from free_text left outer join labels on free_text.subject = labels.subject where property=? and object match ? limit ?",
@@ -166,7 +168,9 @@ class RDFBackend(db : String) extends Backend {
     return results.toList
   }
 
-  private[yuzu] def listInternal(subj : Option[String], frag : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0) : (ResultSet, PreparedStatement) = {
+  private[yuzu] def listInternal(subj : Option[String], frag : Option[String], 
+    prop : Option[String], obj : Option[String], 
+    offset : Int = 0) : (ResultSet, PreparedStatement) = withConn { conn =>
     val ps = subj match {
       case None => prop match {
         case None => obj match {
@@ -230,7 +234,7 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
-  def getLabel(s : String) : Option[String] = {
+  def getLabel(s : String) : Option[String] = withConn { conn =>
     val ps = sqlexecute(conn, "select label from labels where subject=?", s)
     try {
       val rs = ps.executeQuery() 
@@ -248,7 +252,8 @@ class RDFBackend(db : String) extends Backend {
     }
   }
    
-  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult]) = {
+  def listResources(offset : Int, limit : Int, prop : Option[String] = None, 
+    obj : Option[String] = None) : (Boolean,Seq[SearchResult]) = withConn { conn =>
     val ps = try {
       prop match {
         case Some(p) => obj match {
@@ -293,7 +298,8 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
-  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResult]) = {
+  def listValues(offset : Int, limit : Int, 
+    prop : String) : (Boolean,Seq[SearchResult]) = withConn { conn =>
     val ps = sqlexecute(conn, "select distinct object, count(*) from triples where property=? group by object order by count(*) desc limit ? offset ?", 
         prop, limit + 1, offset)
     val rs = ps.executeQuery()
@@ -335,107 +341,109 @@ class RDFBackend(db : String) extends Backend {
 
 
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) {
-    def splitUri(subj : String) : (String, String) = {
-      val (id2, frag) = if(subj contains '#') {
-        (subj.slice(BASE_NAME.length, subj.indexOf('#')),
-          subj.drop(subj.indexOf('#') + 1))
-      } else {
-        (subj.drop(BASE_NAME.length), "")
+    withConn { conn => 
+      def splitUri(subj : String) : (String, String) = {
+        val (id2, frag) = if(subj contains '#') {
+          (subj.slice(BASE_NAME.length, subj.indexOf('#')),
+            subj.drop(subj.indexOf('#') + 1))
+        } else {
+          (subj.drop(BASE_NAME.length), "")
+        }
+        val id = if(id2.endsWith(".rdf") || id2.endsWith(".ttl") || id2.endsWith(".nt") || id2.endsWith(".json") || id2.endsWith(".xml")) {
+          System.err.println("File type at end of name (%s) dropped\n" format id2)
+          id2.take(id2.lastIndexOf("."))
+        } else {
+          id2
+        }
+        (id,frag)
       }
-      val id = if(id2.endsWith(".rdf") || id2.endsWith(".ttl") || id2.endsWith(".nt") || id2.endsWith(".json") || id2.endsWith(".xml")) {
-        System.err.println("File type at end of name (%s) dropped\n" format id2)
-        id2.take(id2.lastIndexOf("."))
-      } else {
-        id2
-      }
-      (id,frag)
-    }
-    val cursor = conn.createStatement()
-    val oldAutocommit = conn.getAutoCommit()
-    try {
-      conn.setAutoCommit(false)
-      cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
-      cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
-      cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-      cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
-      cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
+      val cursor = conn.createStatement()
+      val oldAutocommit = conn.getAutoCommit()
       try {
-        cursor.execute("create virtual table free_text using fts4( [subject] TEXT, property TEXT NOT NULL, object TEXT NOT NULL)")
-      } catch {
-        case x : SQLException =>
-          // Ignore
-      }
-      cursor.execute("create table if not exists [labels] ([subject] TEXT PRIMARY KEY, [label] TEXT)")
-      cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
-      var linesRead = 0
-      var lineIterator = io.Source.fromInputStream(inputStream).getLines
-      while(lineIterator.hasNext) {
+        conn.setAutoCommit(false)
+        cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
+        cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
+        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
+        cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
+        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
         try {
-          val line = unicodeEscape(lineIterator.next)
-          linesRead += 1
-          if(linesRead % 100000 == 0) {
-            System.err.print(".")
-            System.err.flush()
-            conn.commit()
-          }
-          val e = line.split(" ")
-          val subj = e(0).drop(1).dropRight(1)
-          if(subj.startsWith(BASE_NAME)) {
-            val (id, frag) = splitUri(subj)
-            val prop = e(1)
-            val obj = e.drop(2).dropRight(1).mkString(" ")
-            val ps1 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 0)",
-              id, frag, prop, obj)
-            ps1.execute()
-            ps1.close()
-
-            val ps3 = sqlexecute(conn, "insert into free_text values (?, ?, ?)",
-              id, prop, obj)
-            ps3.execute()
-            ps3.close()
-            
-            if(obj.startsWith("<"+BASE_NAME)) {
-              val (id2, frag2) = splitUri(obj.drop(1).dropRight(1))
-              val ps2 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 1)",
-                id2, frag2, prop, "<"+subj+">")
-              ps2.execute()
-              ps2.close()
+          cursor.execute("create virtual table free_text using fts4( [subject] TEXT, property TEXT NOT NULL, object TEXT NOT NULL)")
+        } catch {
+          case x : SQLException =>
+            // Ignore
+        }
+        cursor.execute("create table if not exists [labels] ([subject] TEXT PRIMARY KEY, [label] TEXT)")
+        cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
+        var linesRead = 0
+        var lineIterator = io.Source.fromInputStream(inputStream).getLines
+        while(lineIterator.hasNext) {
+          try {
+            val line = unicodeEscape(lineIterator.next)
+            linesRead += 1
+            if(linesRead % 100000 == 0) {
+              System.err.print(".")
+              System.err.flush()
+              conn.commit()
             }
+            val e = line.split(" ")
+            val subj = e(0).drop(1).dropRight(1)
+            if(subj.startsWith(BASE_NAME)) {
+              val (id, frag) = splitUri(subj)
+              val prop = e(1)
+              val obj = e.drop(2).dropRight(1).mkString(" ")
+              val ps1 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 0)",
+                id, frag, prop, obj)
+              ps1.execute()
+              ps1.close()
 
-            if(LABELS.contains(prop) && frag == "") {
-              val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
-              val ps2 = sqlexecute(conn, "insert or ignore into labels values (?, ?)",
-                id, label)
-              if(label != "") {
+              val ps3 = sqlexecute(conn, "insert into free_text values (?, ?, ?)",
+                id, prop, obj)
+              ps3.execute()
+              ps3.close()
+              
+              if(obj.startsWith("<"+BASE_NAME)) {
+                val (id2, frag2) = splitUri(obj.drop(1).dropRight(1))
+                val ps2 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 1)",
+                  id2, frag2, prop, "<"+subj+">")
                 ps2.execute()
                 ps2.close()
               }
-            }
-          } else if(subj.startsWith("_:")) {
-            val (id, frag) = ("<BLANK>", subj.drop(2))
-            val prop = e(1)
-            val obj = e.drop(2).dropRight(1).mkString(" ")
-            val ps1 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 0)",
-              id, frag, prop, obj)
-            ps1.execute()
-            ps1.close()
-          }
-        } catch {
-          case t : Throwable =>
-            System.err.println("Error on line %d: %s" format (linesRead, t.getMessage()))
-            if(!ignoreErrors) {
-              throw t
-            }
-        }
 
+              if(LABELS.contains(prop) && frag == "") {
+                val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
+                val ps2 = sqlexecute(conn, "insert or ignore into labels values (?, ?)",
+                  id, label)
+                if(label != "") {
+                  ps2.execute()
+                  ps2.close()
+                }
+              }
+            } else if(subj.startsWith("_:")) {
+              val (id, frag) = ("<BLANK>", subj.drop(2))
+              val prop = e(1)
+              val obj = e.drop(2).dropRight(1).mkString(" ")
+              val ps1 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 0)",
+                id, frag, prop, obj)
+              ps1.execute()
+              ps1.close()
+            }
+          } catch {
+            case t : Throwable =>
+              System.err.println("Error on line %d: %s" format (linesRead, t.getMessage()))
+              if(!ignoreErrors) {
+                throw t
+              }
+          }
+
+        }
+        if(linesRead > 100000) {
+          System.err.println()
+        }
+      } finally {
+        cursor.close()
+        conn.commit()
+        conn.setAutoCommit(oldAutocommit)
       }
-      if(linesRead > 100000) {
-        System.err.println()
-      }
-    } finally {
-      cursor.close()
-      conn.commit()
-      conn.setAutoCommit(oldAutocommit)
     }
   }
 
@@ -559,7 +567,7 @@ object RDFBackend {
       case file => new FileInputStream(file)
     }
     backend.load(inputStream, opts contains "-e")
-    backend.close()
+    //backend.close()
   }
 }
 
