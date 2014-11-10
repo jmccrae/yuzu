@@ -15,7 +15,9 @@ libraryDependencies ++= Seq(
   "com.github.spullara.mustache.java" % "compiler" % "0.8.17",
   "org.mockito" % "mockito-all" % "1.9.0" % "test",
   "org.eclipse.jetty" % "jetty-webapp" % "9.1.0.v20131115" % "container",
-  "org.eclipse.jetty" % "jetty-plus"   % "9.1.0.v20131115" % "container"
+  "org.eclipse.jetty" % "jetty-plus"   % "9.1.0.v20131115" % "container",
+  "com.google.guava" % "guava" % "18.0",
+"com.google.code.findbugs" % "jsr305" % "3.0.0"
 )
 
 
