@@ -15,8 +15,8 @@ object YuzuSettings {
   val DUMP_URI = "/linghub.nt.gz"
   // The local path to the data
   val DUMP_FILE = "../linghub.nt.gz"
-  // Where the SQLite database should appear
-  val DB_FILE = "linghub.sqlite"
+  // Where the database should appear
+  val DB_FILE = "linghub.db"
   // The name of the server
   val DISPLAY_NAME = "LingHub"
 

@@ -351,7 +351,7 @@ class RDFServer extends HttpServlet {
     }
 
     if(uri == "/" || uri == "/index.html") {
-      if(!new File(DB_FILE).exists) {
+      if(!new File(DB_FILE).exists && !new File(DB_FILE + ".mv.db").exists) {
         resp.respond("text/html", SC_OK) {
           _.println(renderHTML(DISPLAY_NAME,
             mustache(resolve("html/onboarding.html")).substitute()))

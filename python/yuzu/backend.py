@@ -1,4 +1,4 @@
-from rdflib import *
+from rdflib import BNode, Graph, ConjunctiveGraph, OWL
 from rdflib.util import from_n3
 from rdflib.term import Literal, URIRef
 from rdflib.store import Store
@@ -9,8 +9,9 @@ import gzip
 import multiprocessing
 import traceback
 
-from yuzu.settings import *
-from yuzu.user_text import *
+from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
+                           SPARQL_ENDPOINT, LABELS, FACETS)
+from yuzu.user_text import YZ_BAD_MIME, YZ_BAD_REQUEST
 
 __author__ = 'John P. McCrae'
 
@@ -48,6 +49,45 @@ class SPARQLExecutor(multiprocessing.Process):
             self.pipe.send(('sparql', qres.serialize()))
         else:
             self.pipe.send(('error', YZ_BAD_MIME))
+
+
+class LoadCache:
+    def __init__(self, _cursor, _cache, _column):
+        self.values = {}
+        self.added = []
+        self.cursor = _cursor
+        self.cache = _cache
+        self.column = _column
+
+    def get(self, key):
+        if key in self.values:
+            return self.values[key]
+        else:
+            self.cursor.execute(
+                "select %s from %ss where %s=?" % (self.cache, self.cache,
+                                                   self.column),
+                (key,))
+            row = self.cursor.fetchone()
+            if not row:
+                self.cursor.execute(
+                    "insert into %ss (%s) values (?)" % (self.cache,
+                                                         self.column),
+                    (key,))
+                self.cursor.execute(
+                    "select %s from %ss where %s=?" % (self.cache, self.cache,
+                                                       self.column),
+                    (key,))
+                row = self.cursor.fetchone()
+
+            if len(self.added) >= 1000:
+                to_remove = self.added[0]
+                self.added = self.added[1:]
+                del self.values[to_remove]
+
+            value, = row
+            self.added.append(key)
+            self.values[key] = value
+            return value
 
 
 class RDFBackend(Store):
@@ -95,7 +135,9 @@ class RDFBackend(Store):
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
 
-        cursor.execute("select fragment, property, object, inverse from triples where subject=?", (unicode_escape(id),))
+        cursor.execute(
+            """select fragment, property, object, inverse from triples where
+            subject=?""", (unicode_escape(id),))
         rows = cursor.fetchall()
         if rows:
             for f, p, o, i in rows:
@@ -118,7 +160,8 @@ class RDFBackend(Store):
         @param conn The database connection
         """
         cursor = conn.cursor()
-        cursor.execute("select property, object from triples where subject=\"<BLANK>\" and fragment=?", (bn[2:],))
+        cursor.execute("""select property, object from triples where
+        subject=\"<BLANK>\" and fragment=?""", (bn[2:],))
         rows = cursor.fetchall()
         if rows:
             for p, o in rows:
@@ -126,7 +169,6 @@ class RDFBackend(Store):
             if o.startswith("_:"):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
-        
 
     def search(self, query, prop, limit=20):
         """Search for pages with the appropriate property
@@ -139,47 +181,65 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("select distinct free_text.subject, label from free_text left outer join labels on free_text.subject = labels.subject where property=? and object match ? limit ?",
-                    ("<%s>" % prop, query, limit))
+            cursor.execute("""select distinct subject, label from
+            free_text join pids on free_text.pid = pids.pid
+            left outer join sids on free_text.sid = sids.sid
+            where property=? and object match ? limit ?""",
+                           ("<%s>" % prop, query, limit))
         else:
-            cursor.execute("select distinct free_text.subject, label from free_text left outer join labels on free_text.subject = labels.subject where object match ? limit ?",
-                    (query, limit))
+            cursor.execute("""select distinct free_text.subject, label from
+            free_text left outer join sids on free_text.sid = sids.sid
+            where object match ? limit ?""",
+                           (query, limit))
         rows = cursor.fetchall()
         conn.close()
-        return [{'link':CONTEXT + "/" + uri, 'label':label} for uri, label in rows]
+        return [{'link': CONTEXT + "/" + uri, 'label': label}
+                for uri, label in rows]
 
-    def listInternal(self,id,frag,p,o,offset):
-        """This function allows SPARQL queries directly on the database. See rdflib's Store
+    def listInternal(self, id, frag, p, o, offset):
+        """This function allows SPARQL queries directly on the database.
+        See rdflib's Store
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-        if id == None:
-            if p == None:
-                if o == None:
-                    cursor.execute("select subject, fragment, property, object from triples where inverse=0")
+        if not id:
+            if not p:
+                if not o:
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where inverse=0""")
                 else:
-                    cursor.execute("select subject, fragment, property, object from triples where object=? and inverse=0", (o.n3(),))
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where object=? and inverse=0""",
+                                   (o.n3(),))
             else:
-                if o == None:
-                    cursor.execute("select subject, fragment, property, object from triples where property=? and inverse=0", (p.n3(),))
+                if not o:
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where property=? and inverse=0""",
+                                   (p.n3(),))
                 else:
-                    cursor.execute("select subject, fragment, property, object from triples where property=? and inverse=0 and object=?", (p.n3(), o.n3()))
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where property=? and inverse=0 and
+                    object=?""", (p.n3(), o.n3()))
         else:
-            s2 = self.unname(str(s))
-            if s2:
-                id, frag = s2
-            else:
-                return []
-            if p == None:
-                if o == None:
-                    cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0", (id, frag))
+            if not p:
+                if not o:
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where subject=? and fragment=? and
+                    inverse=0""", (id, frag))
                 else:
-                    cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0", (id, frag, o.n3()))
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where subject=? and fragment=? and
+                    object=? and inverse=0""", (id, frag, o.n3()))
             else:
-                if o == None:
-                    cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0", (id, frag, p.n3()))
+                if not o:
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where subject=? and fragment=? and
+                    property=? and inverse=0""", (id, frag, p.n3()))
                 else:
-                    cursor.execute("select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0", (id, frag, p.n3(), o.n3()))
+                    cursor.execute("""select subject, fragment, property,
+                    object from triples where subject=? and fragment=? and
+                    property=? and object=? and inverse=0""",
+                                   (id, frag, p.n3(), o.n3()))
         return cursor
 
     def triples(self, triple, context=None):
@@ -214,30 +274,35 @@ class RDFBackend(Store):
             s = self.name(i, f)
             triples.append((s, p, o))
             row = cursor.fetchone()
-        return cursor.fetchone() != None, triples
+        return cursor.fetchone() is not None, triples
 
     def get_label(self, conn, s):
         cursor = conn.cursor()
-        cursor.execute("select label from labels where subject=?", (s,))
+        cursor.execute("select label from sids where subject=?", (s,))
         l, = cursor.fetchone()
         return l
 
-    def list_resources(self, offset, limit, prop = None, obj = None):
+    def list_resources(self, offset, limit, prop=None, obj=None):
         """
         Produce the list of all pages in the resource
         @param offset Where to start
         @param limit How many results
-        @return A tuple consisting of a boolean indicating if there are more results and the list of IDs that can be found
+        @return A tuple consisting of a boolean indicating if there are more
+        results and the list of IDs that can be found
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
         if prop:
             if obj:
-                cursor.execute("select distinct subject from triples where property=? and object=? limit ? offset ?", (prop, obj, limit + 1, offset))
+                cursor.execute("""select distinct subject from triples where
+                property=? and object=? limit ? offset ?""",
+                               (prop, obj, limit + 1, offset))
             else:
-                cursor.execute("select distinct subject from triples where property=? limit ? offset ?", (prop, limit + 1, offset))
+                cursor.execute("""select distinct subject from triples where
+                property=? limit ? offset ?""", (prop, limit + 1, offset))
         else:
-            cursor.execute("select distinct subject from triples limit ? offset ?", (limit + 1, offset))
+            cursor.execute("""select distinct subject from triples limit ?
+            offset ?""", (limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         refs = []
@@ -260,14 +325,15 @@ class RDFBackend(Store):
         @param offset Where to start listing
         @param limit Number of values to list
         @param prop The property to list for
-        @return A tuple consisting of a boolean indicating if there are more results and list of values that exist (as N3)
+        @return A tuple consisting of a boolean indicating if there are more
+        results and list of values that exist (as N3)
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
         if not offset:
             offset = 0
-        cursor.execute("select distinct object from triples where property=? limit ? offset ?",
-                (prop, limit + 1, offset))
+        cursor.execute("""select distinct object from triples where property=?
+        limit ? offset ?""", (prop, limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         results = []
@@ -275,16 +341,16 @@ class RDFBackend(Store):
             obj, = row
             n3 = from_n3(obj)
             if type(n3) == Literal:
-                results.append({'link': obj, 'label': n3.value })
-            elif type(n3) == Resource:
-                u = unname(str(n3))
+                results.append({'link': obj, 'label': n3.value})
+            elif type(n3) == URIRef:
+                u = self.unname(str(n3))
                 if u:
                     s, _ = u
                     label = self.get_label(conn, s)
                     if label:
-                        results.append({'link': obj, 'label': label })
+                        results.append({'link': obj, 'label': label})
                     else:
-                        results.append({'link': obj, 'label': s })
+                        results.append({'link': obj, 'label': s})
                 else:
                     results.append({'link': obj, 'label': DISPLAYER(str(n3))})
             n += 1
@@ -318,8 +384,6 @@ class RDFBackend(Store):
             return timed_out, result_type, result
         finally:
             graph.close()
- 
-
 
     @staticmethod
     def split_uri(subj):
@@ -329,7 +393,8 @@ class RDFBackend(Store):
         else:
             id = subj[len(BASE_NAME):]
             frag = ""
-        if id.endswith(".rdf") or id.endswith(".ttl") or id.endswith(".nt") or id.endswith(".json") or id.endswith(".xml"):
+        if (id.endswith(".rdf") or id.endswith(".ttl") or id.endswith(".nt")
+                or id.endswith(".json") or id.endswith(".xml")):
             sys.stderr.write("File type at end of name (%s) dropped\n" % id)
             id = id[:id.rindex(".")]
         return id, frag
@@ -341,15 +406,42 @@ class RDFBackend(Store):
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-        cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
-        cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
-        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-        cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
-        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
-        cursor.execute("create virtual table if not exists free_text using fts4 ( [subject] TEXT, proproperty TEXT NOT NULL, object TEXT NOT NULL )")
-        cursor.execute("create table if not exists [labels] ([subject] TEXT, [label] TEXT, UNIQUE([subject]))")
-        cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")
- 
+        cursor.execute(
+            """create table if not exists sids (sid integer primary key,
+                subject text not null, label text, unique(subject))""")
+        cursor.execute(
+            """create table if not exists pids (pid integer primary key,
+                property text not null, unique(property))""")
+        cursor.execute(
+            """create table if not exists oids (oid integer primary key,
+                object text not null, unique(object))""")
+        cursor.execute(
+            """create table if not exists triple_ids (sid integer not null,
+          fragment varchar(65535), pid integer not null, oid integer not null,
+          inverse integer, foreign key (sid)
+          references sids, foreign key (pid) references pids,
+          foreign key (oid) references oids)""")
+        cursor.execute("""create index if not exists k_triples_subject ON
+            triple_ids ( sid )""")
+        cursor.execute("""create index if not exists k_triples_fragment ON
+            triple_ids ( fragment )""")
+        cursor.execute("""create index if not exists k_triples_property ON
+            triple_ids ( pid )""")
+        cursor.execute("""create index if not exists k_triples_object ON
+            triple_ids ( oid )""")
+        cursor.execute("insert into sids (subject) values ('<BLANK>')")
+        cursor.execute("""create view triples as select subject, fragment,
+          property, object, label, inverse from triple_ids join sids on
+          triple_ids.sid = sids.sid join pids on triple_ids.pid = pids.pid
+          join oids on triple_ids.oid = oids.oid""")
+
+        cursor.execute("""create virtual table if not exists free_text using
+            fts4 ( sid integer, pid integer, object TEXT NOT NULL )""")
+
+        sid_cache = LoadCache(cursor, "sid", "subject")
+        pid_cache = LoadCache(cursor, "pid", "property")
+        oid_cache = LoadCache(cursor, "oid", "object")
+
         lines_read = 0
         for line in input_stream:
             lines_read += 1
@@ -363,26 +455,35 @@ class RDFBackend(Store):
                 id, frag = self.split_uri(subj)
                 prop = e[1]
                 obj = " ".join(e[2:-1])
-                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", 
-                        (id, frag, prop, obj))
-                cursor.execute("insert into free_text values (?, ?, ?)",
-                        (id, prop, obj))
+
+                cursor.execute("insert into triple_ids values (?, ?, ?, ?, 0)",
+                               (sid_cache.get(id), frag, pid_cache.get(prop),
+                                oid_cache.get(obj)))
+                if (len([f for f in FACETS if f["uri"] == prop[1:-1]]) > 0 or
+                        obj.startswith('"')):
+                    cursor.execute("insert into free_text values (?, ?, ?)",
+                                   (sid_cache.get(id), pid_cache.get(prop),
+                                    obj))
                 if obj.startswith("<" + BASE_NAME):
                     id, frag = self.split_uri(obj[1:-1])
-                    cursor.execute("insert into triples values (?, ?, ?, ?, 1)", 
-                            (id, frag, prop, "<"+subj+">"))
-                if prop in LABELS:
+                    cursor.execute(
+                        "insert into triple_ids values (?, ?, ?, ?, 1)",
+                        (sid_cache.get(id), frag, pid_cache.get(prop),
+                         oid_cache.get("<"+subj+">")))
+                if prop in LABELS and frag == "":
                     label = obj[obj.index('"')+1:obj.rindex('"')]
                     if label:
-                        cursor.execute("insert or ignore into labels values (?, ?)", 
-                                (id, label))
+                        cursor.execute(
+                            "update sids set label=? where sid=?",
+                            (label, sid_cache.get(id)))
 
             elif e[0].startswith("_:"):
                 id, frag = "<BLANK>", e[0][2:]
                 prop = e[1]
                 obj = " ".join(e[2:-1])
-                cursor.execute("insert into triples values (?, ?, ?, ?, 0)", 
-                        (id, frag, prop, obj))
+                cursor.execute("insert into triple_ids values (1, ?, ?, ?, 0)",
+                               (id, frag, pid_cache.get(prop),
+                                oid_cache.get(obj)))
 
         if lines_read > 100000:
             sys.stderr.write("\n")
@@ -390,16 +491,20 @@ class RDFBackend(Store):
         cursor.close()
         conn.close()
 
+
 def unicode_escape(s):
     i = 0
     while i < len(s):
-        if s[i:i+2] == "\\u":                
-            s = s[:i] + unichr(int(s[i+2:i+6], 16)) + s[i+6:]
+        if s[i:i+2] == "\\u":
+            if sys.version_info[0] < 3:
+                s = s[:i] + unichr(int(s[i+2:i+6], 16)) + s[i+6:]
+            else:
+                s = s[:i] + chr(int(s[i+2:i+6], 16)) + s[i+6:]
         i += 1
     return s
 
 if __name__ == "__main__":
-    opts = dict(getopt.getopt(sys.argv[1:],'d:f:')[0])
+    opts = dict(getopt.getopt(sys.argv[1:], 'd:f:')[0])
     backend = RDFBackend(opts.get('-d', DB_FILE))
     input_file = opts.get('-f', DUMP_FILE)
     if input_file.endswith(".gz"):
@@ -407,7 +512,3 @@ if __name__ == "__main__":
     else:
         input_stream = open(input_file)
     backend.load(input_stream)
-
-
-
-

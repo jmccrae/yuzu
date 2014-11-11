@@ -18,7 +18,6 @@ class BackendTest extends FlatSpec with Matchers {
     try {
       test(backend)
     } finally {
-      backend.close()
       file.delete()
     }
   }
@@ -81,5 +80,35 @@ class BackendTest extends FlatSpec with Matchers {
   "unicodeEscape" should "work" in {
     RDFBackend.unicodeEscape("m\\u00fcll") should be ("müll")
   }
+/*
+  "test query (Xerial)" should "work" in {
+    val conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + DB_FILE)
+    val stat = conn.createStatement()
+    val t = System.currentTimeMillis()
+    val rs = stat.executeQuery("select distinct object, count(*) from triples where pid=31 group by object order by count(*) desc limit 20")
+    while(rs.next()) {
+      println(rs.getString(1))
+    }
+    rs.close()
+    stat.close()
+    conn.close()
+    println("Xerial time: " + (System.currentTimeMillis() - t))
+  }
+*/
+/*  "test query (sqlite4java)" should "work" in {
+    val db = new com.almworks.sqlite4java.SQLiteConnection(new File("/tmp/database"));
+    db.open(true)
+    val t = System.currentTimeMillis()
+    val st = db.prepare("select distinct object, count(*) from triples where pid=31 group by object order by count(*) desc limit 20")
+    try {
+      while (st.step()) {
+        println(st.columnString(0))
+      }
+    } finally {
+      st.dispose()
+    }
+    db.dispose()
+    println("sqlite4java time: " + (System.currentTimeMillis() - t))
+  }*/
 }
 

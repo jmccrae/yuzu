@@ -5,11 +5,9 @@ sys.path.append(os.path.dirname(__file__))
 import lxml.etree as et
 from wsgiref.simple_server import make_server
 if sys.version_info[0] < 3:
-    from StringIO import StringIO
     from urlparse import parse_qs
     from urllib import quote_plus
 else:
-    from io import StringIO
     from urllib.parse import parse_qs, quote_plus
 from rdflib import RDFS, URIRef
 import getopt
@@ -281,11 +279,16 @@ class RDFServer:
         if uri == "/" or uri == "/index.html":
             start_response('200 OK', [('Content-type',
                                        'text/html; charset=utf-8')])
-            return [self.render_html(
-                DISPLAY_NAME,
-                pystache.render(open(resolve("html/index.html")).read(),
-                    {'property_facets': FACETS, 'context': CONTEXT})
-                ).encode('utf-8')]
+            if not exists(DB_FILE):
+                return [self.render_html(DISPLAY_NAME, pystache.render(
+                    open(resolve("html/onboarding.html")).read(),
+                    {'context': CONTEXT}))]
+            else:
+                return [self.render_html(
+                    DISPLAY_NAME,
+                    pystache.render(open(resolve("html/index.html")).read(),
+                        {'property_facets': FACETS, 'context': CONTEXT})
+                    ).encode('utf-8')]
         # The license page
         if LICENSE_PATH and uri == LICENSE_PATH:
             start_response('200 OK', [('Content-type',

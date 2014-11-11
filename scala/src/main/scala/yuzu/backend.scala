@@ -7,12 +7,18 @@ import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node, Graph}
 import com.hp.hpl.jena.rdf.model.{Literal, Model, ModelFactory, AnonId, Resource}
 import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import gnu.getopt.Getopt
-import java.io.FileInputStream
+import java.io.{File, FileInputStream}
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLException}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 import java.util.zip.GZIPInputStream
+import org.apache.lucene.analysis.standard.StandardAnalyzer
+import org.apache.lucene.document.{Document, Field, StringField, TextField}
+import org.apache.lucene.index.{DirectoryReader, IndexReader, IndexWriter, IndexWriterConfig}
+import org.apache.lucene.queryparser.classic.QueryParser
+import org.apache.lucene.search.{IndexSearcher, Query, ScoreDoc, TopScoreDocCollector }
+import org.apache.lucene.store.FSDirectory
+import org.apache.lucene.util.Version
 
-// Abstarct backend
 
 trait SPARQLResult {
   def result : Either[String, Model]
@@ -29,7 +35,7 @@ trait Backend {
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult])
   def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResult])
   def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
-  def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult]
+  def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
 }
 
@@ -40,7 +46,7 @@ class RDFBackend(db : String) extends Backend {
   try {
     Class.forName("org.sqlite.JDBC")
   } catch {
-    case x : ClassNotFoundException => throw new RuntimeException("No SQLite Driver", x)
+    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x)
   }
 
   def withConn[A](foo : Connection => A) = {
@@ -87,7 +93,7 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def lookup(id : String) : Option[Model] = withConn { conn =>
-    val ps = sqlexecute(conn, "select fragment, property, object, inverse from triples natural join sids natural join pids where subject=?", id)
+    val ps = sqlexecute(conn, "select fragment, property, object, inverse from triples where subject=?", id)
     val rows = ps.executeQuery()
     if(!rows.next()) {
       return None
@@ -124,7 +130,7 @@ class RDFBackend(db : String) extends Backend {
 
   def lookupBlanks(model : Model, bn : Resource) { 
     withConn { conn =>
-      val ps = sqlexecute(conn,"select property, object from triples natural join sids natural join pids where subject=\"<BLANK>\" and fragment=?",  bn.getId().getLabelString())
+      val ps = sqlexecute(conn,"select property, object from triples where subject=\"<BLANK>\" and fragment=?",  bn.getId().getLabelString())
       val rows = ps.executeQuery()
       while(rows.next()) {
         val p = rows.getString(1)
@@ -141,32 +147,36 @@ class RDFBackend(db : String) extends Backend {
   }
 
 
-  def search(query : String, property : Option[String], limit : Int = 20) : List[SearchResult] = withConn { conn =>
-    val ps = property match {
-      case Some(p) => {
-        sqlexecute(conn, "select distinct subject, label from free_text natural join sids natural join pids where property=? and object match ? limit ?",
-          "<%s>" format p, query, limit)
-      } 
-      case None => {
-        sqlexecute(conn, "select distinct subject, label from free_text natural join sids natural join pids where object match ? limit ?",
-            query, limit)
+  def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult] = withConn { conn =>
+    val reader = DirectoryReader.open(
+      FSDirectory.open(new File(DB_FILE + "-lucene")))
+ 
+    try {
+      val searcher = new IndexSearcher(reader)
+      val collector = TopScoreDocCollector.create(limit, true)
+      val qp = new QueryParser("object", 
+        new StandardAnalyzer())
+
+      val q = property match {
+        case Some(p) => 
+          qp.parse("object:\"%s\" AND property:\"%s\"" format (
+            query.replaceAll("\"","\\\\\""), p))
+        case None =>
+          qp.parse("object:\"%s\"" format (
+            query.replaceAll("\"", "\\\\\"")))
       }
-    }
-    val results = collection.mutable.ListBuffer[SearchResult]()
-    val rs = ps.executeQuery()
-    while(rs.next()) {
-      rs.getString(2) match {
-        case null =>
-          results += SearchResult(CONTEXT+"/"+rs.getString(1),rs.getString(1))
-        case "" =>
-          results += SearchResult(CONTEXT+"/"+rs.getString(1),rs.getString(1))
-        case label =>
-          results += SearchResult(CONTEXT+"/"+rs.getString(1),label)
+      searcher.search(q, collector)
+      val hits = collector.topDocs().scoreDocs
+     
+      for(hit <- hits.toSeq) yield {
+        val subj = searcher.doc(hit.doc).get("subject")
+        SearchResult(
+          CONTEXT + "/" + subj,
+          getLabel(subj).getOrElse(subj))
       }
+    } finally {
+      reader.close()
     }
-    rs.close
-    ps.close
-    return results.toList
   }
 
   private[yuzu] def listInternal(subj : Option[String], frag : Option[String], 
@@ -176,32 +186,32 @@ class RDFBackend(db : String) extends Backend {
       case None => prop match {
         case None => obj match {
           case None => 
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where inverse=0")
+            sqlexecute(conn, "select subject, fragment, property, object from triples where inverse=0")
           case Some(o) =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where object=? and inverse=0", o)
+            sqlexecute(conn, "select subject, fragment, property, object from triples where object=? and inverse=0", o)
         }
         case Some(p) => obj match {
           case None =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where property=? and inverse=0", p)
+            sqlexecute(conn, "select subject, fragment, property, object from triples where property=? and inverse=0", p)
           case Some(o) =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where property=? and inverse=0 and object=?", p, o)
+            sqlexecute(conn, "select subject, fragment, property, object from triples where property=? and inverse=0 and object=?", p, o)
         }
       }
       case Some(id) => prop match {
         case None => obj match {
           case None =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where subject=? and fragment=? and inverse=0", id,
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0", id,
               frag.getOrElse(""))
           case Some(o) =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where subject=? and fragment=? and object=? and inverse=0", 
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0", 
               id, frag.getOrElse(""), o)
           }
         case Some(p) => obj match {
           case None =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where subject=? and fragment=? and property=? and inverse=0", 
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0", 
               id, frag.getOrElse(""), p)
           case Some(o) =>
-            sqlexecute(conn, "select subject, fragment, property, object from triples natural join sids natural join pids where subject=? and fragment=? and property=? and object=? and inverse=0", 
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0", 
               id, frag.getOrElse(""), p, o)
         }
       }
@@ -260,16 +270,16 @@ class RDFBackend(db : String) extends Backend {
         case Some(p) => obj match {
           case Some(o) => 
             sqlexecute(conn, 
-              "select distinct subject, label from triples natural join sids natural join pids where property=? and object=? limit ? offset ?",
+              "select distinct subject, label from triples where property=? and object=? limit ? offset ?",
               p, o, limit+1, offset)
           case None =>
             sqlexecute(conn, 
-              "select distinct subject, label from triples natural join sids natural join pids where property=? limit ? offset ?",
+              "select distinct subject, label from triples where property=? limit ? offset ?",
               p, limit+1, offset)
         }
         case None =>
           sqlexecute(conn, 
-            "select distinct subject, label from triples natural join sids natural join pids limit ? offset ?",
+            "select distinct subject, label from triples limit ? offset ?",
             limit + 1, offset)
       }
     } catch {
@@ -301,7 +311,7 @@ class RDFBackend(db : String) extends Backend {
 
   def listValues(offset : Int, limit : Int, 
     prop : String) : (Boolean,Seq[SearchResult]) = withConn { conn =>
-    val ps = sqlexecute(conn, "select distinct object, count(*) from triples natural join sids natural join pids where property=? group by object order by count(*) desc limit ? offset ?", 
+    val ps = sqlexecute(conn, "select distinct object, count(*) from triples where property=? group by object order by count(*) desc limit ? offset ?", 
         prop, limit + 1, offset)
     val rs = ps.executeQuery()
     var n = 0
@@ -386,44 +396,44 @@ class RDFBackend(db : String) extends Backend {
       }
       val cursor = conn.createStatement()
       val oldAutocommit = conn.getAutoCommit()
+      // initialize Lucene
+      val writer = new IndexWriter(FSDirectory.open(new File(DB_FILE + "-lucene")),
+        new IndexWriterConfig(Version.LATEST, 
+          new StandardAnalyzer()))
+
       try {
         conn.setAutoCommit(false)
-        /*cursor.execute("create table if not exists [triples] ([subject] TEXT, [fragment] TEXT, property TEXT NOT NULL, object TEXT NOT NULL, inverse INT DEFAULT 0)")
-        cursor.execute("create index if not exists k_triples_subject ON [triples] ( subject )")
-        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-        cursor.execute("create index if not exists k_triples_property ON [triples] ( property )")
-        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
-        try {
-          cursor.execute("create virtual table free_text using fts4( [subject] TEXT, property TEXT NOT NULL, object TEXT NOT NULL)")
-        } catch {
-          case x : SQLException =>
-            // Ignore
-        }
-        cursor.execute("create table if not exists [labels] ([subject] TEXT PRIMARY KEY, [label] TEXT)")
-        cursor.execute("create index if not exists k_labels_subject ON [labels] ( subject )")*/
-        cursor.execute("""create table if not exists [sids] ([sid] integer primary key, 
-          [subject] text not null, [label] text, unique(subject))""")
-        cursor.execute("create table if not exists [pids] ([pid] integer primary key, [property] text not null, unique(property))")
-        cursor.execute("""create table if not exists [triples] ([sid] integer not null, 
-          [fragment] text, [pid] integer not null, object text not null, 
-          inverse integer, foreign key ([sid])
-          references [sids], foreign key ([pid]) references [pids])""")
-        cursor.execute("create index if not exists k_triples_subject ON [triples] ( sid )")
-        cursor.execute("create index if not exists k_triples_fragment ON [triples] ( fragment )")
-        cursor.execute("create index if not exists k_triples_property ON [triples] ( pid )")
-        cursor.execute("create index if not exists k_triples_object ON [triples] ( object )")
-        try {
-          cursor.execute("""create virtual table free_text using fts4(
-            [sid] integer not null, [pid] integer not null, 
-            [object] text not null)""")
-        } catch {
-          case x : SQLException =>
-            x.printStackTrace()
-            // Ignore
-        }
-        cursor.execute("insert or ignore into sids (subject) values ('<BLANK>')")
+        cursor.execute(
+          """create table if not exists sids (sid integer primary key, 
+        subject text not null, label text, unique(subject))""")
+        cursor.execute(
+          """create table if not exists pids (pid integer primary key, 
+          property text not null, unique(property))""")
+        cursor.execute(
+          """create table if not exists oids (oid integer primary key, 
+          object text not null, unique(object))""")
+        cursor.execute("""create table triple_ids (sid integer not null, 
+          fragment text, pid integer not null, oid integer not null,
+          inverse integer, foreign key (sid)
+          references sids, foreign key (pid) references pids,
+          foreign key (oid) references oids)""")
+        cursor.execute(
+          "create index k_triples_subject ON triple_ids ( sid )")
+        cursor.execute(
+          "create index k_triples_fragment ON triple_ids ( fragment )")
+        cursor.execute(
+          "create index k_triples_property ON triple_ids ( pid )")
+        cursor.execute(
+          "create index k_triples_object ON triple_ids ( oid )")
+        cursor.execute("insert into sids (subject) values ('<BLANK>')")
+        cursor.execute("""create view triples as select subject, fragment, 
+          property, object, label, inverse from triple_ids join sids on
+          triple_ids.sid = sids.sid join pids on triple_ids.pid = pids.pid
+          join oids on triple_ids.oid = oids.oid""") 
         val sidCache = loadCache(conn, "sid", "subject")
         val pidCache = loadCache(conn, "pid", "property")
+        val oidCache = loadCache(conn, "oid", "object")
+
         var linesRead = 0
         var lineIterator = io.Source.fromInputStream(inputStream).getLines
         while(lineIterator.hasNext) {
@@ -442,100 +452,39 @@ class RDFBackend(db : String) extends Backend {
               val prop = e(1)
               val obj = e.drop(2).dropRight(1).mkString(" ")
 
-              val ps1c = sqlexecute(conn,
-                """insert into triples values(?, ?, ?, ?, 0)""",
-                  sidCache.get(id), frag, pidCache.get(prop), obj)
-              ps1c.execute()
-              ps1c.close()
-              /*val ps1a = sqlexecute(conn, "insert or ignore into sids (subject) values (?)",
-                id);
-              ps1a.execute();
-              ps1a.close();
-              val ps1b = sqlexecute(conn,
-                "insert or ignore into pids (property) values (?)", prop)
-              ps1b.execute();
-              ps1b.close();
-              val ps1c = sqlexecute(conn, 
-                """insert into triples values (
-                    (select sid from sids where subject=?),
-                    ?, (select pid from pids where property=?), ?)""",
-                  id, frag, prop, obj);
-              ps1c.execute()
-              ps1c.close();*/
-                  
-              /*val ps1 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 0)",
-                id, frag, prop, obj)
-              ps1.execute()
-              ps1.close()*/
-             if(FACETS.exists(_("uri") == prop.drop(1).dropRight(1)) || obj.startsWith("\"")) {
-               val ps3 = sqlexecute(conn,
-                 """insert into free_text values(?, ?, ?)""",
-                 sidCache.get(id), pidCache.get(prop), obj)
-               ps3.execute()
-               ps3.close()
-
-                /*val ps3 = sqlexecute(conn,
-                  """insert into free_text values(
-                    (select sid from sids where subject=?),
-                    (select pid from pids where property=?), ?)""",
-                  id, prop, obj)
-                ps3.execute()
-                ps3.close()*/
-              }
-              /*val ps3 = sqlexecute(conn, "insert into free_text values (?, ?, ?)",
-                id, prop, obj)
-              ps3.execute()
-              ps3.close()*/
+              sqlexecuteonce(conn,
+                """insert into triple_ids values(?, ?, ?, ?, 0)""",
+                  sidCache.get(id), frag, pidCache.get(prop), oidCache.get(obj))
               
+              if(FACETS.exists(_("uri") == prop.drop(1).dropRight(1)) || obj.startsWith("\"")) {
+                val doc = new Document()
+                doc.add(new TextField("object", obj, Field.Store.YES))
+                doc.add(new StringField("property", prop, Field.Store.YES))
+                doc.add(new StringField("subject", id, Field.Store.YES))
+                writer.addDocument(doc)
+              }
+             
               if(obj.startsWith("<"+BASE_NAME)) {
                 val (id2, frag2) = splitUri(obj.drop(1).dropRight(1))
-                //val ps2a = sqlexecute(conn,
-                //  "insert or ignore into sids (subject) values (?)", id2);
-                //ps2a.execute()
-                //ps2a.close()
-                val ps2b = sqlexecute(conn,
-                  """insert into triples values(?, ?, ?, ?, 1)""",
-                  sidCache.get(id2), frag2, pidCache.get(prop), "<" + subj + ">")
-                //val ps2b = sqlexecute(conn, 
-                //  """insert into triples values(
-                //    (select sid from sids where subject=?), ?,
-                //    (select pid from pids where property=?), ?)""",
-                //  id2,frag2, prop, "<" + subj + ">")
-                ps2b.execute()
-                ps2b.close()
-
-                /*val ps2 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 1)",
-                  id2, frag2, prop, "<"+subj+">")
-                ps2.execute()
-                ps2.close()*/
+                sqlexecuteonce(conn,
+                  """insert into triple_ids values(?, ?, ?, ?, 1)""",
+                  sidCache.get(id2), frag2, pidCache.get(prop), oidCache.get("<" + subj + ">"))
               }
 
               if(LABELS.contains(prop) && frag == "") {
                 val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
                 if(label != "") {
-                  val ps2 = sqlexecute(conn, 
-                    "update sids set label=? where subject=?",
-                    label, id)
-                  ps2.execute()
-                  ps2.close()
-                /*val ps2 = sqlexecute(conn, "insert or ignore into labels values (?, ?)",
-                  id, label)
-                  ps2.execute()
-                  ps2.close()*/
+                  sqlexecuteonce(conn, 
+                    "update sids set label=? where sid=?",
+                    label, sidCache.get(id))
                 }
               }
             } else if(subj.startsWith("_:")) {
               val (id, frag) = ("<BLANK>", subj.drop(2))
               val prop = e(1)
               val obj = e.drop(2).dropRight(1).mkString(" ")
-              val ps1 = sqlexecute(conn, "insert into triples values (1, ?, ?, ?, 0)",
-                frag, pidCache.get(prop), obj)
-              ps1.execute()
-              ps1.close()
-              /*val ps1 = sqlexecute(conn, "insert into triples values (?, ?, ?, ?, 0)",
-                id, frag, prop, obj)
-              ps1.execute()
-              ps1.close()*/
+              sqlexecuteonce(conn, "insert into triple_ids values (1, ?, ?, ?, 0)",
+                frag, pidCache.get(prop), oidCache.get(obj))
             }
           } catch {
             case t : Throwable =>
@@ -544,7 +493,6 @@ class RDFBackend(db : String) extends Backend {
                 throw t
               }
           }
-
         }
         if(linesRead > 100000) {
           System.err.println()
@@ -553,7 +501,8 @@ class RDFBackend(db : String) extends Backend {
         cursor.close()
         conn.commit()
         conn.setAutoCommit(oldAutocommit)
-      }
+        writer.close()
+       }
     }
   }
 
@@ -601,6 +550,23 @@ object RDFBackend {
     }
     return ps
   }
+
+  def sqlexecuteonce(conn : Connection, query : String, args : Any*) {
+    val ps = conn.prepareStatement(query)
+    for((arg,i) <- args.zipWithIndex) {
+      arg match {
+        case s : String => 
+          ps.setString(i+1, s)
+        case i2 : Int =>
+          ps.setInt(i+1,i2)
+        case _ =>
+          throw new UnsupportedOperationException()
+      }
+    }
+    ps.execute()
+    ps.close()
+  }
+
 
 
   def name(id : String, frag : Option[String]) = {

@@ -25,7 +25,6 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
   }
 
   override def afterAll() {
-    rdfServer.backend.close()
     dbFile.delete()
   }
 
