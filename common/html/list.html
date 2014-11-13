@@ -12,7 +12,7 @@
                 <div class="list-group">
             {{/values?}}
                 {{#values}}
-                <a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}' class="list-group-item" style="word-wrap:break-word;">{{value}}</a>
+                <a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}' class="list-group-item" style="word-wrap:break-word;">{{value}} ({{count}})</a>
                 {{/values}}
                 {{#more_values}}
                 <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}' class="list-group-item">More values...</a>

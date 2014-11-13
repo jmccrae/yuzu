@@ -6,6 +6,7 @@
     </td>
     <td>
         {{#obj}}
+            {{#elem}}
             {{#has_triples}}
                 <span property="{{#prop}}{{uri}}{{/prop}}">
                 <table class="rdf table table-hover" resource="{{uri}}">
@@ -34,6 +35,15 @@
                     {{/bnode}}
                 {{/literal}}
             {{/has_triples}}
+            {{/elem}}
+            {{^last}}
+        </span>
+    </td>
+</tr>
+<tr>
+    <td></td>
+    <td>
+            {{/last}}
         {{/obj}}
         </span>
     </td>

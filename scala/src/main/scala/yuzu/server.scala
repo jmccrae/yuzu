@@ -70,6 +70,7 @@ object mustache {
     val resolver = new MustacheResolver {
       def getReader(resourceName : String) = new java.io.InputStreamReader(resourceName match {
         case "triple" => resolve("html/triple.mustache").openStream()
+        case "triple2" => resolve("html/triple.mustache").openStream()
         case "rdf2html" => resolve("html/rdf2html.mustache").openStream()
         case _ => throw new FileNotFoundException()
       })
@@ -488,7 +489,8 @@ class RDFServer extends HttpServlet {
           "values" -> vs.map { v => Map[String,String](
                   "prop_uri" -> uri_enc,
                   "value_enc" -> java.net.URLEncoder.encode(v.link, "UTF-8"),
-                  "value" -> v.label.take(100)
+                  "value" -> v.label.take(100),
+                  "count" -> v.count.toString
                 )},
           "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0)+20) } else { None }))
       } else {

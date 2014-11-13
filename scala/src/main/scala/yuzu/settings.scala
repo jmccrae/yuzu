@@ -77,6 +77,6 @@ object YuzuSettings {
   "<http://xmlns.com/foaf/0.1/name>"
   )
   // The displayer for URIs
-  val DISPLAYER = DefaultDisplayer
+  val DISPLAYER = PrettyDisplayer
     
 }

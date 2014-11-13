@@ -14,6 +14,28 @@
         <th>Value</th>
     </tr>
     {{#triples}}
-        {{> triple}}
+        {{^has_triples}}
+            {{> triple}}
+        {{/has_triples}}
     {{/triples}}
 </table>
+
+{{#triples}}
+    {{#has_triples}}
+        {{#prop}}
+            <h3><a href="{{uri}}">{{display}}</a></h3>
+        {{/prop}}
+        <table class="rdf rdf_main table table-hover" resource="{{uri}}">
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+            </tr>
+            {{#obj}}
+                {{#triples}}
+                    {{> triple}}
+                {{/triples}}
+            {{/obj}}
+        </table>
+    {{/has_triples}}
+{{/triples}}
+            

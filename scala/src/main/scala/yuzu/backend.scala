@@ -26,6 +26,7 @@ trait SPARQLResult {
 }
 
 case class SearchResult(link : String, label : String)
+case class SearchResultWithCount(link : String, label : String, count : Int)
 
 
 trait Backend {
@@ -33,7 +34,7 @@ trait Backend {
     timeout : Int = 10) : SPARQLResult
   def lookup(id : String) : Option[Model]
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult])
-  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResult])
+  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResultWithCount])
   def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
@@ -310,7 +311,7 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def listValues(offset : Int, limit : Int, 
-    prop : String) : (Boolean,Seq[SearchResult]) = withConn { conn =>
+    prop : String) : (Boolean,Seq[SearchResultWithCount]) = withConn { conn =>
     val ps = sqlexecute(conn, "select distinct object, count(*) from triples where property=? group by object order by count(*) desc limit ? offset ?", 
         prop, limit + 1, offset)
     val rs = ps.executeQuery()
@@ -320,21 +321,21 @@ class RDFBackend(db : String) extends Backend {
       return (false, Nil)
     }
     val model = ModelFactory.createDefaultModel()
-    var results = collection.mutable.ListBuffer[SearchResult]()
+    var results = collection.mutable.ListBuffer[SearchResultWithCount]()
     do {
       val n3 = rs.getString(1)
       from_n3(rs.getString(1), model) match {
         case l : Literal => 
-          results += SearchResult(n3, l.getValue().toString())
+          results += SearchResultWithCount(n3, l.getValue().toString(), rs.getInt(2))
         case r : Resource =>
           if(r.getURI() != null) {
             unname(r.getURI()) match {
               case Some((s,_)) => 
-                results += SearchResult(n3, 
-                  getLabel(s).getOrElse(s))
+                results += SearchResultWithCount(n3, 
+                  getLabel(s).getOrElse(s), rs.getInt(2))
               case None =>
-                results += SearchResult(n3,
-                  DISPLAYER.uriToStr(r.getURI()))
+                results += SearchResultWithCount(n3,
+                  DISPLAYER.uriToStr(r.getURI()), rs.getInt(2))
             }
           } 
       }
