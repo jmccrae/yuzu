@@ -46,7 +46,8 @@ trait URIDisplayer {
           uriToStr(uri)
       }
     case l : Literal =>
-      l.getValue().toString()
+      l.getValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\")
   }
   def apply(dt : RDFDatatype) = uriToStr(dt.getURI())
 

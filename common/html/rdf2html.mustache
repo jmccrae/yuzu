@@ -25,17 +25,19 @@
         {{#prop}}
             <h3><a href="{{uri}}">{{display}}</a></h3>
         {{/prop}}
+            {{#obj}}
         <table class="rdf rdf_main table table-hover" resource="{{uri}}">
             <tr>
                 <th>Property</th>
                 <th>Value</th>
             </tr>
-            {{#obj}}
-                {{#triples}}
-                    {{> triple}}
-                {{/triples}}
-            {{/obj}}
+                {{#elem}}
+                    {{#triples}}
+                        {{> triple}}
+                    {{/triples}}
+                {{/elem}}
         </table>
+            {{/obj}}
     {{/has_triples}}
 {{/triples}}
             

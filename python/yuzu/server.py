@@ -378,6 +378,12 @@ class RDFServer:
 
             return self.list_resources(start_response, offset,
                                        prop, obj, obj_offset)
+        elif uri != "onboarding" and exists(resolve("html/%s.html" % uri)):
+            start_response('200 OK', [('Content-type',
+                                       'text/html; charset=utf-8')])
+            s = pystache.render(open(resolve("html/%s.html" % uri)).read(),
+                                {'context': CONTEXT})
+            return [self.render_html(DISPLAY_NAME, s).encode('utf-8')]
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id, _ = re.findall(
