@@ -142,7 +142,7 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(XSD.getURI().size))
     } else {
       val index = math.max(uri.lastIndexOf('#'), uri.lastIndexOf('/'))
-      if(index > 0) {
+      if(index > 0 && index + 3 < uri.size) {
         semiMagicString(uri.drop(index + 1)) 
       } else {
         uri
