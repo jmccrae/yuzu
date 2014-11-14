@@ -172,7 +172,11 @@ object QueryElement {
       case null => null
       case st => fromNode(st.getObject())
     }
-    Element(DISPLAYER.apply(elem),
+    val label = (LABELS.flatMap { prop =>
+      pritnln(prop)
+      Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
+    }).headOption.map(_.getObject().toString).getOrElse(DISPLAYER.apply(elem))
+    Element(label,
       uri=elem.getURI(),
       triples=tripleFrags(elem, Nil),
       classOf=classOf)
