@@ -173,7 +173,6 @@ object QueryElement {
       case st => fromNode(st.getObject())
     }
     val label = (LABELS.flatMap { prop =>
-      pritnln(prop)
       Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
     }).headOption.map(_.getObject().toString).getOrElse(DISPLAYER.apply(elem))
     Element(label,
