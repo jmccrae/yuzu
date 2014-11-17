@@ -16,4 +16,5 @@ object YuzuUserText {
   val YZ_NO_DATA="No data is yet loaded in the system"
   val YZ_INDEX="Index"
   val YZ_TIME_OUT="The query could not be processed in time"
+  val YZ_METADATA="About this resource"
 }

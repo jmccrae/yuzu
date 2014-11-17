@@ -8,6 +8,7 @@ import com.hp.hpl.jena.rdf.model.{Literal, Model, ModelFactory, AnonId, Resource
 import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import gnu.getopt.Getopt
 import java.io.{File, FileInputStream}
+import java.net.URI
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLException}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 import java.util.zip.GZIPInputStream
@@ -38,6 +39,8 @@ trait Backend {
   def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
+  def tripleCount : Int
+  def linkCounts : Seq[(String, Int)]
 }
 
 
@@ -378,6 +381,21 @@ class RDFBackend(db : String) extends Backend {
     })
   }
 
+  lazy val tripleCount = withConn { conn =>
+    val ps = sqlexecute(conn, "select count(*) from triples")
+    try {
+      val rs = ps.executeQuery()
+      try {
+        rs.next()
+        rs.getInt(1)
+      } finally {
+        rs.close()
+      }
+    } finally {
+      ps.close()
+    }
+  }
+
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) {
     withConn { conn => 
       def splitUri(subj : String) : (String, String) = {
@@ -404,6 +422,7 @@ class RDFBackend(db : String) extends Backend {
 
       try {
         conn.setAutoCommit(false)
+        var linkCounts = collection.mutable.Map[String, Int]()
         cursor.execute(
           """create table if not exists sids (sid integer primary key, 
         subject text not null, label text, unique(subject))""")
@@ -480,6 +499,27 @@ class RDFBackend(db : String) extends Backend {
                     label, sidCache.get(id))
                 }
               }
+              
+              if(obj.startsWith("<")) {
+                val objUri = URI.create(obj.drop(1).dropRight(1))
+
+                if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_))) {
+                  val target = LINKED_SETS.find(objUri.toString.startsWith(_)) match {
+                    case Some(l) => l
+                    case None => new URI(
+                      objUri.getScheme(),
+                      objUri.getUserInfo(),
+                      objUri.getHost(),
+                      objUri.getPort(),
+                      "/", null, null).toString
+                  }
+                  if(linkCounts.contains(target)) {
+                    linkCounts(target) += 1
+                  } else {
+                    linkCounts(target) = 1
+                  }
+                }
+              }
             } else if(subj.startsWith("_:")) {
               val (id, frag) = ("<BLANK>", subj.drop(2))
               val prop = e(1)
@@ -495,6 +535,12 @@ class RDFBackend(db : String) extends Backend {
               }
           }
         }
+        cursor.execute("""create table if not exists links (count integer,
+          target text)""")
+        for((target, count) <- linkCounts) {
+          sqlexecuteonce(conn,
+            """insert into links values (?, ?)""", count, target)
+        }
         if(linesRead > 100000) {
           System.err.println()
         }
@@ -506,6 +552,25 @@ class RDFBackend(db : String) extends Backend {
        }
     }
   }
+
+  def linkCounts = withConn { conn =>
+    val ps = sqlexecute(conn, "select count, target from links")
+    try {
+      val rs = ps.executeQuery()
+      try {
+        val results = collection.mutable.ListBuffer[(String, Int)]()
+        while(rs.next()) {
+          results += ((rs.getString(2), rs.getInt(1)))
+        }
+        results.toSeq
+      } finally {
+        rs.close()
+      }
+    } finally {
+      ps.close()
+    }
+  }
+
 
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String], timeout : Int = 10) : SPARQLResult = {
     val backendModel = ModelFactory.createModelForGraph(graph)

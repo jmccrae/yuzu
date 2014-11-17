@@ -174,7 +174,14 @@ object QueryElement {
     }
     val label = (LABELS.flatMap { prop =>
       Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
-    }).headOption.map(_.getObject().toString).getOrElse(DISPLAYER.apply(elem))
+      }).headOption.map({ stat =>
+        val node = stat.getObject()
+        if(node.isLiteral()) {
+          node.asLiteral().getValue().toString()
+        } else {
+          node.toString()
+        }
+    }).getOrElse(DISPLAYER.apply(elem))
     Element(label,
       uri=elem.getURI(),
       triples=tripleFrags(elem, Nil),

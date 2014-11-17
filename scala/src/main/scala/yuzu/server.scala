@@ -440,6 +440,19 @@ class RDFServer extends HttpServlet {
         out => out.println(renderHTML(DISPLAY_NAME, 
           mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute()))
       }
+    } else if(METADATA_PATH != null && uri == ("/" + METADATA_PATH)) {
+      val model = DataID.get
+      val content = if(mime == html) {
+        rdfxmlToHtml(model, Some(BASE_NAME + METADATA_PATH), YZ_METADATA)
+      } else {
+        val out = new java.io.StringWriter()
+        addNamespaces(model)
+        RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
+        out.toString()
+      }
+      resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
+        out => out.print(content)
+      }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
       val modelOption = backend.lookup(id)
