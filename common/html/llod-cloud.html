@@ -12,8 +12,8 @@ and shows the current status of the linguistic linked open data cloud.</p>
         <td>Linguistic Resource Metadata Repositories</td>
         <td style="background-color:#FD8C3B;width:30px;"></td>
         <td>Linguistic Categories</td>
-        <td style="background-color:#da7a7b;width:30px;"></td>
-        <td>Bibliographic metadata</td>
+        <td style="background-color:#31a354;width:30px;"></td>
+        <td>Lexicons and dictionaries</td>
     </tr>
     <tr>
         <td style="background-color:#e6550d;width:30px;"></td>
@@ -21,40 +21,45 @@ and shows the current status of the linguistic linked open data cloud.</p>
         <td style="background-color:#fdae6b;width:30px;"></td>
         <td>Other metadata</td>
         <td style="background-color:#a1d99b;width:30px;"></td>
-        <td>Lexicons and dictionaries</td>
+        <td>Terminologies, thesaurus and knowledge bases</td>
     </tr>
     <tr>
-        <td style="background-color:#31a354;width:30px;"></td>
-        <td>Terminologies, thesaurus and knowledge bases</td>
+        <td style="background-color:#3182bd;width:30px;"></td>
+        <td>Corpora</td>
+        <td></td>
+        <td></td>
         <td style="background-color:#74c476;width:30px;"></td>
         <td>Other lexical resources</td>
-        <td style="background-color:#3182bd;width:30px;"></td>
-        <td>Copora</td>
     </tr>
 </table>
 
   <script
       type="text/javascript" 
-      src="http://d3js.org/d3.v3.min.js">
-  </script>
-  <script
-      type="text/javascript"
-      src="http://d3js.org/queue.v1.min.js">
+      src="{{context}}/assets/d3.min.js">
   </script>
 <script type="text/javascript">
 // Hard coded name resource types
 name_to_type = {
   "agrovoc-skos": "lexicon.generalKB",
   "alpino-rdf": "corpus",
+  "apertium-rdf": "lexicon.lexicon",
   "apertium-rdf-ca-it": "lexicon.lexicon",
   "apertium-rdf-en-ca": "lexicon.lexicon",
   "apertium-rdf-en-es": "lexicon.lexicon",
+  "apertium-rdf-en-gl": "lexicon.lexicon",
   "apertium-rdf-es-ca": "lexicon.lexicon",
   "apertium-rdf-es-gl": "lexicon.lexicon",
+  "apertium-rdf-es-ro": "lexicon.lexicon",
   "apertium-rdf-es-pt": "lexicon.lexicon",
   "apertium-rdf-fr-ca": "lexicon.lexicon",
   "apertium-rdf-fr-es": "lexicon.lexicon",
+  "apertium-rdf-pt-ca": "lexicon.lexicon",
+  "asjp": "lexicon.lexicon",
   "automated similarity judgment program lexical data": "meta.db",
+  "babelnet": "lexicon.lexicon",
+  "bible-ontology": "lexicon.generalKB",
+  "clean-energy-data-reegle": "lexicon.generalKB",
+  "clld-ewave": "meta.typology",
   "clld-afbo": "meta.typology",
   "clld-apics": "meta.typology",
   "clld-glottolog": "meta.typology",
@@ -64,43 +69,58 @@ name_to_type = {
   "clld-wold": "meta.typology",
   "cornetto": "lexicon.lexicon",
   "dbnary": "lexicon.lexicon",
+  "fao-geopolitical-ontology": "lexicon.generalKB",
   "fiesta": "corpus",
   "gemet": "lexicon.generalKB",
   "germlex": "lexicon.lexicon",
   "gesis-thesoz": "lexicon.generalKB",
   "glottolog": "meta.db",
   "gold": "meta.term",
+  "gutenberg": "corpus",
   "ids": "lexicon.lexicon",
   "ietflang": "meta.term",
   "intercontinental dictionary series": "lexicon.lexicon",
   "jrc-name": "lexicon.generalKB",
+  "jrc-names": "lexicon.generalKB",
   "lexicon": "lexicon.lexicon",
   "lexinfo": "meta.term",
   "lexvo": "meta.term",
   "lingvoj": "meta.term",
+  "linked-hypernyms": "lexicon.generalKB",
+  "lodac-bdls": "lexicon.generalKB",
   "masc": "corpus",
   "metashare": "meta.db",
   "mexico": "corpus",
   "mlsa": "corpus",
+  "muninn-world-war-i": "lexicon.generalKB",
   "olia": "meta.term",
   "olia-discourse": "meta.term",
+  "opencyc": "lexicon.generalKB",
+  "panlex": "lexicon.lexicon",
   "parole-simple-ont": "lexicon.lexicon",
   "phoible": "meta.typology",
+  "pleiades": "lexicon.generalKB",
   "saldo-rdf": "lexicon.lexicon",
   "saldom-rdf": "lexicon.lexicon",
   "simple": "lexicon.lexicon",
   "swefn-rdf": "lexicon.lexicon",
   "the speech accent archive": "corpus",
   "umthes": "lexicon.generalKB",
+  "wikilinks-rdf-nif": "corpus",
+  "wold": "meta.typology",
   "world atlas of language structuctures": "meta.db",
   "world loanword database": "lexicon.lexicon",
-  "yleinen suomalainen asiasanasto": "lexicon.generalKB"
+  "xlid-lexica": "lexicon.lexicon",
+  "yleinen suomalainen asiasanasto": "lexicon.generalKB",
+  "zhishi-me": "lexicon.generalKB"
+
 }
 
 
 
 /* Set the diagrams Height & Width */
-    var h = 1000, w = 1200;
+    var h = 950, w = 1200;
+    var defaultVertexSize = 11.0;
 /* Establish/instantiate an SVG container object */
     var svg = d3.select("#diagram")
                     .append("svg")
@@ -109,15 +129,26 @@ name_to_type = {
                     d3.json("{{context}}/assets/llod-cloud.json", makeDiag);
 
 function bubbleSize(node) {
+    var size = defaultVertexSize;
     if("size" in node) {
-        return 1.8 * Math.log(node["size"] + 1) + 18;
+        size = defaultVertexSize / 10.0 * Math.log(node["size"] + 1) + defaultVertexSize;
     } else {
-        return 18;
+        size = defaultVertexSize;
+    }
+    if(!isNaN(size)) {
+        return size;
+    } else {
+        return defaultVertexSize;
     }
 }
 
 function arrowWidth(node) {
-    return Math.log(node["weight"]) / 2 + 1;
+    var width = Math.log(node["weight"]) / 2 + 1;
+    if(!isNaN(width)) {
+        return width;
+    } else {
+        return 1;
+    }
 }
 
 function bubbleColor(node) {
@@ -165,7 +196,7 @@ function bubbleColor(node) {
     if(name_plus_tags.indexOf("sentiment")!=-1) { type="lexicon.lexicon"; }
     if(name_plus_tags.indexOf("lemon")!=-1) { type="lexicon.lexicon"; }
     if(name_plus_tags.indexOf("isocat")!=-1) { type="meta.term" ; }
-    if(name_plus_tags.indexOf("biblio")!=-1) { type="meta.bib"; }
+    if(name_plus_tags.indexOf("biblio")!=-1) { type="meta.other"; }
     if(name_plus_tags.indexOf("general ontology of linguistic description")!=-1) { type="meta.term"; }
     if(name_plus_tags.indexOf("corpus")!=-1) { type="corpus"; }
     if(name_plus_tags.indexOf("treebank")!=-1) { type="corpus"; }
@@ -183,11 +214,10 @@ function bubbleColor(node) {
     if(type == "meta") { color='#FDAE6B'; }
     if(type == "meta.db") { color='#F08080'; }
     if(type == "meta.term") { color='#FD8C3B'; }
-    if(type == "meta.bib") { color='#DA7A7B'; }
     if(type == "meta.typology") { color='#E6550D'; }
     if(type == "lexicon") { color='#74C476'; }
-    if(type == "lexicon.lexicon") { color='#A1D99B'; }
-    if(type == "lexicon.generalKB") { color='#31A354'; }
+    if(type == "lexicon.generalKB") { color='#A1D99B'; }
+    if(type == "lexicon.lexicon") { color='#31A354'; }
     if(type == "corpus") { color='#3182BD'; }
     return color;
 }
@@ -223,6 +253,7 @@ function makeDiag(json) {
         } else {
             nodes.push({
                 "name": breakText(json[key]["name"]),
+                "lines": breakText(json[key]["name"]).length,
                 "url": "http://linghub.lider-project.eu/datahub/" + key,
                 "key": key
                 });
@@ -233,12 +264,14 @@ function makeDiag(json) {
     var links = [];
     for(var key in json) {
         for(var target in json[key]["links"]) {
+            if(node_names.indexOf(target) >= 0) {
             links.push({
                     "source": node_names.indexOf(key),
                     "lines": breakText(json[key]["name"]).length,
                     "target": node_names.indexOf(target),
                     "weight": json[key]["links"][target]
                     });
+            }
         }
     }
 
@@ -267,7 +300,7 @@ function makeDiag(json) {
     bubbles.append("text")
         .style("text-anchor", "middle")
         .attr("font-family", "sans-serif")
-        .attr("font-size", "10px")
+        .attr("font-size", "9px")
         .on("click", function(d) { window.open(d["url"],"_blank"); })
         .attr("y", function(d) { return (d["lines"] * -0.7 + 0.0) + "em"; })
         .attr("cursor", "pointer")
@@ -282,9 +315,9 @@ function makeDiag(json) {
                     .nodes(nodes)
                     .links(links)
                     .size([w,h])
-                    .linkDistance([40])
+                    .linkDistance([2 * defaultVertexSize])
                     .charge([-12000])
-                    .gravity(2.0)
+                    .gravity(5.0)
                     .start();
        /* Run the Force effect */
     force.on("tick", function() {
@@ -306,6 +339,4 @@ while ((force.alpha() > 1e-5) && (k < 500)) {
     k = k + 1;
 }
 }
-
-
 </script>
