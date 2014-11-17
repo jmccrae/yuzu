@@ -171,10 +171,10 @@ function bubbleColor(node) {
     name_plus_tags = name_plus_tags+" ]";
     name_plus_tags = name_plus_tags.toLowerCase();
 
-    if(name_plus_tags.contains('lexicon')) {
+    if(name_plus_tags.indexOf('lexicon') > 0) {
         type="lexicon.lexicon";
     }
-    if(name_plus_tags.contains('lexical-resources')) {
+    if(name_plus_tags.indexOf('lexical-resources') > 0) {
         type="lexicon.lexicon";
     }
     

@@ -101,11 +101,6 @@ object PrettyDisplayer extends URIDisplayer {
       replaceAll("_"," ")
     s.take(1).toUpperCase + s.drop(1)
   }
-  def semiMagicString(text : String) = {
-    val s = text.replaceAll("([a-z])([A-Z])","$1 $2")
-    s.take(1).toUpperCase + s.drop(1)
-  }
-
 
   def uriToStr(uri : String) = {
     if(uri.startsWith(BASE_NAME)) {
@@ -141,12 +136,7 @@ object PrettyDisplayer extends URIDisplayer {
     } else if(uri.startsWith(XSD.getURI())) {
       magicString(uri.drop(XSD.getURI().size))
     } else {
-      val index = math.max(uri.lastIndexOf('#'), uri.lastIndexOf('/'))
-      if(index > 0 && index + 3 < uri.size) {
-        semiMagicString(uri.drop(index + 1)) 
-      } else {
-        uri
-      }
+      uri
     }
   }
 }

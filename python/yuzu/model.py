@@ -21,12 +21,12 @@ def from_model(graph, query):
     return model
 
 
-def triple_elems(elems, last):
-    for elem in elems:
-        yield {
-            "elem": elem,
-            "last": last
-        }
+def triple_elems(objs):
+    N = len(objs)
+    n = 0
+    for o in objs:
+        n += 1
+        yield {"elem": o, "last": n == N}
 
 
 def groupby(triples):
@@ -39,7 +39,7 @@ def groupby(triples):
         else:
             if last:
                 result.append((last, block))
-            block = []
+            block = [o]
             last = p
     if last:
         result.append((last, block))
@@ -54,20 +54,16 @@ def triple_frags(elem, graph, stack):
         triples = [(from_node(graph, p, [elem] + stack),
                     from_node(graph, o, [elem] + stack))
                    for p, o in graph.predicate_objects(elem) if p != RDF.type]
-        print(triples)
         sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
         grouped = groupby(sortt)
-        N = len(grouped)
-        n = 0
         for p, objs in grouped:
-            n += 1
             has_triples = False
             for o in objs:
                 has_triples = has_triples or o["has_triples"]
             yield {
                 "has_triples": has_triples,
                 "prop": p,
-                "obj": list(triple_elems(objs, n == N))
+                "obj": triple_elems(objs)
             }
 
 

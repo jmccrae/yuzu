@@ -1,5 +1,6 @@
 from rdflib.term import Literal, URIRef
 from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
+import re
 # This file contains all relevant configuration for the system
 
 # The location where this server is to be deployed to
@@ -113,5 +114,66 @@ class DefaultDisplayer:
         else:
             return ""
 
+
+class PrettyDisplayer:
+    @staticmethod
+    def magic_string(text):
+        s = re.sub("([a-z][A-Z])", "$1 $2", text)
+        s = re.sub("_", " ", text)
+        return s[0].upper() + s[1:]
+
+    def uri_to_str(self, uri):
+        if uri.startswith(BASE_NAME):
+            return self.magic_string("%s" % uri[len(BASE_NAME):])
+        elif uri.startswith(PREFIX1_URI):
+            return self.magic_string(
+                "%s" % (PREFIX1_QN, uri[len(PREFIX1_URI):]))
+        elif uri.startswith(PREFIX2_URI):
+            return self.magic_string(
+                "%s" % (PREFIX2_QN, uri[len(PREFIX2_URI):]))
+        elif uri.startswith(PREFIX3_URI):
+            return self.magic_string(
+                "%s" % (PREFIX3_QN, uri[len(PREFIX3_URI):]))
+        elif uri.startswith(PREFIX4_URI):
+            return self.magic_string(
+                "%s" % (PREFIX4_QN, uri[len(PREFIX4_URI):]))
+        elif uri.startswith(PREFIX5_URI):
+            return self.magic_string(
+                "%s" % (PREFIX5_QN, uri[len(PREFIX5_URI):]))
+        elif uri.startswith(PREFIX6_URI):
+            return self.magic_string(
+                "%s" % (PREFIX6_QN, uri[len(PREFIX6_URI):]))
+        elif uri.startswith(PREFIX7_URI):
+            return self.magic_string(
+                "%s" % (PREFIX7_QN, uri[len(PREFIX7_URI):]))
+        elif uri.startswith(PREFIX8_URI):
+            return self.magic_string(
+                "%s" % (PREFIX8_QN, uri[len(PREFIX8_URI):]))
+        elif uri.startswith(PREFIX9_URI):
+            return self.magic_string(
+                "%s" % (PREFIX9_QN, uri[len(PREFIX9_URI):]))
+        elif uri.startswith(str(RDF)):
+            return self.magic_string(uri[len(str(RDF)):])
+        elif uri.startswith(str(RDFS)):
+            return self.magic_string(uri[len(str(RDFS)):])
+        elif uri.startswith(str(OWL)):
+            return self.magic_string(uri[len(str(OWL)):])
+        elif uri.startswith(str(DC)):
+            return self.magic_string(uri[len(str(DC)):])
+        elif uri.startswith(str(DCTERMS)):
+            return self.magic_string(uri[len(str(DCTERMS)):])
+        elif uri.startswith(str(XSD)):
+            return self.magic_string(uri[len(str(XSD)):])
+        else:
+            return uri
+
+    def apply(self, node):
+        if type(node) == URIRef:
+            return self.uri_to_str(str(node))
+        elif type(node) == Literal:
+            return str(node)
+        else:
+            return ""
+
 # Displayer to show URIs
-DISPLAYER = DefaultDisplayer()
+DISPLAYER = PrettyDisplayer()
