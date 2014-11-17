@@ -435,10 +435,10 @@ class RDFServer extends HttpServlet {
         case _ => None
       }
       listResources(resp, offset, property, obj, objOffset)
-    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri)).exists) {
+    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri)).substitute()))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute()))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
