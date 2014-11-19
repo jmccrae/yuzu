@@ -94,7 +94,7 @@ object YuzuSettings {
   // path here. No intial slash, should resolve at BASE_NAME + ONTOLOGY
   val ONTOLOGY : Option[String] = None
   // The date the resource was created, e.g.,
-  // The data should be of the format YYYY-MM-DD
+  // The date should be of the format YYYY-MM-DD
   val ISSUE_DATE : Option[String] = None
   // The version number
   val VERSION_INFO : Option[String] = None

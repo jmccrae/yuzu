@@ -39,6 +39,14 @@ PREFIX8_URI = "http://www.example.com/"
 PREFIX8_QN = "ex8"
 PREFIX9_URI = "http://www.example.com/"
 PREFIX9_QN = "ex9"
+# Used for DATAID
+DCAT = "http://www.w3.org/ns/dcat#"
+VOID = "http://rdfs.org/ns/void#"
+DATAID = "http://dataid.dbpedia.org/ns#"
+FOAF = "http://xmlns.com/foaf/0.1/"
+ODRL = "http://www.w3.org/ns/odrl/2/"
+PROV = "http://www.w3.org/ns/prov#"
+
 # If using an external SPARQL endpoint, the address of this
 # or None if you wish to use built-in (very slow) endpoint
 SPARQL_ENDPOINT = None
@@ -68,10 +76,48 @@ LABELS = [
     "<http://xmlns.com/foaf/0.1/name>"
 ]
 
-LINKED_SETS = []
-NOT_LINKED = []
+# Linked datasets (this is only used for metadata but is created
+# on DB load). Not linked indicates URI starts which are not to
+# be considered links, any other links are assumed to start with the
+# server.
+LINKED_SETS = ["http://dbpedia.org/"]
+NOT_LINKED = ["http://www.w3.org/", "http://purl.org/dc/",
+              "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/"]
+
+# Metadata
+
+# The language of this site
+LANG = "en"
+# If a resource in the data is the schema (ontology) then include its
+# path here. No intial slash, should resolve at BASE_NAME + ONTOLOGY
+ONTOLOGY = None
+# The date the resource was created, e.g.,
+# The date should be of the format YYYY-MM-DD
+ISSUE_DATE = None
+# The version number
+VERSION_INFO = None
+# A longer textual description of the resource
+DESCRIPTION = None
+# If using a standard license include the link to this license
+LICENSE = None
+# Any keywords (if necessary)
+KEYWORDS = []
+# The publisher of the dataset
+PUBLISHER_NAME = None
+PUBLISHER_EMAIL = None
+# The creator(s) of the dataset
+# The lists must be the same size, use an empty string if you do not wish
+# to publish the email address
+CREATOR_NAMES = []
+CREATOR_EMAILS = []
+# The contributor(s) to the dataset
+CONTRIBUTOR_NAMES = []
+CONTRIBUTOR_EMAILS = []
+# Links to the resources this data set was derived from
+DERIVED_FROM = []
 
 
+# Displayers are here due to circular importing :(
 class DefaultDisplayer:
     def uri_to_str(self, uri):
         if uri.startswith(BASE_NAME):
