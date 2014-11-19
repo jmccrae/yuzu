@@ -267,5 +267,14 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(404, conn.getresponse().status)
         conn.close()
 
+    def test_dataid(self):
+        conn = self.do_get("/dataid")
+        content = str(conn.getresponse().read())
+        self.assertIn("<html", content)
+        self.assertIn("void:exampleResource", content)
+        self.assertIn("example", content)
+        conn.close()
+
+
 if __name__ == '__main__':
     unittest.main()

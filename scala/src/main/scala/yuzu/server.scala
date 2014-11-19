@@ -155,6 +155,7 @@ object RDFServer {
   implicit def responsePimp(resp : HttpServletResponse) = new {
     def respond(contentType : String, status : Int, args : (String,String)*)(foo : java.io.PrintWriter => Unit) = {
       resp.addHeader("Content-type", contentType)
+      resp.setCharacterEncoding("utf-8")
       for((a,b) <- args) {
         resp.addHeader(a,b)
       }
