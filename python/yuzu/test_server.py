@@ -271,8 +271,12 @@ class ServerTest(unittest.TestCase):
         conn = self.do_get("/dataid")
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
-        self.assertIn("void:exampleResource", content)
-        self.assertIn("example", content)
+        self.assertIn("Example Resource", content)
+        self.assertIn("href=\"/data/example\"", content)
+        self.assertIn(">http://localhost:8080/</a>", content)
+        self.assertIn("Link Set", content)
+        self.assertIn("Instance of", content)
+        self.assertIn("Distribution", content)
         conn.close()
 
 

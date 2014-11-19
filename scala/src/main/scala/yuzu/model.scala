@@ -18,6 +18,7 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
+  def fragment = new java.net.URI(uri).getFragment()
 }
 
 class QueryElement(main : Element,
@@ -44,7 +45,10 @@ trait URIDisplayer {
       r.getURI() match {
         case null => ""
         case uri => 
-          uriToStr(uri)
+          uriToStr(uri) match {
+            case "" => uri
+            case s => s
+          }
       }
     case l : Literal =>
       l.getValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
@@ -89,6 +93,18 @@ object DefaultDisplayer extends URIDisplayer {
       uri.drop(DCTerms.getURI().size)
     } else if(uri.startsWith(XSD.getURI())) {
       uri.drop(XSD.getURI().size)
+    } else if(uri.startsWith(DCAT)) {
+      "dcat:" + uri.drop(DCAT.size)
+    } else if(uri.startsWith(VOID)) {
+      "void:" + uri.drop(VOID.size)
+    } else if(uri.startsWith(DATAID)) {
+      "dataid:" + uri.drop(DATAID.size)
+    } else if(uri.startsWith(FOAF)) {
+      "foaf:" + uri.drop(FOAF.size)
+    } else if(uri.startsWith(ODRL)) {
+      "odrl:" + uri.drop(ODRL.size)
+    } else if(uri.startsWith(PROV)) {
+      "prov:" + uri.drop(PROV.size)
      } else {
       uri
     }
@@ -136,6 +152,18 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(DCTerms.getURI().size))
     } else if(uri.startsWith(XSD.getURI())) {
       magicString(uri.drop(XSD.getURI().size))
+    } else if(uri.startsWith(DCAT)) {
+      magicString(uri.drop(DCAT.size))
+    } else if(uri.startsWith(VOID)) {
+      magicString(uri.drop(VOID.size))
+    } else if(uri.startsWith(DATAID)) {
+      magicString(uri.drop(DATAID.size))
+    } else if(uri.startsWith(FOAF)) {
+      magicString(uri.drop(FOAF.size))
+    } else if(uri.startsWith(ODRL)) {
+      magicString(uri.drop(ODRL.size))
+    } else if(uri.startsWith(PROV)) {
+      magicString(uri.drop(PROV.size))
     } else {
       uri
     }
@@ -144,24 +172,27 @@ object PrettyDisplayer extends URIDisplayer {
 
 object QueryElement {
   import YuzuSettings._
-  def tripleFrags(elem : Resource, stack : List[RDFNode]) = if(!stack.contains(elem)) {
-    ((elem.listProperties().toSeq.filter { stat =>
-      stat.getPredicate() != RDF.`type`
-    } groupBy { stat =>
-      stat.getPredicate()
-    }).toList.map {
-      case (p, ss) => 
-        new TripleFrag(fromNode(p, elem :: stack), ss.map(s => fromNode(s.getObject(), elem :: stack)))
-    } sortBy(_.prop.display)).toList
-  } else {
-    Nil
+  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode) = {
+    if(!stack.contains(elem)) {
+      ((elem.listProperties().toSeq.filter { stat =>
+        stat.getPredicate() != RDF.`type` ||
+        stat.getObject() != classOf
+      } groupBy { stat =>
+        stat.getPredicate()
+      }).toList.map {
+        case (p, ss) => 
+          new TripleFrag(fromNode(p, elem :: stack), ss.map(s => fromNode(s.getObject(), elem :: stack)))
+      } sortBy(_.prop.display)).toList
+    } else {
+      Nil
+    }
   }
 
   def fromModel(model : Model, query : String) : Element = {
     val elem = model.createResource(query)
     val classOf = elem.getProperty(RDF.`type`) match {
       case null => null
-      case st => fromNode(st.getObject())
+      case st => st.getObject()
     }
     val label = (LABELS.flatMap { prop =>
       Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
@@ -175,15 +206,16 @@ object QueryElement {
     }).getOrElse(DISPLAYER.apply(elem))
     Element(label,
       uri=elem.getURI(),
-      triples=tripleFrags(elem, Nil),
-      classOf=classOf)
+      triples=tripleFrags(elem, Nil, classOf),
+      classOf=fromNode(classOf))
   }
 
   def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {
+    case null => null
     case r : Resource =>
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
-        triples=tripleFrags(r, stack),
+        triples=tripleFrags(r, stack, null),
         bnode=(!r.isURIResource()))
     case l : Literal =>
       Element(DISPLAYER.apply(l), 

@@ -40,12 +40,12 @@ PREFIX8_QN = "ex8"
 PREFIX9_URI = "http://www.example.com/"
 PREFIX9_QN = "ex9"
 # Used for DATAID
-DCAT = "http://www.w3.org/ns/dcat#"
-VOID = "http://rdfs.org/ns/void#"
 DATAID = "http://dataid.dbpedia.org/ns#"
+DCAT = "http://www.w3.org/ns/dcat#"
 FOAF = "http://xmlns.com/foaf/0.1/"
 ODRL = "http://www.w3.org/ns/odrl/2/"
 PROV = "http://www.w3.org/ns/prov#"
+VOID = "http://rdfs.org/ns/void#"
 
 # If using an external SPARQL endpoint, the address of this
 # or None if you wish to use built-in (very slow) endpoint
@@ -60,6 +60,9 @@ ASSETS_PATH = "/assets/"
 SPARQL_PATH = "/sparql"
 # Path to site contents list (set to None to disable)
 LIST_PATH = "/list"
+# Path to Data ID (metadata) (no initial slash)
+METADATA_PATH = "dataid"
+
 # Properties to use as facets
 FACETS = [
     {
@@ -152,12 +155,28 @@ class DefaultDisplayer:
             return uri[len(str(DCTERMS)):]
         elif uri.startswith(str(XSD)):
             return uri[len(str(XSD)):]
+        elif uri.startswith(DATAID):
+            return "dataid:" + uri[len(str(DATAID)):]
+        elif uri.startswith(DCAT):
+            return "dcat:" + uri[len(str(DCAT)):]
+        elif uri.startswith(FOAF):
+            return "foaf:" + uri[len(str(FOAF)):]
+        elif uri.startswith(ODRL):
+            return "odrl:" + uri[len(str(ODRL)):]
+        elif uri.startswith(PROV):
+            return "prov:" + uri[len(str(PROV)):]
+        elif uri.startswith(VOID):
+            return "void:" + uri[len(str(VOID)):]
         else:
             return uri
 
     def apply(self, node):
         if type(node) == URIRef:
-            return self.uri_to_str(str(node))
+            u = self.uri_to_str(str(node))
+            if u:
+                return u
+            else:
+                return str(node)
         elif type(node) == Literal:
             return str(node)
         else:
@@ -167,9 +186,12 @@ class DefaultDisplayer:
 class PrettyDisplayer:
     @staticmethod
     def magic_string(text):
-        s = re.sub("([a-z])([A-Z])", "\\1 \\2", text)
-        s = re.sub("_", " ", s)
-        return s[0].upper() + s[1:]
+        if text:
+            s = re.sub("([a-z])([A-Z])", "\\1 \\2", text)
+            s = re.sub("_", " ", s)
+            return s[0].upper() + s[1:]
+        else:
+            ""
 
     def uri_to_str(self, uri):
         if uri.startswith(BASE_NAME):
@@ -213,12 +235,28 @@ class PrettyDisplayer:
             return self.magic_string(uri[len(str(DCTERMS)):])
         elif uri.startswith(str(XSD)):
             return self.magic_string(uri[len(str(XSD)):])
+        elif uri.startswith(DATAID):
+            return self.magic_string(uri[len(str(DATAID)):])
+        elif uri.startswith(DCAT):
+            return self.magic_string(uri[len(str(DCAT)):])
+        elif uri.startswith(FOAF):
+            return self.magic_string(uri[len(str(FOAF)):])
+        elif uri.startswith(ODRL):
+            return self.magic_string(uri[len(str(ODRL)):])
+        elif uri.startswith(PROV):
+            return self.magic_string(uri[len(str(PROV)):])
+        elif uri.startswith(VOID):
+            return self.magic_string(uri[len(str(VOID)):])
         else:
             return uri
 
     def apply(self, node):
         if type(node) == URIRef:
-            return self.uri_to_str(str(node))
+            u = self.uri_to_str(str(node))
+            if u:
+                return u
+            else:
+                return str(node)
         elif type(node) == Literal:
             return str(node)
         if type(node) == str:

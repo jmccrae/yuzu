@@ -403,7 +403,7 @@ where object match ? limit ?""", query, limit)
   }
 
   lazy val tripleCount = withConn { conn =>
-    val ps = sqlexecute(conn, "select count(*) from triples")
+    val ps = sqlexecute(conn, "select count(*) from triple_ids")
     try {
       val rs = ps.executeQuery()
       try {
