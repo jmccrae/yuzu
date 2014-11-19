@@ -24,6 +24,7 @@ class ServerTest(unittest.TestCase):
         conn = self.do_get("/index.html")
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
+        self.assertIn("Example", content)
         conn.close()
 
     def test_index_get(self):
@@ -265,6 +266,15 @@ class ServerTest(unittest.TestCase):
         conn.request("GET", "/onboarding")
         self.assertEqual(404, conn.getresponse().status)
         conn.close()
+
+    def test_dataid(self):
+        conn = self.do_get("/dataid")
+        content = str(conn.getresponse().read())
+        self.assertIn("<html", content)
+        self.assertIn("void:exampleResource", content)
+        self.assertIn("example", content)
+        conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()

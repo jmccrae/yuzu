@@ -18,7 +18,11 @@ object YuzuSettings {
   // Where the database should appear
   val DB_FILE = "linghub.db"
   // The name of the server
+<<<<<<< HEAD
   val DISPLAY_NAME = "LingHub"
+=======
+  val DISPLAY_NAME = "Example"
+>>>>>>> master
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://www.w3.org/ns/dcat#"

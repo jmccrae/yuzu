@@ -18,7 +18,7 @@ DUMP_FILE = "../example.nt.gz"
 # Where the SQLite database should appear
 DB_FILE = "example.db"
 # The name of the server
-DISPLAY_NAME = "Yuzu Example"
+DISPLAY_NAME = "Example"
 # The extra namespaces to be abbreviated in HTML and RDF/XML
 # documents if desired
 PREFIX1_URI = "http://www.example.com/"
