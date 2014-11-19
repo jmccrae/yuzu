@@ -26,11 +26,13 @@ from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
                            DISPLAY_NAME, FACETS, SEARCH_PATH,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
-                           LIST_PATH, DB_FILE)
+                           LIST_PATH, DB_FILE, METADATA_PATH)
 from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
                             YZ_INVALID_QUERY, YZ_BAD_REQUEST,
                             YZ_NOT_FOUND_TITLE, YZ_NOT_FOUND_PAGE,
-                            YZ_JSON_LD_NOT_INSTALLED, YZ_NOT_IMPLEMENTED)
+                            YZ_JSON_LD_NOT_INSTALLED, YZ_NOT_IMPLEMENTED,
+                            YZ_METADATA)
+from yuzu.dataid import dataid
 
 
 __author__ = 'John P. McCrae'
@@ -64,7 +66,7 @@ class RDFServer:
         @param title The page title (in the header)
         @param text The page content
         """
-        template = open(resolve("html/page.html")).read()
+        template = open(resolve("html/page.mustache")).read()
         return pystache.render(template, {'title': title, 'content': text,
                                           'app_title': DISPLAY_NAME,
                                           'context': CONTEXT})
@@ -343,6 +345,29 @@ class RDFServer:
 
             return self.list_resources(start_response, offset,
                                        prop, obj, obj_offset)
+        elif METADATA_PATH and (uri == METADATA_PATH or
+                                uri == ("/" + METADATA_PATH)):
+            graph = dataid()
+            if mime == "html":
+                content = self.rdfxml_to_html(graph, BASE_NAME + METADATA_PATH,
+                                              YZ_METADATA)
+            else:
+                try:
+                    self.add_namespaces(graph)
+                    if mime == "json-ld":
+                        content = graph.serialize(
+                            format=mime,
+                            context=self.jsonld_context()).decode('utf-8')
+                    else:
+                        content = graph.serialize(format=mime).decode('utf-8')
+                except Exception as e:
+                    print (e)
+                    return self.send501(start_response)
+            start_response(
+                '200 OK',
+                [('Content-type', self.mime_types[mime] + "; charset=utf-8"),
+                 ('Vary', 'Accept'), ('Content-length', str(len(content)))])
+            return [content.encode('utf-8')]
         elif exists(resolve("html/%s.html" % re.sub("/$", "", uri))):
             start_response('200 OK', [('Content-type',
                                        'text/html; charset=utf-8')])

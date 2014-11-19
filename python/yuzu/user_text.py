@@ -1,5 +1,5 @@
 # This file contains all messages that could be shown to the user
-# It is a standalone resource to enable localization 
+# It is a standalone resource to enable localization
 __author__ = 'John P. McCrae'
 
 YZ_MOVED_TO='Moved to'
@@ -18,3 +18,4 @@ YZ_QUERY_TOO_BROAD='Query too broad'
 YZ_NO_DATA='No data is yet loaded in the system'
 YZ_INDEX='Index'
 YZ_TIME_OUT="The query could not be processed in time"
+YZ_METADATA="About this resource"
