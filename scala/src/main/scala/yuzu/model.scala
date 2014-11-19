@@ -17,6 +17,7 @@ case class Element(val display : String,
       }).mkString(", ")) + "]"
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
+  val context = YuzuSettings.CONTEXT
 }
 
 class QueryElement(main : Element,

@@ -16,9 +16,9 @@ libraryDependencies ++= Seq(
   "org.mockito" % "mockito-all" % "1.9.0" % "test",
   "org.eclipse.jetty" % "jetty-webapp" % "9.1.0.v20131115" % "container",
   "org.eclipse.jetty" % "jetty-plus"   % "9.1.0.v20131115" % "container",
-  "com.google.guava" % "guava" % "18.0",
+  "com.google.guava" % "guava" % "16.0.1",
   "com.google.code.findbugs" % "jsr305" % "3.0.0",
-  "com.github.jsonld-java" % "jsonld-java" % "0.5.1"
+  "com.github.jsonld-java" % "jsonld-java" % "0.5.0"
 )
 
 

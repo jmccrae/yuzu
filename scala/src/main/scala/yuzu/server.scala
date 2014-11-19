@@ -236,7 +236,7 @@ class RDFServer extends HttpServlet {
           case r : TableResult =>
             val d = r.toDict
             mustache(resolve("html/sparql-results.mustache")).
-              substitute(d:_*)
+              substitute((("context" -> CONTEXT) +: d):_*)
           case BooleanResult(r) =>
             val l = if(r) { "True" } else { "False" }
             mustache(resolve("html/sparql-results.mustache")).
