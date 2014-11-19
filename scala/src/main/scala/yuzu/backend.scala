@@ -143,7 +143,7 @@ class RDFBackend(db : String) extends Backend {
     val ps = property match {
       case Some(p) => 
         sqlexecute(conn, """select distinct subject, label from free_text join
-pids on free_text.pid = pids.pid left outer join sids on free_text.sid = 
+pids on free_text.pid = pids.pid join sids on free_text.sid = 
 sids.sid where property=? and object match ? limit ?""", "<%s>" format p, 
                    query, limit)
       case None =>
@@ -156,7 +156,8 @@ where object match ? limit ?""", query, limit)
       try {
         val results = collection.mutable.ListBuffer[SearchResult]()
         while(rs.next()) {
-          results += SearchResult("/" + rs.getString(1), rs.getString(2))
+          results += SearchResult(CONTEXT + "/" + rs.getString(1), 
+            Option(rs.getString(2)).getOrElse(rs.getString(1)))
         }
         results.toSeq
       } finally {
