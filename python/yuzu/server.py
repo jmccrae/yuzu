@@ -66,6 +66,7 @@ class RDFServer:
         """
         template = open(resolve("html/page.html")).read()
         return pystache.render(template, {'title': title, 'content': text,
+                                          'app_title': DISPLAY_NAME,
                                           'context': CONTEXT})
 
     @staticmethod

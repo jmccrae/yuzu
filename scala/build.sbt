@@ -9,7 +9,7 @@ seq(webSettings :_*)
 libraryDependencies ++= Seq(
   "org.apache.jena" % "jena-arq" % "2.12.1",
   "javax.servlet" % "javax.servlet-api" % "3.0.1" % "provided",
-  "org.xerial" % "sqlite-jdbc" % "3.8.7" % "provided",
+  "org.xerial" % "sqlite-jdbc" % "3.8.7",
   "org.scalatest" %% "scalatest" % "2.1.7" % "test",
   "gnu.getopt" % "java-getopt" % "1.0.13",
   "com.github.spullara.mustache.java" % "compiler" % "0.8.17",

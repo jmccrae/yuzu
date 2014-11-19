@@ -24,6 +24,7 @@ class ServerTest(unittest.TestCase):
         conn = self.do_get("/index.html")
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
+        self.assertIn("Example", content)
         conn.close()
 
     def test_index_get(self):
