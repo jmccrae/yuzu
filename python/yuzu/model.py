@@ -1,6 +1,6 @@
 from rdflib.term import Literal, URIRef, BNode
 from rdflib.namespace import RDF
-from yuzu.settings import DISPLAYER
+from yuzu.settings import DISPLAYER, CONTEXT
 
 
 def from_model(graph, query):
@@ -15,9 +15,9 @@ def from_model(graph, query):
         'uri': query,
         'triples': list(triple_frags(elem, graph, [])),
         'has_triples': len(list(graph.predicate_objects(elem))) > 0,
-        'classOf': class_of
+        'classOf': class_of,
+        'context': CONTEXT
     }
-    print(model)
     return model
 
 
@@ -73,14 +73,16 @@ def from_node(graph, node, stack):
             'display': DISPLAYER.apply(node),
             'uri': str(node),
             'triples': list(triple_frags(node, graph, stack)),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0
+            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'context': CONTEXT
         }
     elif type(node) == BNode:
         return {
             'display': DISPLAYER.apply(node),
             'bnode': True,
             'triples': list(triple_frags(node, graph, stack)),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0
+            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'context': CONTEXT
         }
     elif type(node) == Literal:
         return {
@@ -88,7 +90,8 @@ def from_node(graph, node, stack):
             'literal': True,
             'lang': node.language,
             'datatype': from_dt(node.datatype),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0
+            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'context': CONTEXT
         }
 
 
@@ -112,7 +115,7 @@ def sparql_results_to_dict(result):
     variables = []
     head = result.findall(
         "{http://www.w3.org/2005/sparql-results#}head")[0]
-    r = {"variables": [], "results": []}
+    r = {"variables": [], "results": [], "context": CONTEXT}
     for variable in head:
         variables.append(variable.get("name"))
         r["variables"].append({"name": variable.get("name")})
