@@ -9,21 +9,22 @@ if sys.version_info[0] < 3:
     from urllib import quote_plus
 else:
     from urllib.parse import parse_qs, quote_plus
-from rdflib import RDFS, URIRef
+from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
+from rdflib import URIRef, Graph
 import getopt
 from os.path import exists
 import mimetypes
 import pystache
 from copy import copy
 
-from yuzu.model import from_model
+from yuzu.model import from_model, sparql_results_to_dict
 from yuzu.backend import RDFBackend
 from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX2_URI, PREFIX2_QN, PREFIX3_URI, PREFIX3_QN,
                            PREFIX4_URI, PREFIX4_QN, PREFIX5_URI, PREFIX5_QN,
                            PREFIX6_URI, PREFIX6_QN, PREFIX7_URI, PREFIX7_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
-                           DISPLAY_NAME, FACETS, LICENSE_PATH, SEARCH_PATH,
+                           DISPLAY_NAME, FACETS, SEARCH_PATH,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
                            LIST_PATH, DB_FILE)
 from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
@@ -178,36 +179,26 @@ class RDFServer:
             # This doesn't take into account describe queries!!!
             if result_type == "error":
                 return self.send400(start_response)
-            elif mime_type != "html" or result_type != "sparql":
-                start_response('200 OK', [('Content-type',
-                                           self.mime_types[result_type])])
-                return [result]
-            else:
+            if mime_type == "html":
                 start_response('200 OK', [('Content-type',
                                            'text/html; charset=utf-8')])
                 dom = et.fromstring(result)
-                xslt = et.fromstring(
-                    str(pystache.render(
-                        open(resolve("xsl/sparql2html.xsl")).read(),
-                        {'base': BASE_NAME,
-                         'prefix1uri': PREFIX1_URI, 'prefix1qn': PREFIX1_QN,
-                         'prefix2uri': PREFIX2_URI, 'prefix2qn': PREFIX2_QN,
-                         'prefix3uri': PREFIX3_URI, 'prefix3qn': PREFIX3_QN,
-                         'prefix4uri': PREFIX4_URI, 'prefix4qn': PREFIX4_QN,
-                         'prefix5uri': PREFIX5_URI, 'prefix5qn': PREFIX5_QN,
-                         'prefix6uri': PREFIX6_URI, 'prefix6qn': PREFIX6_QN,
-                         'prefix7uri': PREFIX7_URI, 'prefix7qn': PREFIX7_QN,
-                         'prefix8uri': PREFIX8_URI, 'prefix8qn': PREFIX8_QN,
-                         'prefix9uri': PREFIX9_URI, 'prefix9qn': PREFIX9_QN,
-                         'context': CONTEXT})))
+                if dom.tag == '{http://www.w3.org/2005/sparql-results#}sparql':
+                    content = pystache.render(
+                        open(resolve("html/sparql-results.mustache")).read(),
+                        sparql_results_to_dict(dom))
 
-                transform = et.XSLT(xslt)
-                new_dom = transform(dom)
-                result = self.render_html(
-                    "SPARQL Results",
-                    et.tostring(new_dom, pretty_print=True))
-                print(result)
+                else:
+                    g = Graph()
+                    g.parse(data=result)
+                    content = self.rdfxml_to_html(g, None)
+                result = self.render_html("SPARQL Results", content)
                 return [result.encode('utf-8')]
+
+            else:
+                start_response('200 OK', [('Content-type',
+                                           self.mime_types[result_type])])
+                return [result]
 
     def add_namespaces(self, graph):
         graph.namespace_manager.bind("ontology", BASE_NAME+"ontology#")
@@ -230,26 +221,6 @@ class RDFServer:
         renderer = pystache.Renderer(search_dirs=resolve("html/"))
         data_html = renderer.render_name("rdf2html", elem)
         return self.render_html(title, data_html)
-
-#        self.add_namespaces(graph)
-#        dom = et.fromstring(graph.serialize(format="pretty-xml"))
-#        xslt_doc = pystache.render(open(resolve("xsl/rdf2html.xsl")).read(),
-# {'base':BASE_NAME,
-#                        'prefix1uri':PREFIX1_URI, 'prefix1qn':PREFIX1_QN,
-#                        'prefix2uri':PREFIX2_URI, 'prefix2qn':PREFIX2_QN,
-#                        'prefix3uri':PREFIX3_URI, 'prefix3qn':PREFIX3_QN,
-#                        'prefix4uri':PREFIX4_URI, 'prefix4qn':PREFIX4_QN,
-#                        'prefix5uri':PREFIX5_URI, 'prefix5qn':PREFIX5_QN,
-#                        'prefix6uri':PREFIX6_URI, 'prefix6qn':PREFIX6_QN,
-#                        'prefix7uri':PREFIX7_URI, 'prefix7qn':PREFIX7_QN,
-#                        'prefix8uri':PREFIX8_URI, 'prefix8qn':PREFIX8_QN,
-#                        'prefix9uri':PREFIX9_URI, 'prefix9qn':PREFIX9_QN,
-#                        'query':query, 'context':CONTEXT})
-#        s = StringIO(xslt_doc)
-#        xslt = et.parse(s)
-#        transform = et.XSLT(xslt)
-#        newdom = transform(dom)
-#        return self.render_html(title, et.tostring(newdom, pretty_print=True))
 
     def application(self, environ, start_response):
         """The entry point for all queries (see WSGI docs for more details)"""
@@ -281,7 +252,7 @@ class RDFServer:
                                        'text/html; charset=utf-8')])
             if not exists(DB_FILE):
                 return [self.render_html(DISPLAY_NAME, pystache.render(
-                    open(resolve("html/onboarding.html")).read(),
+                    open(resolve("html/onboarding.mustache")).read(),
                     {'context': CONTEXT}))]
             else:
                 return [self.render_html(
@@ -289,13 +260,6 @@ class RDFServer:
                     pystache.render(open(resolve("html/index.html")).read(),
                         {'property_facets': FACETS, 'context': CONTEXT})
                     ).encode('utf-8')]
-        # The license page
-        if LICENSE_PATH and uri == LICENSE_PATH:
-            start_response('200 OK', [('Content-type',
-                                       'text/html; charset=utf-8')])
-            return [self.render_html(
-                DISPLAY_NAME,
-                open(resolve("html/license.html")).read()).encode('utf-8')]
         # The search page
         elif (SEARCH_PATH and
               (uri == SEARCH_PATH or uri == (SEARCH_PATH + "/"))):
@@ -378,8 +342,7 @@ class RDFServer:
 
             return self.list_resources(start_response, offset,
                                        prop, obj, obj_offset)
-        elif uri != "onboarding" and exists(resolve(
-                "html/%s.html" % re.sub("/$", "", uri))):
+        elif exists(resolve("html/%s.html" % re.sub("/$", "", uri))):
             start_response('200 OK', [('Content-type',
                                        'text/html; charset=utf-8')])
             s = pystache.render(open(resolve(
@@ -405,7 +368,12 @@ class RDFServer:
             else:
                 try:
                     self.add_namespaces(graph)
-                    content = graph.serialize(format=mime)
+                    if mime == "json-ld":
+                        content = graph.serialize(
+                            format=mime,
+                            context=self.jsonld_context()).decode('utf-8')
+                    else:
+                        content = graph.serialize(format=mime).decode('utf-8')
                 except Exception as e:
                     print (e)
                     return self.send501(start_response)
@@ -449,7 +417,8 @@ class RDFServer:
                 facet['values'] = [{
                     'prop_uri': facet['uri_enc'],
                     'value_enc': quote_plus(v['link']),
-                    'value': v['label'][:100]} for v in val_results]
+                    'value': v['label'][:100],
+                    'count': v['count']} for v in val_results]
                 if mv:
                     facet['more_values'] = obj_offset + 20
                 facets.append(facet)
@@ -475,6 +444,26 @@ class RDFServer:
             open(resolve('html/search.html')).read(),
             {'results': results, 'context': CONTEXT})
         return [self.render_html(DISPLAY_NAME, page).encode('utf-8')]
+
+    def jsonld_context(self):
+        return {
+            "@base": BASE_NAME,
+            PREFIX1_QN: PREFIX1_URI,
+            PREFIX2_QN: PREFIX2_URI,
+            PREFIX3_QN: PREFIX3_URI,
+            PREFIX4_QN: PREFIX4_URI,
+            PREFIX5_QN: PREFIX5_URI,
+            PREFIX6_QN: PREFIX6_URI,
+            PREFIX7_QN: PREFIX7_URI,
+            PREFIX8_QN: PREFIX8_URI,
+            PREFIX9_QN: PREFIX9_URI,
+            "rdf": str(RDF),
+            "rdfs": str(RDFS),
+            "owl": str(OWL),
+            "dc": str(DC),
+            "dct": str(DCTERMS),
+            "xsd": str(XSD)
+        }
 
 
 def application(environ, start_response):

@@ -1,0 +1,37 @@
+<h1>SPARQL Results</h1>
+
+{{#boolean}}
+    <h3>{{boolean}}</h3>
+{{/boolean}}
+{{^boolean}}
+    <table class="table table-hover">
+        <tr>
+    {{#variables}}
+            <th>{{name}}</th>
+    {{/variables}}
+        </tr>
+    {{#results}}
+        <tr>
+            {{#result}}
+                <td>
+                    {{#uri}}
+                        <a href="{{uri}}">{{display}}</a>
+                    {{/uri}}
+                    {{#value}}
+                        {{value}}
+                    {{/value}}
+                    {{#lang}}
+                        <span class="pull-right"><img src="/assets/flag/{{lang}}.gif"/></span>
+                    {{/lang}}
+                    {{#datatype}}
+                        <span class="pull-right disabled"><a href="{{uri}}">{{display}}</a></span>
+                    {{/datatype}}
+                    {{#bnode}}
+                        <i>Anonymous Node</i>
+                    {{/bnode}}
+                </td>
+            {{/result}}
+        </tr>
+    {{/results}}
+</table>
+{{/boolean}}

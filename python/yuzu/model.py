@@ -100,3 +100,52 @@ def from_dt(dt):
         }
     else:
         return None
+
+
+def sparql_results_to_dict(result):
+    if result.findall(
+            "{http://www.w3.org/2005/sparql-results#}boolean"):
+        r = (result.findall(
+            "{http://www.w3.org/2005/sparql-results#}boolean")[0].text ==
+            "true")
+        return {"boolean":  r}
+    variables = []
+    head = result.findall(
+        "{http://www.w3.org/2005/sparql-results#}head")[0]
+    r = {"variables": [], "results": []}
+    for variable in head:
+        variables.append(variable.get("name"))
+        r["variables"].append({"name": variable.get("name")})
+    body = result.findall(
+        "{http://www.w3.org/2005/sparql-results#}results")[0]
+    results = body.findall(
+        "{http://www.w3.org/2005/sparql-results#}result")
+    n = 0
+    for result in results:
+        r["results"].append({"result": []})
+        for v in variables:
+            r["results"][n]["result"].append(dict())
+        bindings = result.findall(
+            "{http://www.w3.org/2005/sparql-results#}binding")
+        for binding in bindings:
+            name = binding.get("name")
+            target = r["results"][n]["result"][variables.index(name)] = {}
+            if (binding[0].tag ==
+                    '{http://www.w3.org/2005/sparql-results#}uri'):
+                target['uri'] = binding[0].text
+                target['display'] = DISPLAYER.apply(binding[0].text)
+            if (binding[0].tag ==
+                    '{http://www.w3.org/2005/sparql-results#}bnode'):
+                target['bnode'] = binding[0].text
+            if (binding[0].tag ==
+                    '{http://www.w3.org/2005/sparql-results#}literal'):
+                target['value'] = binding[0].text
+                if binding[0].get(
+                        "{http://www.w3.org/XML/1998/namespace}lang"):
+                    target['lang'] = binding[0].get(
+                        "{http://www.w3.org/XML/1998/namespace}lang")
+                elif binding[0].get("datatype"):
+                    target['datatype'] = binding[0].get("datatype")
+        n += 1
+
+    return r

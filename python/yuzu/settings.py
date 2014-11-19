@@ -12,11 +12,11 @@ BASE_NAME = "http://localhost:8080/"
 # is /yuzu/
 CONTEXT = ""
 # The data download will be at BASE_NAME + DUMP_URI
-DUMP_URI = "/dump.nt.gz"
+DUMP_URI = "/example.nt.gz"
 # The local path to the data
 DUMP_FILE = "../example.nt.gz"
 # Where the SQLite database should appear
-DB_FILE = "db.sqlite"
+DB_FILE = "example.db"
 # The name of the server
 DISPLAY_NAME = "Yuzu Example"
 # The extra namespaces to be abbreviated in HTML and RDF/XML
@@ -68,6 +68,9 @@ LABELS = [
     "<http://xmlns.com/foaf/0.1/name>"
 ]
 
+LINKED_SETS = []
+NOT_LINKED = []
+
 
 class DefaultDisplayer:
     def uri_to_str(self, uri):
@@ -118,8 +121,8 @@ class DefaultDisplayer:
 class PrettyDisplayer:
     @staticmethod
     def magic_string(text):
-        s = re.sub("([a-z][A-Z])", "$1 $2", text)
-        s = re.sub("_", " ", text)
+        s = re.sub("([a-z])([A-Z])", "\\1 \\2", text)
+        s = re.sub("_", " ", s)
         return s[0].upper() + s[1:]
 
     def uri_to_str(self, uri):
@@ -172,6 +175,8 @@ class PrettyDisplayer:
             return self.uri_to_str(str(node))
         elif type(node) == Literal:
             return str(node)
+        if type(node) == str:
+            return self.uri_to_str(node)
         else:
             return ""
 

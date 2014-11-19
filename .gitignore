@@ -63,3 +63,5 @@ scala/project/target
 target
 *.swp
 scala/linghub.sqlite
+linghub.full.nt.gz
+example.db

@@ -1,57 +1,102 @@
 package com.github.jmccrae.yuzu
 
+import com.github.jmccrae.yuzu.YuzuSettings.DISPLAYER
 import com.hp.hpl.jena.graph.{NodeFactory, Triple, TripleMatch, Node, Graph}
-import com.hp.hpl.jena.query.{Query, QueryExecution, QueryExecutionFactory, QueryFactory, ResultSetFormatter}
+import com.hp.hpl.jena.query.{Query, QueryExecution, QueryExecutionFactory, QueryFactory, ResultSetFormatter, ResultSet => RDFResultSet}
+import com.hp.hpl.jena.sparql.resultset.ResultSetMem
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory, AnonId, Resource}
 import com.hp.hpl.jena.util.iterator.ExtendedIterator
-import java.sql.{PreparedStatement, ResultSet}
+import java.sql.{Connection, PreparedStatement, ResultSet}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 
-class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable with SPARQLResult {
-  var result : Either[String, Model] = Left("")
-  var resultType : ResultType = error
+sealed trait SPARQLResult
+
+case class TableResult(result : RDFResultSet) extends SPARQLResult {
+  import scala.collection.JavaConversions._
+
+  def toDict = {
+    val variables = result.getResultVars().map { name =>
+      mapAsJavaMap(Map("name" -> name))
+    }
+    val results = new java.util.ArrayList[java.util.Map[String, java.util.ArrayList[java.util.Map[String,String]]]]()
+    for(r <- result) {
+      val r2 = new java.util.HashMap[String, java.util.ArrayList[java.util.Map[String,String]]]()
+      val l2 = new java.util.ArrayList[java.util.Map[String,String]]()
+      r2.put("result", l2)
+      for(v <- result.getResultVars()) {
+        if(r.contains(v)) {
+          val o = r.get(v)
+          val target = new java.util.HashMap[String, String]()
+          if(o.isURIResource()) {
+            target.put("uri", o.asResource().getURI())
+            target.put("display", DISPLAYER.uriToStr(o.asResource().getURI()))
+          } else if(o.isLiteral()) {
+            val l = o.asLiteral()
+            target.put("value", l.getValue().toString())
+            if(l.getLanguage() != null) {
+              target.put("lang", l.getLanguage())
+            }
+            if(l.getDatatype() != null) {
+              target.put("datatype", l.getDatatype().getURI())
+            }
+          } else if(o.isAnon()) {
+            target.put("bnode", o.asResource().getId().toString())
+          }
+          l2.add(target)
+        } else {
+          l2.add(new java.util.HashMap[String, String]())
+        }
+      }
+      results.add(r2)
+    }
+    Seq[(String, Any)]("variables" -> variables, "results" -> results)
+  }
+}
+
+case class BooleanResult(result : Boolean) extends SPARQLResult
+case class ModelResult(result : Model) extends SPARQLResult
+case class ErrorResult(message : String, cause : Throwable = null) extends SPARQLResult
+
+class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable {
+  var result : SPARQLResult = ErrorResult("No result generated")
 
   def run() {
    try {
       if(query.isAskType()) {
         val r = qx.execAsk()
-        resultType = sparql
-        result = Left(ResultSetFormatter.asXMLString(r))
+        result = BooleanResult(r)
       } else if(query.isConstructType()) {
         val model2 = ModelFactory.createDefaultModel()
         val r = qx.execConstruct(model2)
-        resultType = rdfxml
-        result = Right(model2)
+        result = ModelResult(model2)
       } else if(query.isDescribeType()) {
         val model2 = ModelFactory.createDefaultModel()
         val r = qx.execDescribe(model2)
-        resultType = rdfxml
-        result = Right(model2)
+        result = ModelResult(model2)
       } else if(query.isSelectType()) {
         val r = qx.execSelect()
-        resultType = sparql
-        result = Left(ResultSetFormatter.asXMLString(r))
+        result = TableResult(new ResultSetMem(r))
       } else {
-        resultType = error
+        result = ErrorResult("Unsupported query type")
       }
     } catch {
       case x : Exception => {
         x.printStackTrace()
-        resultType = error
-        result = Left(x.getMessage())
+        result = ErrorResult(x.getMessage(), x)
       }
     }
   }
 }
 
 
-class RDFBackendGraph(backend : RDFBackend)  extends com.hp.hpl.jena.graph.impl.GraphBase {
+class RDFBackendGraph(backend : RDFBackend, conn : Connection)  extends com.hp.hpl.jena.graph.impl.GraphBase {
+  import scala.collection.JavaConversions._
   protected def graphBaseFind(m : TripleMatch) : ExtendedIterator[Triple] = {
     _graphBaseFind(m) match {
       case Some((rs,ps)) =>
-        return new SQLResultSetAsExtendedIterator(rs,ps)
+        new SQLResultSetAsExtendedIterator(rs,ps)
       case None => 
-        return new NullExtendedIterator()
+        new NullExtendedIterator()
     }
   }
 
@@ -66,9 +111,9 @@ class RDFBackendGraph(backend : RDFBackend)  extends com.hp.hpl.jena.graph.impl.
         case None => 
           return None
       }
-      Some(backend.listInternal(Some(id),frag,Option(p).map(RDFBackend.to_n3),Option(o).map(RDFBackend.to_n3)))
+      Some(backend.listInternal(conn, Some(id),frag,Option(p).map(RDFBackend.to_n3),Option(o).map(RDFBackend.to_n3)))
     } else {
-      Some(backend.listInternal(None, None, Option(p).map(RDFBackend.to_n3), Option(o).map(RDFBackend.to_n3)))
+      Some(backend.listInternal(conn, None, None, Option(p).map(RDFBackend.to_n3), Option(o).map(RDFBackend.to_n3)))
     }
   }
 }

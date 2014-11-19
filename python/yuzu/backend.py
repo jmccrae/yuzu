@@ -8,9 +8,14 @@ import getopt
 import gzip
 import multiprocessing
 import traceback
+if sys.version_info[0] < 3:
+    from urlparse import urlparse
+else:
+    from urllib.parse import urlparse
 
 from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
-                           SPARQL_ENDPOINT, LABELS, FACETS)
+                           SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
+                           LINKED_SETS)
 from yuzu.user_text import YZ_BAD_MIME, YZ_BAD_REQUEST
 
 __author__ = 'John P. McCrae'
@@ -183,12 +188,12 @@ class RDFBackend(Store):
         if prop:
             cursor.execute("""select distinct subject, label from
             free_text join pids on free_text.pid = pids.pid
-            left outer join sids on free_text.sid = sids.sid
+            join sids on free_text.sid = sids.sid
             where property=? and object match ? limit ?""",
                            ("<%s>" % prop, query, limit))
         else:
-            cursor.execute("""select distinct free_text.subject, label from
-            free_text left outer join sids on free_text.sid = sids.sid
+            cursor.execute("""select distinct subject, label from
+            free_text join sids on free_text.sid = sids.sid
             where object match ? limit ?""",
                            (query, limit))
         rows = cursor.fetchall()
@@ -332,27 +337,32 @@ class RDFBackend(Store):
         cursor = conn.cursor()
         if not offset:
             offset = 0
-        cursor.execute("""select distinct object from triples where property=?
-        limit ? offset ?""", (prop, limit + 1, offset))
+        cursor.execute("""select distinct object, count from freq_ids join
+oids on freq_ids.oid = oids.oid join pids on freq_ids.pid = pids.pid where
+property=? limit ? offset ?""", (prop, limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         results = []
         while n < limit and row:
-            obj, = row
+            obj, count = row
             n3 = from_n3(obj)
             if type(n3) == Literal:
-                results.append({'link': obj, 'label': n3.value})
+                results.append({'link': obj, 'label': n3.value,
+                                'count': count})
             elif type(n3) == URIRef:
                 u = self.unname(str(n3))
                 if u:
                     s, _ = u
                     label = self.get_label(conn, s)
                     if label:
-                        results.append({'link': obj, 'label': label})
+                        results.append({'link': obj, 'label': label,
+                                        'count': count})
                     else:
-                        results.append({'link': obj, 'label': s})
+                        results.append({'link': obj, 'label': s,
+                                        'count': count})
                 else:
-                    results.append({'link': obj, 'label': DISPLAYER(str(n3))})
+                    results.append({'link': obj, 'label': DISPLAYER(str(n3)),
+                                    'count': count})
             n += 1
             row = cursor.fetchone()
         conn.close()
@@ -434,7 +444,6 @@ class RDFBackend(Store):
           property, object, label, inverse from triple_ids join sids on
           triple_ids.sid = sids.sid join pids on triple_ids.pid = pids.pid
           join oids on triple_ids.oid = oids.oid""")
-
         cursor.execute("""create virtual table if not exists free_text using
             fts4 ( sid integer, pid integer, object TEXT NOT NULL )""")
 
@@ -442,6 +451,7 @@ class RDFBackend(Store):
         pid_cache = LoadCache(cursor, "pid", "property")
         oid_cache = LoadCache(cursor, "oid", "object")
 
+        link_counts = {}
         lines_read = 0
         for line in input_stream:
             lines_read += 1
@@ -477,6 +487,25 @@ class RDFBackend(Store):
                             "update sids set label=? where sid=?",
                             (label, sid_cache.get(id)))
 
+                if obj.startswith("<"):
+                    obj_uri = obj[1:-1]
+
+                    ignore = obj_uri.startswith(BASE_NAME)
+                    for link in NOT_LINKED:
+                        if obj_uri.startswith(link):
+                            ignore = True
+                    if not ignore:
+                        up = urlparse(obj_uri)
+                        target = "%s://%s/" % (up.scheme, up.netloc)
+                        for ls in LINKED_SETS:
+                            if obj_uri.startswith(ls):
+                                target = ls
+
+                        if target in link_counts:
+                            link_counts[target] += 1
+                        else:
+                            link_counts[target] = 1
+
             elif e[0].startswith("_:"):
                 id, frag = "<BLANK>", e[0][2:]
                 prop = e[1]
@@ -485,8 +514,21 @@ class RDFBackend(Store):
                                (id, frag, pid_cache.get(prop),
                                 oid_cache.get(obj)))
 
+        cursor.execute("""create table if not exists links (count integer,
+target text)""")
+        for target, count in link_counts.items():
+            cursor.execute(
+                """insert into links values (?, ?)""", (count, target))
+        cursor.execute("""create table if not exists freq_ids (pid integer,
+oid integer, count integer)""")
+        for facet in FACETS:
+            cursor.execute("""insert into freq_ids (pid, oid, count) select
+triple_ids.pid, oid, count(*) from triple_ids join pids on triple_ids.pid =
+pids.pid where property=? group by oid order by count(*) desc""",
+                           ("<" + facet["uri"] + ">",))
         if lines_read > 100000:
             sys.stderr.write("\n")
+
         conn.commit()
         cursor.close()
         conn.close()

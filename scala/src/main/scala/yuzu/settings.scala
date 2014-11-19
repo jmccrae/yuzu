@@ -12,32 +12,32 @@ object YuzuSettings {
   // is /yuzu
   val CONTEXT = ""
   // The data download will be at BASE_NAME + DUMP_URI
-  val DUMP_URI = "/linghub.nt.gz"
+  val DUMP_URI = "/example.nt.gz"
   // The local path to the data
   val DUMP_FILE = "../example.nt.gz"
   // Where the database should appear
   val DB_FILE = "example.db"
   // The name of the server
-  val DISPLAY_NAME = "LingHub"
+  val DISPLAY_NAME = "Yuzu Example"
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
-  val PREFIX1_URI = "http://www.w3.org/ns/dcat#"
-  val PREFIX1_QN = "dcat"
-  val PREFIX2_URI = "http://xmlns.com/foaf/0.1/"
-  val PREFIX2_QN = "foaf"
-  val PREFIX3_URI = "http://www.clarin.eu/cmd/"
-  val PREFIX3_QN = "cmd"
-  val PREFIX4_URI = "http://purl.org/dc/terms/"
-  val PREFIX4_QN = "dct"
-  val PREFIX5_URI = "http://www.resourcebook.eu/lremap/owl/lremap_resource.owl#"
-  val PREFIX5_QN = "lremap"
-  val PREFIX6_URI = "http://purl.org/ms-lod/MetaShare.ttl#"
-  val PREFIX6_QN = "metashare"
-  val PREFIX7_URI = "http://purl.org/ms-lod/BioServices.ttl"
-  val PREFIX7_QN = "bio"
-  val PREFIX8_URI = "http://www.example.com#"
+  val PREFIX1_URI = "http://www.example.com/"
+  val PREFIX1_QN = "ex1"
+  val PREFIX2_URI = "http://www.example.com/"
+  val PREFIX2_QN = "ex2"
+  val PREFIX3_URI = "http://www.example.com/"
+  val PREFIX3_QN = "ex3"
+  val PREFIX4_URI = "http://www.example.com/"
+  val PREFIX4_QN = "ex4"
+  val PREFIX5_URI = "http://www.example.com/"
+  val PREFIX5_QN = "ex5"
+  val PREFIX6_URI = "http://www.example.com/"
+  val PREFIX6_QN = "ex6"
+  val PREFIX7_URI = "http://www.example.com/"
+  val PREFIX7_QN = "ex7"
+  val PREFIX8_URI = "http://www.example.com/"
   val PREFIX8_QN = "ex8"
-  val PREFIX9_URI = "http://www.example.com#"
+  val PREFIX9_URI = "http://www.example.com/"
   val PREFIX9_QN = "ex9"
 
   // Used for DATAID
@@ -66,17 +66,7 @@ object YuzuSettings {
 
   // Properties to use as facets
   val FACETS = Seq(
-    Map("uri" -> "http://purl.org/dc/elements/1.1/title", "label" -> "Title"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/language", "label" -> "Language"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/rights", "label" -> "Rights"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/type", "label" -> "Type"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Data Issued"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/creator", "label" -> "Creator"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/source", "label" -> "Source"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/description", "label" -> "Description"),
-    Map("uri" -> "http://www.w3.org/ns/dcat#downloadURL", "label" -> "Download URL"),
-    Map("uri" -> "http://www.w3.org/ns/dcat#accessURL", "label" -> "Access URL"),
-    Map("uri" -> "http://www.w3.org/ns/dcat#contactPoint", "label" -> "Contact Point")
+    Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label")
   )
   // Properties to use as labels
   val LABELS = Set(

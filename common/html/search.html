@@ -1,8 +1,8 @@
 <h1>Search Results</h1>
 <table class="rdf_search table table-hover">
-    {{#no_results}}
+    {{^results}}
     No Results!
-    {{/no_results}}
+    {{/results}}
     {{#results}}
         <tr class='rdf_search_full table-active'>
             <td><a href="{{link}}">{{label}}</a></td>

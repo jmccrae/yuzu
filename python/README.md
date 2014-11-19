@@ -16,6 +16,12 @@ The tested versions are
 * LXML 3.2.4
 * RDFLib 3.2.3
 
+For JSON-LD support `rdflib-jsonld` is required and can be obtained by
+
+    git clone https://github.com/RDFLib/rdflib-jsonld.git
+    cd rdflib-jsonld
+    sudo python setup.py install 
+
 Configuring
 -----------
 

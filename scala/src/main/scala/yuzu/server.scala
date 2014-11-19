@@ -1,19 +1,22 @@
 package com.github.jmccrae.yuzu
 
-import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.jmccrae.yuzu.YuzuSettings._
+import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.mustachejava.{DefaultMustacheFactory, Mustache, MustacheResolver}
-import org.apache.jena.riot.{RDFDataMgr, RDFFormat}
+import com.hp.hpl.jena.query.ResultSetFormatter
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
+import com.hp.hpl.jena.vocabulary._
+import java.io.{ByteArrayOutputStream, PipedOutputStream, PipedInputStream, 
+  StringReader, InputStream, OutputStream, File, FileInputStream, StringWriter,
+  FileNotFoundException}
 import java.net.URL
 import java.nio.file.Files
-import java.io.{ByteArrayOutputStream, PipedOutputStream, PipedInputStream, StringReader, InputStream,
-OutputStream, File, FileInputStream, StringWriter, FileNotFoundException}
 import java.util.concurrent.{TimeoutException}
-import javax.xml.transform.{TransformerFactory}
-import javax.xml.transform.stream.{StreamSource, StreamResult}
-import javax.servlet.http.{HttpServlet, HttpServletResponse, HttpServletRequest}
 import javax.servlet.http.HttpServletResponse._
+import javax.servlet.http.{HttpServlet, HttpServletResponse, HttpServletRequest}
+import javax.xml.transform.stream.{StreamSource, StreamResult}
+import javax.xml.transform.{TransformerFactory}
+import org.apache.jena.riot.{RDFDataMgr, RDFFormat}
 import scala.collection.JavaConversions._
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
@@ -26,7 +29,7 @@ object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PR
 object html extends ResultType("text/html", None)
 object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE))
 object nt extends ResultType("text/plain", Some(RDFFormat.NT))
-object jsonld extends ResultType("application/ld+json", Some(RDFFormat.RDFJSON))
+object jsonld extends ResultType("application/ld+json", Some(RDFFormat.JSONLD))
 object error extends ResultType("text/html", None)
 
 trait PathResolver {
@@ -81,7 +84,6 @@ object mustache {
 }
 
 object RDFServer {
-  val RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 
   def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.html"))
@@ -221,73 +223,56 @@ class RDFServer extends HttpServlet {
 
   def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     resp : HttpServletResponse, timeout : Int = 10) {
-      val executor = try {
+      val result = try {
         backend.query(query, mimeType, defaultGraphURI, timeout)
       } catch {
         case x : TimeoutException => 
           resp.sendError(SC_SERVICE_UNAVAILABLE, YZ_TIME_OUT)
           return
       }
-      if(executor.resultType == error) {
-        send400(resp)
-      } else if(mimeType == html) {
-        executor.result match {
-          case Left(data) => {
-            resp.addHeader("Content-type", "text/html")
-            resp.setStatus(SC_OK)
-            val tf = TransformerFactory.newInstance()
-            val xslDoc = mustache(resolve("xsl/sparql2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
-"prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
-"prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
-"prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
-"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI,
-"prefix1qn" -> PREFIX1_QN, "prefix2qn" -> PREFIX2_QN,
-"prefix3qn" -> PREFIX3_QN, "prefix4qn" -> PREFIX4_QN,
-"prefix5qn" -> PREFIX5_QN, "prefix6qn" -> PREFIX6_QN,
-"prefix7qn" -> PREFIX7_QN, "prefix8qn" -> PREFIX8_QN,
-"prefix9qn" -> PREFIX9_QN)
-            val transformer = tf.newTransformer(new StreamSource(new StringReader(xslDoc)))
-
-            val baos = new ByteArrayOutputStream()
-            transformer.transform(new StreamSource(new StringReader(data)), new StreamResult(baos))
-            baos.flush()
-            val out = resp.getWriter()
-            out.println(renderHTML("SPARQL Results", baos.toString()))
-            out.flush()
-            out.close()
-          }
-          case Right(model) => {
-            resp.addHeader("Content-type", "text/html")
-            resp.setStatus(SC_OK)
-            val out = resp.getWriter()
-            out.println(rdfxmlToHtml(model,None))
-            out.flush()
-            out.close()
-          }
+      if(mimeType == html) {
+        val content = result match {
+          case r : TableResult =>
+            val d = r.toDict
+            mustache(resolve("html/sparql-results.mustache")).
+              substitute(d:_*)
+          case BooleanResult(r) =>
+            val l = if(r) { "True" } else { "False" }
+            mustache(resolve("html/sparql-results.mustache")).
+              substitute("boolean" -> l)
+          case ModelResult(model) =>
+            rdfxmlToHtml(model, None)
+          case ErrorResult(msg, t) =>
+            throw new RuntimeException(msg, t)
         }
-      } else if(mimeType == sparql) {
-        executor.result match {
-          case Left(data) => {
-            resp.addHeader("Content-type", executor.resultType.mime)
-            resp.setStatus(SC_OK)
-            val out = resp.getWriter()
-            out.println(data)
-            out.flush()
-            out.close()
-          }
-          case Right(_) => throw new IllegalArgumentException("SPARQL results expected but received RDF model")
+        resp.respond("text/html", SC_OK) {
+          out => out.println(renderHTML("SPARQL Results", content))
         }
       } else {
-        executor.result match {
-          case Left(_) => throw new IllegalArgumentException("RDF results expected but received SPARQL results")
-          case Right(model) => {
-            resp.addHeader("Content-type", executor.resultType.mime) 
-            resp.setStatus(SC_OK)
-            val os = resp.getOutputStream()
-            RDFDataMgr.write(os, model, executor.resultType.jena.get)
-            os.flush()
-            os.close()
-          }
+        val (content, mime) = result match {
+          case r : TableResult =>
+            (ResultSetFormatter.asXMLString(r.result), sparql)
+          case BooleanResult(r) =>
+            (ResultSetFormatter.asXMLString(r), sparql)
+          case ModelResult(model) =>
+            val out = new java.io.StringWriter()
+            val mime = if(mimeType == sparql) {
+              rdfxml
+            } else {
+              mimeType
+            }
+            addNamespaces(model)
+            RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
+            if(mime == jsonld) {
+              (addContextToJsonLD(out.toString()), mime)
+            } else {
+              (out.toString(), mime)
+            }
+          case ErrorResult(msg, t) =>
+            throw new RuntimeException(msg, t)
+        }
+        resp.respond(mime.mime, SC_OK) {
+          out => out.println(content)
         }
       }
     }
@@ -303,6 +288,12 @@ class RDFServer extends HttpServlet {
     model.setNsPrefix(PREFIX7_QN, PREFIX7_URI)
     model.setNsPrefix(PREFIX8_QN, PREFIX8_URI)
     model.setNsPrefix(PREFIX9_QN, PREFIX9_URI)
+    model.setNsPrefix("rdf", RDF.getURI())
+    model.setNsPrefix("rdfs", RDFS.getURI())
+    model.setNsPrefix("owl", OWL.getURI())
+    model.setNsPrefix("dc", DC_11.getURI())
+    model.setNsPrefix("dct", DCTerms.getURI())
+    model.setNsPrefix("xsd", XSD.getURI())
   }
  
   
@@ -312,21 +303,15 @@ class RDFServer extends HttpServlet {
       return renderHTML(title, mustache.rdf2html.generate(elem))
     case None =>
       throw new UnsupportedOperationException("TODO")
-/*    val tf = TransformerFactory.newInstance()
-    addNamespaces(model)
-    val xslt = mustache(resolve("xsl/rdf2html.xsl")).substitute("base" -> BASE_NAME, "prefix1uri" -> PREFIX1_URI,
-"prefix2uri" -> PREFIX2_URI, "prefix3uri" -> PREFIX3_URI,
-"prefix4uri" -> PREFIX4_URI, "prefix5uri" -> PREFIX5_URI,
-"prefix6uri" -> PREFIX6_URI, "prefix7uri" -> PREFIX7_URI,
-"prefix8uri" -> PREFIX8_URI, "prefix9uri" -> PREFIX9_URI,
-"query" -> query.getOrElse(""))
-    val transformer = tf.newTransformer(new StreamSource(new StringReader(xslt)))
-    transformer.setOutputProperty(javax.xml.transform.OutputKeys.METHOD, "html")
-    val rdfData = new StringWriter()
-    RDFDataMgr.write(rdfData, model, RDFFormat.RDFXML_PRETTY)
-    val out = new StringWriter()
-    transformer.transform(new StreamSource(new StringReader(rdfData.toString())), new StreamResult(out))
-    return renderHTML(title, out.toString())*/
+  }
+
+  def addContextToJsonLD(doc : String) = {
+    val jsonObject = com.github.jsonldjava.utils.JsonUtils.
+      fromString(doc)
+    val options = new com.github.jsonldjava.core.JsonLdOptions()
+    val compact = com.github.jsonldjava.core.JsonLdProcessor.compact(
+      jsonObject, jsonldContext, options)
+    com.github.jsonldjava.utils.JsonUtils.toPrettyString(compact)
   }
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
@@ -348,7 +333,11 @@ class RDFServer extends HttpServlet {
         bestMimeType(req.getHeader("Accept"), html)
       }
     } else {
-      html
+      if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
+        sparql
+      } else {
+        html
+      }
     }
 
     if(uri == "/" || uri == "/index.html") {
@@ -460,7 +449,7 @@ class RDFServer extends HttpServlet {
         case None => send404(resp)
         case Some(model) => {
           val title = model.listStatements(model.createResource(BASE_NAME + id),
-                                            model.createProperty(RDFS, "label"),
+                                            RDFS.label,
                                             null).map(_.getObject().toString()).mkString(", ")
           val content = if(mime == html) {
             rdfxmlToHtml(model, Some(BASE_NAME + id), title)
@@ -468,7 +457,11 @@ class RDFServer extends HttpServlet {
             val out = new java.io.StringWriter()
             addNamespaces(model)
             RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
-            out.toString()
+            if(mime == jsonld) {
+              addContextToJsonLD(out.toString())
+            } else {
+              out.toString()
+            }
           }
           resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
             out => out.print(content)
@@ -533,6 +526,25 @@ class RDFServer extends HttpServlet {
       out => out.println(renderHTML(DISPLAY_NAME, page))
     }
   }
+
+  def jsonldContext = mapAsJavaMap(Map(
+    "@base" -> BASE_NAME,
+    PREFIX1_QN -> PREFIX1_URI,
+    PREFIX2_QN -> PREFIX2_URI,
+    PREFIX3_QN -> PREFIX3_URI,
+    PREFIX4_QN -> PREFIX4_URI,
+    PREFIX5_QN -> PREFIX5_URI,
+    PREFIX6_QN -> PREFIX6_URI,
+    PREFIX7_QN -> PREFIX7_URI,
+    PREFIX8_QN -> PREFIX8_URI,
+    PREFIX9_QN -> PREFIX9_URI,
+    "rdf" -> RDF.getURI(),
+    "rdfs" -> RDFS.getURI(),
+    "owl" -> OWL.getURI(),
+    "dc" -> DC_11.getURI(),
+    "dct" -> DCTerms.getURI(),
+    "xsd" -> XSD.getURI()
+  ))
 
   override def destroy() {
     //backend.close()

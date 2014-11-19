@@ -12,19 +12,6 @@ import java.net.URI
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLException}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 import java.util.zip.GZIPInputStream
-import org.apache.lucene.analysis.standard.StandardAnalyzer
-import org.apache.lucene.document.{Document, Field, StringField, TextField}
-import org.apache.lucene.index.{DirectoryReader, IndexReader, IndexWriter, IndexWriterConfig}
-import org.apache.lucene.queryparser.classic.QueryParser
-import org.apache.lucene.search.{IndexSearcher, Query, ScoreDoc, TopScoreDocCollector }
-import org.apache.lucene.store.FSDirectory
-import org.apache.lucene.util.Version
-
-
-trait SPARQLResult {
-  def result : Either[String, Model]
-  def resultType : ResultType
-}
 
 case class SearchResult(link : String, label : String)
 case class SearchResultWithCount(link : String, label : String, count : Int)
@@ -36,7 +23,7 @@ trait Backend {
   def lookup(id : String) : Option[Model]
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult])
   def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResultWithCount])
-  def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
+  //def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult]
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
   def tripleCount : Int
@@ -62,7 +49,7 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
-  def graph = new RDFBackendGraph(this)
+  def graph(conn : Connection) = new RDFBackendGraph(this, conn)
  
   def from_n3(n3 : String, model : Model) = if(n3.startsWith("<") && n3.endsWith(">")) {
     model.createResource(n3.drop(1).dropRight(1))
@@ -151,41 +138,74 @@ class RDFBackend(db : String) extends Backend {
   }
 
 
-  def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult] = withConn { conn =>
-    val reader = DirectoryReader.open(
-      FSDirectory.open(new File(DB_FILE + "-lucene")))
- 
+  def search(query : String, property : Option[String], 
+      limit : Int = 20) : Seq[SearchResult] = withConn { conn =>
+    val ps = property match {
+      case Some(p) => 
+        sqlexecute(conn, """select distinct subject, label from free_text join
+pids on free_text.pid = pids.pid left outer join sids on free_text.sid = 
+sids.sid where property=? and object match ? limit ?""", "<%s>" format p, 
+                   query, limit)
+      case None =>
+        sqlexecute(conn, """select distinct subject, label from free_text join
+pids on free_text.pid = pids.pid join sids on free_text.sid = sids.sid
+where object match ? limit ?""", query, limit)
+    }
     try {
-      val searcher = new IndexSearcher(reader)
-      val collector = TopScoreDocCollector.create(limit, true)
-      val qp = new QueryParser("object", 
-        new StandardAnalyzer())
-
-      val q = property match {
-        case Some(p) => 
-          qp.parse("object:\"%s\" AND property:\"%s\"" format (
-            query.replaceAll("\"","\\\\\""), p))
-        case None =>
-          qp.parse("object:\"%s\"" format (
-            query.replaceAll("\"", "\\\\\"")))
-      }
-      searcher.search(q, collector)
-      val hits = collector.topDocs().scoreDocs
-     
-      for(hit <- hits.toSeq) yield {
-        val subj = searcher.doc(hit.doc).get("subject")
-        SearchResult(
-          CONTEXT + "/" + subj,
-          getLabel(subj).getOrElse(subj))
+      val rs = ps.executeQuery()
+      try {
+        val results = collection.mutable.ListBuffer[SearchResult]()
+        while(rs.next()) {
+          results += SearchResult("/" + rs.getString(1), rs.getString(2))
+        }
+        results.toSeq
+      } finally {
+        rs.close()
       }
     } finally {
-      reader.close()
+      ps.close()
     }
   }
 
-  private[yuzu] def listInternal(subj : Option[String], frag : Option[String], 
+
+
+
+
+//    val reader = DirectoryReader.open(
+//      FSDirectory.open(new File(DB_FILE + "-lucene")))
+// 
+//    try {
+//      val searcher = new IndexSearcher(reader)
+//      val collector = TopScoreDocCollector.create(limit, true)
+//      val qp = new QueryParser("object", 
+//        new StandardAnalyzer())
+//
+//      val q = property match {
+//        case Some(p) => 
+//          qp.parse("object:\"%s\" AND property:\"%s\"" format (
+//            query.replaceAll("\"","\\\\\""), p))
+//        case None =>
+//          qp.parse("object:\"%s\"" format (
+//            query.replaceAll("\"", "\\\\\"")))
+//      }
+//      searcher.search(q, collector)
+//      val hits = collector.topDocs().scoreDocs
+//     
+//      for(hit <- hits.toSeq) yield {
+//        val subj = searcher.doc(hit.doc).get("subject")
+//        SearchResult(
+//          CONTEXT + "/" + subj,
+//          getLabel(subj).getOrElse(subj))
+//      }
+//    } finally {
+//      reader.close()
+//    }
+//  }
+
+  private[yuzu] def listInternal(conn : Connection,
+    subj : Option[String], frag : Option[String], 
     prop : Option[String], obj : Option[String], 
-    offset : Int = 0) : (ResultSet, PreparedStatement) = withConn { conn =>
+    offset : Int = 0) : (ResultSet, PreparedStatement) = { 
     val ps = subj match {
       case None => prop match {
         case None => obj match {
@@ -223,7 +243,7 @@ class RDFBackend(db : String) extends Backend {
     return (ps.executeQuery(),ps)
   }
 
-  def list(subj : Option[String], prop : Option[String], obj : Option[String], 
+/*  def list(subj : Option[String], prop : Option[String], obj : Option[String], 
     offset : Int = 0, limit : Int = 20) : (Boolean, Seq[Triple]) = {
     val (id,frag) = subj match {
       case Some(s) => RDFBackend.unname(s) match {
@@ -247,7 +267,7 @@ class RDFBackend(db : String) extends Backend {
       rs.close()
       ps.close()
     }
-  }
+  }*/
 
   def getLabel(s : String) : Option[String] = withConn { conn =>
     val ps = sqlexecute(conn, "select label from sids where subject=?", s)
@@ -415,10 +435,6 @@ class RDFBackend(db : String) extends Backend {
       }
       val cursor = conn.createStatement()
       val oldAutocommit = conn.getAutoCommit()
-      // initialize Lucene
-      val writer = new IndexWriter(FSDirectory.open(new File(DB_FILE + "-lucene")),
-        new IndexWriterConfig(Version.LATEST, 
-          new StandardAnalyzer()))
 
       try {
         conn.setAutoCommit(false)
@@ -450,6 +466,8 @@ class RDFBackend(db : String) extends Backend {
           property, object, label, inverse from triple_ids join sids on
           triple_ids.sid = sids.sid join pids on triple_ids.pid = pids.pid
           join oids on triple_ids.oid = oids.oid""") 
+        cursor.execute("""create virtual table if not exists free_text using
+            fts4 ( sid integer, pid integer, object TEXT NOT NULL )""")
         val sidCache = loadCache(conn, "sid", "subject")
         val pidCache = loadCache(conn, "pid", "property")
         val oidCache = loadCache(conn, "oid", "object")
@@ -477,11 +495,8 @@ class RDFBackend(db : String) extends Backend {
                   sidCache.get(id), frag, pidCache.get(prop), oidCache.get(obj))
               
               if(FACETS.exists(_("uri") == prop.drop(1).dropRight(1)) || obj.startsWith("\"")) {
-                val doc = new Document()
-                doc.add(new TextField("object", obj, Field.Store.YES))
-                doc.add(new StringField("property", prop, Field.Store.YES))
-                doc.add(new StringField("subject", id, Field.Store.YES))
-                writer.addDocument(doc)
+                sqlexecuteonce(conn, "insert into free_text values (?, ?, ?)",
+                  sidCache.get(id), pidCache.get(prop), obj)
               }
              
               if(obj.startsWith("<"+BASE_NAME)) {
@@ -541,6 +556,14 @@ class RDFBackend(db : String) extends Backend {
           sqlexecuteonce(conn,
             """insert into links values (?, ?)""", count, target)
         }
+        cursor.execute("""create table if not exists freq_ids (pid integer,
+oid integer, count integer)""")
+        for(facet <- FACETS) {
+          sqlexecuteonce(conn, """insert into freq_ids (pid, oid, count) select 
+triple_ids.pid, oid, count(*) from triple_ids join pids on triple_ids.pid =
+pids.pid where property=? group by oid order by count(*) desc""", 
+            "<" + facet("uri") + ">")
+        }
         if(linesRead > 100000) {
           System.err.println()
         }
@@ -548,7 +571,6 @@ class RDFBackend(db : String) extends Backend {
         cursor.close()
         conn.commit()
         conn.setAutoCommit(oldAutocommit)
-        writer.close()
        }
     }
   }
@@ -572,8 +594,10 @@ class RDFBackend(db : String) extends Backend {
   }
 
 
-  def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String], timeout : Int = 10) : SPARQLResult = {
-    val backendModel = ModelFactory.createModelForGraph(graph)
+  def query(query : String, mimeType : ResultType, 
+      defaultGraphURI : Option[String], 
+      timeout : Int = 10) : SPARQLResult = withConn { conn =>
+    val backendModel = ModelFactory.createModelForGraph(graph(conn))
     val q = defaultGraphURI match {
       case Some(uri) => QueryFactory.create(query, uri)
       case None => QueryFactory.create(query)
@@ -595,7 +619,7 @@ class RDFBackend(db : String) extends Backend {
       ste.shutdownNow()
       throw new TimeoutException()
     } else {
-      return executor
+      return executor.result
     }
   }
 }

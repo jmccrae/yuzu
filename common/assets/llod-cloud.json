@@ -1,7 +1,7 @@
 {
     "dbpedia-ko": {
         "deadurls": 0, 
-        "edgecount": 1, 
+        "edgecount": 2, 
         "links": {}, 
         "tags": [], 
         "url": "http://datahub.io/api/3/action/package_show?id=dbpedia-ko", 
@@ -12,7 +12,7 @@
     }, 
     "dbpedia-cs": {
         "deadurls": 0, 
-        "edgecount": 1, 
+        "edgecount": 2, 
         "links": {}, 
         "tags": [], 
         "url": "http://datahub.io/api/3/action/package_show?id=dbpedia-cs", 
@@ -37,6 +37,27 @@
         "rdf_owl": 0, 
         "triples": "3000", 
         "name": "General Ontology of Linguistic Description"
+    }, 
+    "pdev-lemon": {
+        "deadurls": 1, 
+        "edgecount": 1, 
+        "links": {
+            "lexinfo": 2078.0
+        }, 
+        "tags": [
+            "ldl-2014", 
+            "lexical-resources", 
+            "lexicon", 
+            "linguistic", 
+            "llod", 
+            "lod"
+        ], 
+        "url": "http://datahub.io/api/3/action/package_show?id=pdev-lemon", 
+        "aliveurls": 2, 
+        "formats": 0, 
+        "rdf_owl": 0, 
+        "triples": "233372", 
+        "name": "PDEV-Lemon"
     }, 
     "lexinfo": {
         "deadurls": 0, 
@@ -93,7 +114,7 @@
     }, 
     "lemonwordnet": {
         "deadurls": 6, 
-        "edgecount": 1, 
+        "edgecount": 2, 
         "links": {
             "lexinfo": 178809.0
         }, 
@@ -144,8 +165,10 @@
     }, 
     "babelnet": {
         "deadurls": 1, 
-        "edgecount": 1, 
+        "edgecount": 3, 
         "links": {
+            "lemonuby": 15140.0, 
+            "lemonwordnet": 117657.0, 
             "dbpedia": 19210914.0
         }, 
         "tags": [
@@ -281,8 +304,8 @@
         "name": "Apertium RDF CA-IT"
     }, 
     "dbpedia-ja": {
-        "deadurls": 4, 
-        "edgecount": 11, 
+        "deadurls": 5, 
+        "edgecount": 12, 
         "links": {
             "dbpedia-ko": 148988.0, 
             "dbpedia-it": 218736.0, 
@@ -314,7 +337,7 @@
             "wikipedia"
         ], 
         "url": "http://datahub.io/api/3/action/package_show?id=dbpedia-ja", 
-        "aliveurls": 2, 
+        "aliveurls": 1, 
         "formats": 0, 
         "rdf_owl": 0, 
         "triples": "70790371", 
@@ -541,18 +564,30 @@
         "name": "RSS-500 NIF NER CORPUS"
     }, 
     "dbpedia-es": {
-        "deadurls": 13, 
-        "edgecount": 1, 
-        "links": {}, 
+        "deadurls": 0, 
+        "edgecount": 10, 
+        "links": {
+            "dbpedia-ko": 169592.0, 
+            "dbpedia-it": 457626.0, 
+            "dbpedia-cs": 161377.0, 
+            "dbpedia-de": 425511.0, 
+            "dbpedia-ja": 257732.0, 
+            "dbpedia-nl": 429827.0, 
+            "dbpedia": 837609.0, 
+            "dbpedia-fr": 538425.0, 
+            "dbpedia-pt": 440350.0
+        }, 
         "tags": [
             "crossdomain", 
+            "linguistic", 
             "lod", 
             "wikipedia"
         ], 
         "url": "http://datahub.io/api/3/action/package_show?id=dbpedia-es", 
-        "aliveurls": 2, 
+        "aliveurls": 4, 
         "formats": 0, 
         "rdf_owl": 0, 
+        "triples": "169101647", 
         "name": "DBpedia in Spanish"
     }, 
     "clld-apics": {
@@ -712,7 +747,7 @@
         "name": "TheSoz Thesaurus for the Social Sciences (GESIS)"
     }, 
     "lodac-bdls": {
-        "deadurls": 1, 
+        "deadurls": 0, 
         "edgecount": 2, 
         "links": {
             "dbpedia-ja": 7367.0, 
@@ -735,7 +770,7 @@
             "rdf"
         ], 
         "url": "http://datahub.io/api/3/action/package_show?id=lodac-bdls", 
-        "aliveurls": 9, 
+        "aliveurls": 10, 
         "formats": 0, 
         "rdf_owl": 0, 
         "triples": "5764962", 
@@ -830,7 +865,7 @@
     }, 
     "dbpedia-de": {
         "deadurls": 0, 
-        "edgecount": 2, 
+        "edgecount": 3, 
         "links": {}, 
         "tags": [], 
         "url": "http://datahub.io/api/3/action/package_show?id=dbpedia-de", 
@@ -1408,7 +1443,7 @@
     }, 
     "dbpedia": {
         "deadurls": 1, 
-        "edgecount": 50, 
+        "edgecount": 51, 
         "links": {
             "yago": 18100000.0, 
             "opencyc": 20362.0
@@ -1589,7 +1624,7 @@
     }, 
     "dbpedia-fr": {
         "deadurls": 0, 
-        "edgecount": 6, 
+        "edgecount": 7, 
         "links": {
             "dbpedia-nl": 402443.0, 
             "dbpedia-it": 474524.0, 
@@ -1811,7 +1846,7 @@
     }, 
     "dbpedia-nl": {
         "deadurls": 0, 
-        "edgecount": 9, 
+        "edgecount": 10, 
         "links": {
             "yago": 303500.0, 
             "dbpedia-de": 359909.0, 
@@ -2150,7 +2185,7 @@
     }, 
     "dbpedia-it": {
         "deadurls": 1, 
-        "edgecount": 2, 
+        "edgecount": 3, 
         "links": {}, 
         "tags": [], 
         "url": "http://datahub.io/api/3/action/package_show?id=dbpedia-it", 
@@ -2418,7 +2453,7 @@
     }, 
     "lemonuby": {
         "deadurls": 1, 
-        "edgecount": 6, 
+        "edgecount": 7, 
         "links": {
             "vu-wordnet": 206773.0, 
             "olia": 1470741.0, 
@@ -2561,7 +2596,7 @@
     }, 
     "dbpedia-pt": {
         "deadurls": 0, 
-        "edgecount": 3, 
+        "edgecount": 4, 
         "links": {
             "dbpedia": 365839.0
         }, 
