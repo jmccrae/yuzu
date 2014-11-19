@@ -10,7 +10,7 @@ object YuzuSettings {
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
-  val CONTEXT = "/data/iate"
+  val CONTEXT = ""//"/data/iate"
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/iate.nt.gz"
   // The local path to the data
@@ -27,8 +27,8 @@ object YuzuSettings {
   val PREFIX2_QN = "ontolex"
   val PREFIX3_URI = "http://www.lexinfo.net/ontology/2.0/lexinfo#"
   val PREFIX3_QN = "lexinfo"
-  val PREFIX4_URI = "http://www.example.com/"
-  val PREFIX4_QN = "ex4"
+  val PREFIX4_URI = "http://www.lexvo.org/page/iso639-3/"
+  val PREFIX4_QN = "lexvo"
   val PREFIX5_URI = "http://www.example.com/"
   val PREFIX5_QN = "ex5"
   val PREFIX6_URI = "http://www.example.com/"
