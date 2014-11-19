@@ -87,7 +87,8 @@ object RDFServer {
 
   def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.html"))
-    template.substitute("title"-> title, "content" -> text)
+    template.substitute("title"-> title, "app_title" -> DISPLAY_NAME, 
+                        "content" -> text)
   }
 
   def send302(resp : HttpServletResponse, location : String) { resp.sendRedirect(location) }

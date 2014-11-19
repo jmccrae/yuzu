@@ -18,7 +18,7 @@ object YuzuSettings {
   // Where the database should appear
   val DB_FILE = "example.db"
   // The name of the server
-  val DISPLAY_NAME = "Yuzu Example"
+  val DISPLAY_NAME = "Example"
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://www.example.com/"
