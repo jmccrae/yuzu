@@ -6,11 +6,11 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://tbx2rdf.lider-project.eu/data/"
+  val BASE_NAME = "http://tbx2rdf.lider-project.eu/data/iate/"
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
-  val CONTEXT = "/data"
+  val CONTEXT = "/data/iate"
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/iate.nt.gz"
   // The local path to the data
