@@ -1,0 +1,342 @@
+<h1>Linguistic Linked Open Data Cloud</h1>
+
+<p>This diagram is automatically generated from the data contained in LingHub,
+and shows the current status of the linguistic linked open data cloud.</p>
+
+<div id="diagram"></div>
+
+<h3>Legend</h3>
+<table style="border-spacing:2px;border-collapse:separate;">
+    <tr>
+        <td style="background-color:#f08080;width:30px;"></td>
+        <td>Linguistic Resource Metadata Repositories</td>
+        <td style="background-color:#FD8C3B;width:30px;"></td>
+        <td>Linguistic Categories</td>
+        <td style="background-color:#31a354;width:30px;"></td>
+        <td>Lexicons and dictionaries</td>
+    </tr>
+    <tr>
+        <td style="background-color:#e6550d;width:30px;"></td>
+        <td>Typological metadata</td>
+        <td style="background-color:#fdae6b;width:30px;"></td>
+        <td>Other metadata</td>
+        <td style="background-color:#a1d99b;width:30px;"></td>
+        <td>Terminologies, thesaurus and knowledge bases</td>
+    </tr>
+    <tr>
+        <td style="background-color:#3182bd;width:30px;"></td>
+        <td>Corpora</td>
+        <td></td>
+        <td></td>
+        <td style="background-color:#74c476;width:30px;"></td>
+        <td>Other lexical resources</td>
+    </tr>
+</table>
+
+  <script
+      type="text/javascript" 
+      src="{{context}}/assets/d3.min.js">
+  </script>
+<script type="text/javascript">
+// Hard coded name resource types
+name_to_type = {
+  "agrovoc-skos": "lexicon.generalKB",
+  "alpino-rdf": "corpus",
+  "apertium-rdf": "lexicon.lexicon",
+  "apertium-rdf-ca-it": "lexicon.lexicon",
+  "apertium-rdf-en-ca": "lexicon.lexicon",
+  "apertium-rdf-en-es": "lexicon.lexicon",
+  "apertium-rdf-en-gl": "lexicon.lexicon",
+  "apertium-rdf-es-ca": "lexicon.lexicon",
+  "apertium-rdf-es-gl": "lexicon.lexicon",
+  "apertium-rdf-es-ro": "lexicon.lexicon",
+  "apertium-rdf-es-pt": "lexicon.lexicon",
+  "apertium-rdf-fr-ca": "lexicon.lexicon",
+  "apertium-rdf-fr-es": "lexicon.lexicon",
+  "apertium-rdf-pt-ca": "lexicon.lexicon",
+  "asjp": "lexicon.lexicon",
+  "automated similarity judgment program lexical data": "meta.db",
+  "babelnet": "lexicon.lexicon",
+  "bible-ontology": "lexicon.generalKB",
+  "clean-energy-data-reegle": "lexicon.generalKB",
+  "clld-ewave": "meta.typology",
+  "clld-afbo": "meta.typology",
+  "clld-apics": "meta.typology",
+  "clld-glottolog": "meta.typology",
+  "clld-phoible": "meta.typology",
+  "clld-sails": "meta.typology",
+  "clld-wals": "meta.typology",
+  "clld-wold": "meta.typology",
+  "cornetto": "lexicon.lexicon",
+  "dbnary": "lexicon.lexicon",
+  "fao-geopolitical-ontology": "lexicon.generalKB",
+  "fiesta": "corpus",
+  "gemet": "lexicon.generalKB",
+  "germlex": "lexicon.lexicon",
+  "gesis-thesoz": "lexicon.generalKB",
+  "glottolog": "meta.db",
+  "gold": "meta.term",
+  "gutenberg": "corpus",
+  "ids": "lexicon.lexicon",
+  "ietflang": "meta.term",
+  "intercontinental dictionary series": "lexicon.lexicon",
+  "jrc-name": "lexicon.generalKB",
+  "jrc-names": "lexicon.generalKB",
+  "lexicon": "lexicon.lexicon",
+  "lexinfo": "meta.term",
+  "lexvo": "meta.term",
+  "lingvoj": "meta.term",
+  "linked-hypernyms": "lexicon.generalKB",
+  "lodac-bdls": "lexicon.generalKB",
+  "masc": "corpus",
+  "metashare": "meta.db",
+  "mexico": "corpus",
+  "mlsa": "corpus",
+  "muninn-world-war-i": "lexicon.generalKB",
+  "olia": "meta.term",
+  "olia-discourse": "meta.term",
+  "opencyc": "lexicon.generalKB",
+  "panlex": "lexicon.lexicon",
+  "parole-simple-ont": "lexicon.lexicon",
+  "phoible": "meta.typology",
+  "pleiades": "lexicon.generalKB",
+  "saldo-rdf": "lexicon.lexicon",
+  "saldom-rdf": "lexicon.lexicon",
+  "simple": "lexicon.lexicon",
+  "swefn-rdf": "lexicon.lexicon",
+  "the speech accent archive": "corpus",
+  "umthes": "lexicon.generalKB",
+  "wikilinks-rdf-nif": "corpus",
+  "wold": "meta.typology",
+  "world atlas of language structuctures": "meta.db",
+  "world loanword database": "lexicon.lexicon",
+  "xlid-lexica": "lexicon.lexicon",
+  "yleinen suomalainen asiasanasto": "lexicon.generalKB",
+  "zhishi-me": "lexicon.generalKB"
+
+}
+
+
+
+/* Set the diagrams Height & Width */
+    var h = 950, w = 1200;
+    var defaultVertexSize = 11.0;
+/* Establish/instantiate an SVG container object */
+    var svg = d3.select("#diagram")
+                    .append("svg")
+                    .attr("height",h)
+                    .attr("width",w);
+                    d3.json("{{context}}/assets/llod-cloud.json", makeDiag);
+
+function bubbleSize(node) {
+    var size = defaultVertexSize;
+    if("size" in node) {
+        size = defaultVertexSize / 10.0 * Math.log(node["size"] + 1) + defaultVertexSize;
+    } else {
+        size = defaultVertexSize;
+    }
+    if(!isNaN(size)) {
+        return size;
+    } else {
+        return defaultVertexSize;
+    }
+}
+
+function arrowWidth(node) {
+    var width = Math.log(node["weight"]) / 2 + 1;
+    if(!isNaN(width)) {
+        return width;
+    } else {
+        return 1;
+    }
+}
+
+function bubbleColor(node) {
+    var type = "unknown";
+    if("tags" in node) {
+        type = "meta";
+    }
+
+    var name_plus_tags = "";
+    if("name" in node) {
+        name_plus_tags = node["name"];
+    }
+    name_plus_tags=name_plus_tags+" [";
+
+    if("tags" in node) {
+        for(i in node["tags"]) {
+                name_plus_tags = name_plus_tags+" \""+i+"\"";
+        }
+    }
+    name_plus_tags = name_plus_tags+" ]";
+    name_plus_tags = name_plus_tags.toLowerCase();
+
+    if(name_plus_tags.indexOf('lexicon') > 0) {
+        type="lexicon.lexicon";
+    }
+    if(name_plus_tags.indexOf('lexical-resources') > 0) {
+        type="lexicon.lexicon";
+    }
+    
+    if(name_plus_tags.indexOf("typology")!=-1) {
+        type="meta.db";
+    }
+    if("name" in node) { 
+        if(node["key"].toLowerCase().indexOf("dbpedia")!=-1) { type="lexicon.generalKB"; }
+        if(node["key"].toLowerCase().indexOf("ontos")!=-1) { type="lexicon.generalKB"; }
+        if(node["key"].toLowerCase().indexOf("asit")!=-1) { type="lexicon.generalKB"; }
+        if(node["key"].toLowerCase().indexOf("heart failure")!=-1) { type="lexicon.generalKB"; }
+        if(node["key"].toLowerCase().indexOf("zhishi.me")!=-1) { type="lexicon.generalKB"; }
+    }
+    if(name_plus_tags.indexOf("dbpedia")!=-1) { type="lexicon.generalKB"; }
+    if(name_plus_tags.indexOf("yago")!=-1) { type="lexicon.generalKB"; }
+    if(name_plus_tags.indexOf("thesaurus")!=-1) { type="lexicon.generalKB"; }
+    if(name_plus_tags.indexOf("vocab-mappings")!=-1) { type="lexicon.generalKB"; }
+    if(name_plus_tags.indexOf("wiktionary")!=-1) { type="lexicon.lexicon"; }
+    if(name_plus_tags.indexOf("sentiment")!=-1) { type="lexicon.lexicon"; }
+    if(name_plus_tags.indexOf("lemon")!=-1) { type="lexicon.lexicon"; }
+    if(name_plus_tags.indexOf("isocat")!=-1) { type="meta.term" ; }
+    if(name_plus_tags.indexOf("biblio")!=-1) { type="meta.other"; }
+    if(name_plus_tags.indexOf("general ontology of linguistic description")!=-1) { type="meta.term"; }
+    if(name_plus_tags.indexOf("corpus")!=-1) { type="corpus"; }
+    if(name_plus_tags.indexOf("treebank")!=-1) { type="corpus"; }
+    if(name_plus_tags.indexOf("corpora")!=-1) { type="corpus"; }
+    if(name_plus_tags.indexOf("semanticquran")!=-1) { type="corpus"; }
+    if(name_plus_tags.indexOf("wordnet")!=-1) { type="lexicon.lexicon"; }
+    for(name2 in name_to_type) {
+        if(node["key"] == name2) {
+            type = name_to_type[name2];
+        }
+    }
+        
+    // html color codes: http://html-color-codes.info/
+    var color = "#777";
+    if(type == "meta") { color='#FDAE6B'; }
+    if(type == "meta.db") { color='#F08080'; }
+    if(type == "meta.term") { color='#FD8C3B'; }
+    if(type == "meta.typology") { color='#E6550D'; }
+    if(type == "lexicon") { color='#74C476'; }
+    if(type == "lexicon.generalKB") { color='#A1D99B'; }
+    if(type == "lexicon.lexicon") { color='#31A354'; }
+    if(type == "corpus") { color='#3182BD'; }
+    return color;
+}
+
+
+function breakText(text) {
+    if(text.length > 15) {
+        var i = text.indexOf(" ", 15);
+        if(i > 0) {
+            var test = breakText(text.substring(i+1));
+            test.unshift(text.substring(0,i));
+            return test;
+        } else {
+            return [text];
+        }
+    } else {
+        return [text];
+    }
+}
+
+function makeDiag(json) {
+    var nodes = [];
+    var node_names = [];
+    for(var key in json) {
+        if("triples" in json[key]) {
+            nodes.push({
+                "name": breakText(json[key]["name"]),
+                "lines": breakText(json[key]["name"]).length,
+                "key": key,
+                "size": json[key]["triples"],
+                "url": "http://linghub.lider-project.eu/datahub/" + key
+                });
+        } else {
+            nodes.push({
+                "name": breakText(json[key]["name"]),
+                "lines": breakText(json[key]["name"]).length,
+                "url": "http://linghub.lider-project.eu/datahub/" + key,
+                "key": key
+                });
+        }
+        node_names.push(key);
+    }
+
+    var links = [];
+    for(var key in json) {
+        for(var target in json[key]["links"]) {
+            if(node_names.indexOf(target) >= 0) {
+            links.push({
+                    "source": node_names.indexOf(key),
+                    "lines": breakText(json[key]["name"]).length,
+                    "target": node_names.indexOf(target),
+                    "weight": json[key]["links"][target]
+                    });
+            }
+        }
+    }
+
+ /* Draw the edges/links between the nodes */
+    var edges = svg.selectAll("line")
+                    .data(links)
+                    .enter()
+                    .append("line")
+                    .style("stroke", "#ccc")
+                    .style("stroke-width", arrowWidth)
+                    .attr("marker-end", "url(#end)");
+
+    /* Draw the node labels first */
+    var bubbles = svg.selectAll(".node")
+        .data(nodes)
+        .enter().append("g")
+        .attr("class", "node");
+    bubbles.append("title")
+        .text(function(d) { return d["name"]; });
+    bubbles.append("circle")
+        .attr("cursor", "pointer")
+        .attr("r", bubbleSize)
+        .attr("stroke", "#ccc")
+        .on("click", function(d) { window.open(d["url"],"_blank"); })
+        .style("fill", bubbleColor);
+    bubbles.append("text")
+        .style("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "9px")
+        .on("click", function(d) { window.open(d["url"],"_blank"); })
+        .attr("y", function(d) { return (d["lines"] * -0.7 + 0.0) + "em"; })
+        .attr("cursor", "pointer")
+        .selectAll("text")
+        .data(function(d, i) { return d["name"] })
+        .enter().append("tspan")
+        .attr("x", "0")
+        .attr("dy", "1.2em")
+        .text(function(d) { return d.toString(); });
+    /* Establish the dynamic force behavor of the nodes */
+    var force = d3.layout.force()
+                    .nodes(nodes)
+                    .links(links)
+                    .size([w,h])
+                    .linkDistance([2 * defaultVertexSize])
+                    .charge([-12000])
+                    .gravity(5.0)
+                    .start();
+       /* Run the Force effect */
+    force.on("tick", function() {
+               bubbles.attr("transform", function(d) {
+                   var r = bubbleSize(d);
+                   d.x = Math.max(r, Math.min(w-r, d.x));
+                   d.y = Math.max(r, Math.min(h-r, d.y));
+                   return "translate(" + d.x + "," + d.y + ")";
+
+                });
+               edges.attr("x1", function(d) { return d.source.x; })
+                    .attr("y1", function(d) { return d.source.y; })
+                    .attr("x2", function(d) { return d.target.x; })
+                    .attr("y2", function(d) { return d.target.y; });
+               }); // End tick func
+var k = 0;
+while ((force.alpha() > 1e-5) && (k < 500)) {
+    force.tick(),
+    k = k + 1;
+}
+}
+</script>
