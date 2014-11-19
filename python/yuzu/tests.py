@@ -25,7 +25,7 @@ class YuzuTests(unittest.TestCase):
         os.remove("test.db")
 
     def test_resolve(self):
-        assert(os.path.exists(server.resolve('xsl/rdf2html.xsl')))
+        assert(os.path.exists(server.resolve('html/rdf2html.mustache')))
 
     def test_SPARQLExecutor_run(self):
         g = Graph()
