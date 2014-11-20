@@ -537,8 +537,7 @@ where object match ? limit ?""", query, limit)
                     }
                   }
                 } catch {
-                  case x : java.net.URISyntaxException =>
-                    System.err.println("Bad URI:" + obj)
+                  case x : IllegalArgumentException =>
                 }
               }
             } else if(subj.startsWith("_:")) {
