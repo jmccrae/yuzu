@@ -45,7 +45,9 @@ class ServerTest(unittest.TestCase):
     def test_list_by_value(self):
         conn = self.do_get("/list/?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2F"
                            "rdf-schema%23label")
-        self.assertIn("Beispiel (2)", str(conn.getresponse().read()))
+        content = str(conn.getresponse().read())
+        self.assertIn("Beispiel (2)", content)
+        self.assertIn("obj_offset=0", content)
         conn.close()
 
     def test_list_by_value_object(self):
