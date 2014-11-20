@@ -391,9 +391,11 @@ where object match ? limit ?""", query, limit)
           ps2.execute()
           ps2.close()
           val ps3 = sqlexecute(conn, "select %s from %ss where %s=?" format (cache, cache, column), key)
-          val rs = ps3.executeQuery()
-          rs.next()
-          val rv = rs.getInt(1)
+          val rs3 = ps3.executeQuery()
+          rs3.next()
+          val rv = rs3.getInt(1)
+          rs3.close()
+          ps3.close()
           rs.close()
           ps.close()
           rv
@@ -517,23 +519,27 @@ where object match ? limit ?""", query, limit)
               }
               
               if(obj.startsWith("<")) {
-                val objUri = URI.create(obj.drop(1).dropRight(1))
+                try {
+                  val objUri = URI.create(obj.drop(1).dropRight(1))
 
-                if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_))) {
-                  val target = LINKED_SETS.find(objUri.toString.startsWith(_)) match {
-                    case Some(l) => l
-                    case None => new URI(
-                      objUri.getScheme(),
-                      objUri.getUserInfo(),
-                      objUri.getHost(),
-                      objUri.getPort(),
-                      "/", null, null).toString
+                  if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_))) {
+                    val target = LINKED_SETS.find(objUri.toString.startsWith(_)) match {
+                      case Some(l) => l
+                      case None => new URI(
+                        objUri.getScheme(),
+                        objUri.getUserInfo(),
+                        objUri.getHost(),
+                        objUri.getPort(),
+                        "/", null, null).toString
+                    }
+                    if(linkCounts.contains(target)) {
+                      linkCounts(target) += 1
+                    } else {
+                      linkCounts(target) = 1
+                    }
                   }
-                  if(linkCounts.contains(target)) {
-                    linkCounts(target) += 1
-                  } else {
-                    linkCounts(target) = 1
-                  }
+                } catch {
+                  case x : IllegalArgumentException =>
                 }
               }
             } else if(subj.startsWith("_:")) {

@@ -8,6 +8,8 @@ def from_model(graph, query):
     class_of_value = graph.objects(elem, RDF.type)
     try:
         class_of_value = class_of_value.next()
+    except AttributeError:
+        class_of_value = None
     except StopIteration:
         class_of_value = None
     if class_of_value:

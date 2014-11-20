@@ -328,7 +328,7 @@ class RDFServer:
             offset = 0
             prop = None
             obj = None
-            obj_offset = None
+            obj_offset = 0
             if 'QUERY_STRING' in environ:
                 qs = parse_qs(environ['QUERY_STRING'])
                 if 'offset' in qs:
@@ -444,7 +444,8 @@ class RDFServer:
                     'prop_uri': facet['uri_enc'],
                     'value_enc': quote_plus(v['link']),
                     'value': v['label'][:100],
-                    'count': v['count']} for v in val_results]
+                    'count': v['count'],
+                    'offset': obj_offset} for v in val_results]
                 if mv:
                     facet['more_values'] = obj_offset + 20
                 facets.append(facet)
