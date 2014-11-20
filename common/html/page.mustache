@@ -8,13 +8,6 @@
     <!-- JQuery (not required) -->
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
     <style>
-        .page-header h1 {
-            font-family: 'Nova Square', cursive;
-            font-size: 80px;
-        }
-        .page-header img {
-            padding-right:60px;
-        }
         .rdf_table {
             background-color: #eee;
             margin-top: 40px;
@@ -55,6 +48,7 @@
         }
         .rdf_header {
             border-bottom: 1px solid #eee;
+            margin-top: 30px;
         }
         .rdf_classof {
             font-style: italic;
@@ -68,7 +62,7 @@
     <link rel="shortcut icon" href="{{context}}/favicon.ico" />
 </head>
 <body style="padding-top:100px;padding-bottom:100px;">
-    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;">
+    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;height:100px;">
         <div class="container">
             <div class="navbar-header">
                 <a href="{{context}}/"><img src="{{context}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
@@ -78,6 +72,18 @@
     </div>
     <div class="container">
         <div class="row">
+    <!--<div class="alert alert-danger">
+        <h3 style="margin-top:5px;">Step 1</h3>
+        <p>This is the default basic style for Yuzu, you should adapt this 
+        to your site by editing <tt>common/html/page.html</tt>. For more 
+        details see README</p>
+    </div>-->
+    {{#is_test}}
+    <div class="alert alert-danger">
+        <h3 style="margin-top:5px;">This is a Test Instance</h3>
+        <p>The URL used to access this instance does not correspond to the configuration.</p>
+    </div>
+    {{/is_test}}
             {{{content}}}
         </div>
     </div>

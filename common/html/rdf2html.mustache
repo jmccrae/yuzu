@@ -18,10 +18,6 @@
     <h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>
 {{/classOf}}
 <table class="rdf_table" resource="">
-    <!--<tr>
-        <th class="rdf_title">Property</th>
-        <th class="rdf_title">Value</th>
-    </tr>-->
     {{#triples}}
         {{^has_triples}}
             {{> triple}}
@@ -38,11 +34,8 @@
             {{#elem}}
                 {{#classOf}}<h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
             {{/elem}}
-        <table class="rdf_table" resource="{{uri}}">
-        <!--    <tr>
-                <th class="rdf_title">Property</th>
-                <th class="rdf_title">Value</th>
-            </tr>-->
+        <span property="{{#prop}}{{uri}}{{/prop}}" resource="{{#elem}}{{uri}}{{/elem}}"></span>
+        <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}" id="{{fragment}}">
                 {{#elem}}
                     {{#triples}}
                         {{> triple}}
