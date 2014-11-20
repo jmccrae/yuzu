@@ -7,8 +7,6 @@
     <link href="{{context}}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
     <!-- JQuery (not required) -->
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-    <!-- Font for Yuzu logo -->
-    <link href='http://fonts.googleapis.com/css?family=Nova+Square' rel='stylesheet' type='text/css'>
     <style>
         .page-header h1 {
             font-family: 'Nova Square', cursive;
@@ -19,22 +17,6 @@
         }
     </style>
     <link rel="shortcut icon" href="{{context}}/favicon.ico" />
-    <!-- You should include this in your template to make RDF tables appear correctly -->
-    <link href="{{context}}/assets/rdf.css" media="all" rel="stylesheet" type="text/css">
-    <!-- Used to reveal/show RDF format options -->
-    <script type="text/javascript">
-        var rdf_formats_revealed = false;
-
-        function toggle_rdf_format_list() {
-            if(rdf_formats_revealed) {
-                document.getElementById('rdf_format_list').style.display='none';
-                rdf_formats_revealed = false;
-            } else {
-                document.getElementById('rdf_format_list').style.display='inline';
-                rdf_formats_revealed = true;
-            }
-        }
-    </script>
 </head>
 <body style="padding-top:100px;padding-bottom:100px;">
     <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;">
