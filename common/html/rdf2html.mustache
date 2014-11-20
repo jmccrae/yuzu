@@ -1,10 +1,19 @@
-<h1 style="word-wrap:break-word;">{{display}}<img src="/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/></h1>
-<ul id="rdf_format_list">
-    <li class="rdf_format"><a href="{{uri}}.json">JSON-LD</a></li>
-    <li class="rdf_format"><a href="{{uri}}.nt">N-Triples</a></li>
-    <li class="rdf_format"><a href="{{uri}}.ttl">Turtle</a></li>
-    <li class="rdf_format"><a href="{{uri}}.rdf">RDF/XML</a></li>
+<div>
+<h1 style="word-wrap:break-word;display:inline;">{{display}}</h1>
+<!--<img src="{{context}}/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/></h1>-->
+<ul class="nav nav-tabs pull-right">
+    <li class="active">
+        <a href="{{uri}}.html">HTML</a></li>
+    <li>
+        <a href="{{uri}}.rdf">RDF/XML</a></li>
+    <li>
+        <a href="{{uri}}.nt">N-Triples</a></li>
+    <li>
+        <a href="{{uri}}.ttl">Turtle</a></li>
+    <li>
+        <a href="{{uri}}.json">JSON-LD</a></li>
 </ul>
+</div>
 {{#classOf}}
     <h5>Instance of: <a href="{{uri}}">{{display}}</a></h5>
 {{/classOf}}

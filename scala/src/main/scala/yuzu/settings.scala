@@ -6,7 +6,7 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://localhost:8080/"
+  val BASE_NAME = "http://linghub.lider-project.eu/"
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
@@ -18,11 +18,7 @@ object YuzuSettings {
   // Where the database should appear
   val DB_FILE = "linghub.db"
   // The name of the server
-<<<<<<< HEAD
   val DISPLAY_NAME = "LingHub"
-=======
-  val DISPLAY_NAME = "Example"
->>>>>>> master
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://www.w3.org/ns/dcat#"
