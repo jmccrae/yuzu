@@ -14,6 +14,9 @@ object DataID {
 
     val dataid = model.createResource(BASE_NAME + METADATA_PATH)
 
+    dataid.addProperty(RDF.`type`, model.createResource(DCAT + "Dataset"))
+    dataid.addProperty(RDF.`type`, model.createResource(VOID + "Dataset"))
+
     dataid.addProperty(
       model.createProperty(DCAT + "title"),
       DISPLAY_NAME, LANG)
@@ -30,7 +33,7 @@ object DataID {
       case Some(SearchResult(link, _)) =>
         dataid.addProperty(
           model.createProperty(VOID + "exampleResource"),
-          model.createResource(BASE_NAME + link))
+          model.createResource(link))
       case None =>
     }
 
@@ -95,6 +98,8 @@ object DataID {
     PUBLISHER_NAME match {
       case Some(pn) =>
         val publisher = model.createResource(BASE_NAME + METADATA_PATH + "#Publisher")
+        publisher.addProperty(RDF.`type`, model.createResource(FOAF + "Agent"))
+        publisher.addProperty(RDF.`type`, model.createResource(PROV + "Agent"))
         dataid.addProperty(
           DC_11.publisher,
           publisher)
@@ -113,6 +118,8 @@ object DataID {
 
     for(((cn, ce), id) <- (CREATOR_NAMES zip CREATOR_EMAILS).zipWithIndex) {
       val creator = model.createResource(BASE_NAME + METADATA_PATH + "#Creator-" + (id + 1))
+      creator.addProperty(RDF.`type`, model.createResource(FOAF + "Agent"))
+      creator.addProperty(RDF.`type`, model.createResource(PROV + "Agent"))
       dataid.addProperty(
         DC_11.creator,
         creator)
@@ -128,6 +135,8 @@ object DataID {
 
     for(((cn, ce), id) <- (CONTRIBUTOR_NAMES zip CONTRIBUTOR_EMAILS).zipWithIndex) {
       val creator = model.createResource(BASE_NAME + METADATA_PATH + "#Contributor-" + (id + 1))
+      creator.addProperty(RDF.`type`, model.createResource(FOAF + "Agent"))
+      creator.addProperty(RDF.`type`, model.createResource(PROV + "Agent"))
       dataid.addProperty(
         DC_11.creator,
         creator)
@@ -149,6 +158,8 @@ object DataID {
 
     val dump = model.createResource(BASE_NAME + METADATA_PATH + "#Dump")
 
+    dump.addProperty(RDF.`type`, model.createResource(DCAT + "Distribution"))
+
     dataid.addProperty(
       model.createProperty(DCAT + "distribution"),
       dump)
@@ -156,6 +167,10 @@ object DataID {
     dump.addProperty(
       model.createProperty(DCAT + "downloadURL"),
       model.createResource(BASE_NAME.dropRight(1) + DUMP_URI))
+
+    dataid.addProperty( 
+      model.createProperty(VOID + "triples"),
+      backend.tripleCount.toString, NodeFactory.getType(XSD.integer.getURI()))
 
     dump.addProperty( 
       model.createProperty(VOID + "triples"),
@@ -165,20 +180,14 @@ object DataID {
       DC_11.format,
       "application/x-gzip")
 
-    val sparql = model.createResource(BASE_NAME + METADATA_PATH + "#SparqlEndpoint")
-
-    dataid.addProperty(
-      model.createProperty(VOID + "sparqlEndpoint"),
-      sparql)
-
     SPARQL_ENDPOINT match {
       case Some(se) =>
-        sparql.addProperty(
-          model.createProperty(DCAT + "accessURL"),
+        dataid.addProperty(
+          model.createProperty(VOID + "sparqlEndpoint"),
           model.createResource(se))
       case None =>
-        sparql.addProperty(
-          model.createProperty(DCAT + "accessURL"),
+        dataid.addProperty(
+          model.createProperty(VOID + "sparqlEndpoint"),
           model.createProperty(BASE_NAME.dropRight(1) + SPARQL_PATH))
     }
 
@@ -193,6 +202,9 @@ object DataID {
       linkset.addProperty(
         model.createProperty(VOID + "triples"),
         count.toString, NodeFactory.getType(XSD.integer.getURI()))
+      linkset.addProperty(
+        RDF.`type`,
+        model.createResource(VOID + "LinkSet"))
     }
         
     model

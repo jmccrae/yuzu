@@ -86,7 +86,7 @@ object mustache {
 object RDFServer {
 
   def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
-    val template = mustache(resolve("html/page.html"))
+    val template = mustache(resolve("html/page.mustache"))
     template.substitute("title"-> title, "app_title" -> DISPLAY_NAME, 
                         "content" -> text)
   }
@@ -426,11 +426,6 @@ class RDFServer extends HttpServlet {
         case _ => None
       }
       listResources(resp, offset, property, obj, objOffset)
-    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
-      resp.respond("text/html", SC_OK) {
-        out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute()))
-      }
     } else if(METADATA_PATH != null && uri == ("/" + METADATA_PATH)) {
       val model = DataID.get
       val content = if(mime == html) {
@@ -443,6 +438,11 @@ class RDFServer extends HttpServlet {
       }
       resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
         out => out.print(content)
+      }
+    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
+      resp.respond("text/html", SC_OK) {
+        out => out.println(renderHTML(DISPLAY_NAME, 
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute()))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri

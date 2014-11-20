@@ -6,6 +6,10 @@ from yuzu.settings import DISPLAYER, CONTEXT
 def from_model(graph, query):
     elem = URIRef(query)
     class_of_value = graph.objects(elem, RDF.type)
+    try:
+        class_of_value = class_of_value.next()
+    except StopIteration:
+        class_of_value = None
     if class_of_value:
         class_of = from_node(graph, class_of_value, [])
     else:
@@ -13,7 +17,7 @@ def from_model(graph, query):
     model = {
         'display': DISPLAYER.apply(elem),
         'uri': query,
-        'triples': list(triple_frags(elem, graph, [])),
+        'triples': list(triple_frags(elem, graph, [], class_of_value)),
         'has_triples': len(list(graph.predicate_objects(elem))) > 0,
         'classOf': class_of,
         'context': CONTEXT
@@ -46,14 +50,15 @@ def groupby(triples):
     return result
 
 
-def triple_frags(elem, graph, stack):
+def triple_frags(elem, graph, stack, classOf):
     if elem in stack:
         for p in []:
             yield p
     else:
         triples = [(from_node(graph, p, [elem] + stack),
                     from_node(graph, o, [elem] + stack))
-                   for p, o in graph.predicate_objects(elem) if p != RDF.type]
+                   for p, o in graph.predicate_objects(elem)
+                   if p != RDF.type or o != classOf]
         sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
         grouped = groupby(sortt)
         for p, objs in grouped:
@@ -72,7 +77,7 @@ def from_node(graph, node, stack):
         return {
             'display': DISPLAYER.apply(node),
             'uri': str(node),
-            'triples': list(triple_frags(node, graph, stack)),
+            'triples': list(triple_frags(node, graph, stack, None)),
             'has_triples': len(list(graph.predicate_objects(node))) > 0,
             'context': CONTEXT
         }
@@ -80,7 +85,7 @@ def from_node(graph, node, stack):
         return {
             'display': DISPLAYER.apply(node),
             'bnode': True,
-            'triples': list(triple_frags(node, graph, stack)),
+            'triples': list(triple_frags(node, graph, stack, None)),
             'has_triples': len(list(graph.predicate_objects(node))) > 0,
             'context': CONTEXT
         }

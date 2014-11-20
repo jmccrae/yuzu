@@ -26,6 +26,9 @@
             <h3><a href="{{uri}}">{{display}}</a></h3>
         {{/prop}}
             {{#obj}}
+            {{#elem}}
+                {{#classOf}}<h5><a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
+            {{/elem}}
         <table class="rdf rdf_main table table-hover" resource="{{uri}}">
             <tr>
                 <th>Property</th>

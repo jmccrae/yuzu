@@ -533,6 +533,30 @@ pids.pid where property=? group by oid order by count(*) desc""",
         cursor.close()
         conn.close()
 
+    def triple_count(self):
+        try:
+            return self._triple_count
+        except AttributeError:
+            conn = sqlite3.connect(self.db)
+            cursor = conn.cursor()
+            cursor.execute("select count(*) from triple_ids")
+            count, = cursor.fetchone()
+            self._triple_count = count
+            cursor.close()
+            conn.close()
+            return count
+
+    def link_counts(self):
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+        cursor.execute("select count, target from links")
+        try:
+            for c, t in cursor.fetchall():
+                yield (t, c)
+        finally:
+            cursor.close()
+            conn.close()
+
 
 def unicode_escape(s):
     i = 0
