@@ -1,4 +1,4 @@
-<div>
+<div class="rdf_header">
 <h1 style="word-wrap:break-word;display:inline;">{{display}}</h1>
 <!--<img src="{{context}}/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/></h1>-->
 <ul class="nav nav-tabs pull-right">
@@ -15,13 +15,13 @@
 </ul>
 </div>
 {{#classOf}}
-    <h5>Instance of: <a href="{{uri}}">{{display}}</a></h5>
+    <h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>
 {{/classOf}}
-<table class="rdf rdf_main table table-hover" resource="">
-    <tr>
-        <th>Property</th>
-        <th>Value</th>
-    </tr>
+<table class="rdf_table" resource="">
+    <!--<tr>
+        <th class="rdf_title">Property</th>
+        <th class="rdf_title">Value</th>
+    </tr>-->
     {{#triples}}
         {{^has_triples}}
             {{> triple}}
@@ -32,17 +32,17 @@
 {{#triples}}
     {{#has_triples}}
         {{#prop}}
-            <h3><a href="{{uri}}">{{display}}</a></h3>
+            <h3 class="rdf_subheader"><a href="{{uri}}">{{display}}</a></h3>
         {{/prop}}
             {{#obj}}
             {{#elem}}
-                {{#classOf}}<h5><a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
+                {{#classOf}}<h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
             {{/elem}}
-        <table class="rdf rdf_main table table-hover" resource="{{uri}}">
-            <tr>
-                <th>Property</th>
-                <th>Value</th>
-            </tr>
+        <table class="rdf_table" resource="{{uri}}">
+        <!--    <tr>
+                <th class="rdf_title">Property</th>
+                <th class="rdf_title">Value</th>
+            </tr>-->
                 {{#elem}}
                     {{#triples}}
                         {{> triple}}
