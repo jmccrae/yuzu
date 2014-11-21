@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.dirname(__file__))
 import lxml.etree as et
 from wsgiref.simple_server import make_server
+from wsgiref.util import request_uri
 if sys.version_info[0] < 3:
     from urlparse import parse_qs
     from urllib import quote_plus
@@ -60,7 +61,7 @@ class RDFServer:
         self.backend = RDFBackend(db)
 
     @staticmethod
-    def render_html(title, text):
+    def render_html(title, text, is_test=False):
         """Apply the standard template to some more HTML. This method is used
         in the creation of most pages
         @param title The page title (in the header)
@@ -69,7 +70,8 @@ class RDFServer:
         template = open(resolve("html/page.mustache")).read()
         return pystache.render(template, {'title': title, 'content': text,
                                           'app_title': DISPLAY_NAME,
-                                          'context': CONTEXT})
+                                          'context': CONTEXT,
+                                          'is_test': is_test})
 
     @staticmethod
     def send302(start_response, location):
@@ -194,7 +196,7 @@ class RDFServer:
                 else:
                     g = Graph()
                     g.parse(data=result)
-                    content = self.rdfxml_to_html(g, None)
+                    content = self.rdfxml_to_html(g, None, False)
                 result = self.render_html("SPARQL Results", content)
                 return [result.encode('utf-8')]
 
@@ -215,7 +217,7 @@ class RDFServer:
         graph.namespace_manager.bind(PREFIX8_QN, PREFIX8_URI)
         graph.namespace_manager.bind(PREFIX9_QN, PREFIX9_URI)
 
-    def rdfxml_to_html(self, graph, query, title=""):
+    def rdfxml_to_html(self, graph, query, title="", is_test=False):
         """Convert RDF data to XML
         @param graph The RDFlib graph object
         @param title The page header to show (optional)
@@ -223,11 +225,12 @@ class RDFServer:
         elem = from_model(graph, query)
         renderer = pystache.Renderer(search_dirs=resolve("html/"))
         data_html = renderer.render_name("rdf2html", elem)
-        return self.render_html(title, data_html)
+        return self.render_html(title, data_html, is_test)
 
     def application(self, environ, start_response):
         """The entry point for all queries (see WSGI docs for more details)"""
         uri = environ['PATH_INFO'].encode('latin-1').decode()
+        is_test = request_uri(environ) == BASE_NAME + uri
 
         # Guess the file type required
         if re.match(".*\.html", uri):
@@ -256,13 +259,13 @@ class RDFServer:
             if not exists(DB_FILE):
                 return [self.render_html(DISPLAY_NAME, pystache.render(
                     open(resolve("html/onboarding.mustache")).read(),
-                    {'context': CONTEXT}))]
+                    {'context': CONTEXT}), is_test)]
             else:
                 return [self.render_html(
                     DISPLAY_NAME,
                     pystache.render(open(resolve("html/index.html")).read(),
-                        {'property_facets': FACETS, 'context': CONTEXT})
-                    ).encode('utf-8')]
+                        {'property_facets': FACETS, 'context': CONTEXT}),
+                    is_test).encode('utf-8')]
         # The search page
         elif (SEARCH_PATH and
               (uri == SEARCH_PATH or uri == (SEARCH_PATH + "/"))):
@@ -318,12 +321,13 @@ class RDFServer:
                     s = open(resolve("html/sparql.html")).read()
                     return [self.render_html(
                         DISPLAY_NAME,
-                        s).encode('utf-8')]
+                        s, is_test).encode('utf-8')]
             else:
                 start_response('200 OK', [('Content-type',
                                            'text/html; charset=utf-8')])
                 s = open(resolve("html/sparql.html")).read()
-                return [self.render_html(DISPLAY_NAME, s).encode('utf-8')]
+                return [self.render_html(DISPLAY_NAME, s,
+                                         is_test).encode('utf-8')]
         elif LIST_PATH and (uri == LIST_PATH or uri == (LIST_PATH + "/")):
             offset = 0
             prop = None
@@ -350,7 +354,7 @@ class RDFServer:
             graph = dataid()
             if mime == "html":
                 content = self.rdfxml_to_html(graph, BASE_NAME + METADATA_PATH,
-                                              YZ_METADATA)
+                                              YZ_METADATA, is_test)
             else:
                 try:
                     self.add_namespaces(graph)
@@ -374,7 +378,8 @@ class RDFServer:
             s = pystache.render(open(resolve(
                 "html/%s.html" % re.sub("/$", "", uri))).read(),
                 {'context': CONTEXT})
-            return [self.render_html(DISPLAY_NAME, s).encode('utf-8')]
+            return [self.render_html(DISPLAY_NAME, s,
+                                     is_test).encode('utf-8')]
         # Anything else is sent to the backend
         elif re.match("^/(.*?)(|\.nt|\.html|\.rdf|\.ttl|\.json)$", uri):
             id, _ = re.findall(
@@ -390,7 +395,8 @@ class RDFServer:
             else:
                 title = id
             if mime == "html":
-                content = self.rdfxml_to_html(graph, BASE_NAME + id, title)
+                content = self.rdfxml_to_html(graph, BASE_NAME + id, title,
+                                              is_test)
             else:
                 try:
                     self.add_namespaces(graph)

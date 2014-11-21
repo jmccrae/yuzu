@@ -85,10 +85,10 @@ object mustache {
 
 object RDFServer {
 
-  def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
+  def renderHTML(title : String, text : String, isTest : Boolean)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.mustache"))
     template.substitute("title"-> title, "app_title" -> DISPLAY_NAME, 
-                        "content" -> text)
+      "content" -> text, "is_test" -> isTest)
   }
 
   def send302(resp : HttpServletResponse, location : String) { resp.sendRedirect(location) }
@@ -100,7 +100,7 @@ object RDFServer {
   }
   def send501(resp : HttpServletResponse, message : String = YZ_JSON_LD_NOT_INSTALLED)(implicit resolve : PathResolver) {
     resp.sendError(SC_NOT_IMPLEMENTED,
-      renderHTML(YZ_NOT_IMPLEMENTED, message))
+      renderHTML(YZ_NOT_IMPLEMENTED, message, false))
   }
   
   def mimeToResultType(mime : String) = mime match {
@@ -248,7 +248,7 @@ class RDFServer extends HttpServlet {
             throw new RuntimeException(msg, t)
         }
         resp.respond("text/html", SC_OK) {
-          out => out.println(renderHTML("SPARQL Results", content))
+          out => out.println(renderHTML("SPARQL Results", content, false))
         }
       } else {
         val (content, mime) = result match {
@@ -302,7 +302,7 @@ class RDFServer extends HttpServlet {
   def rdfxmlToHtml(model : Model, query : Option[String], title : String = "") : String = query match {
     case Some(q) =>
       val elem = QueryElement.fromModel(model, q)
-      return renderHTML(title, mustache.rdf2html.generate(elem))
+      return renderHTML(title, mustache.rdf2html.generate(elem), false)
     case None =>
       throw new UnsupportedOperationException("TODO")
   }
@@ -318,6 +318,7 @@ class RDFServer extends HttpServlet {
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
     val uri = req.getPathInfo()
+    val isTest = req.getRequestURL().toString() == (BASE_NAME + uri)
     var mime = if(uri.matches(".*\\.html")) {
       html
     } else if(uri.matches(".*\\.rdf")) {
@@ -346,16 +347,16 @@ class RDFServer extends HttpServlet {
       if(!new File(DB_FILE).exists && !new File(DB_FILE + ".mv.db").exists) {
         resp.respond("text/html", SC_OK) {
           _.println(renderHTML(DISPLAY_NAME,
-            mustache(resolve("html/onboarding.html")).substitute()))
+            mustache(resolve("html/onboarding.html")).substitute(), isTest))
         }
       } else {
        resp.respond("text/html",SC_OK) {
-          out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS)))
+          out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS), isTest))
         }
       }
     } else if(LICENSE_PATH != null && uri == LICENSE_PATH) {
       resp.respond("text/html",SC_OK) {
-        out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/license.html"))))
+        out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/license.html")), isTest))
       }
     } else if(SEARCH_PATH != null && (uri == SEARCH_PATH || uri == (SEARCH_PATH + "/"))) {
       if(req.getQueryString() != null) {
@@ -388,12 +389,12 @@ class RDFServer extends HttpServlet {
             Option(qs.get("default-graph-uri")).map(_(0)), resp)
         } else {
           resp.respond("text/html", SC_OK) {
-            out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html"))))
+            out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html")), isTest))
           }
         }
       } else {
         resp.respond("text/html", SC_OK) {
-          out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html"))))
+          out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html")), isTest))
         }
       }
     } else if(LIST_PATH != null && (uri == LIST_PATH || uri == (LIST_PATH + "/"))) {
@@ -442,7 +443,7 @@ class RDFServer extends HttpServlet {
     } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute()))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
@@ -515,7 +516,7 @@ class RDFServer extends HttpServlet {
           "prev" -> prev.toString,
           "has_next" -> hasNext,
           "next" -> next.toString,
-          "pages" -> pages)))
+          "pages" -> pages), false))
     }
   }
 
@@ -526,7 +527,7 @@ class RDFServer extends HttpServlet {
       "results" -> results
     )
     resp.respond("text/html", SC_OK) {
-      out => out.println(renderHTML(DISPLAY_NAME, page))
+      out => out.println(renderHTML(DISPLAY_NAME, page, false))
     }
   }
 

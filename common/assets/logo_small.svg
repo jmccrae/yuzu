@@ -314,7 +314,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4"
-     inkscape:cx="325.30791"
+     inkscape:cx="199.59362"
      inkscape:cy="794.89318"
      inkscape:document-units="px"
      inkscape:current-layer="flowRoot2989"
@@ -332,7 +332,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -344,47 +344,47 @@
        style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        id="flowRoot2989">
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 172.21782,28.435286 c -8.63999,-9.07199 -22.60801,-9.07199 -31.248,0 -8.63999,8.78399 -8.63999,23.32801 0,32.4 l 19.728,20.16 0,20.160004 c 0,12.67199 10.36801,22.896 22.896,22.896 12.67199,0 23.04,-10.22401 23.04,-22.896 l 0,-23.184004 -34.416,-49.536"
          id="path3782"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 226.36182,60.835286 c 8.63999,-9.07199 9.21599,-23.32801 0.576,-32.112 -8.63999,-9.07199 -23.47201,-9.35999 -32.256,-0.288 l -10.656,11.376 25.344,35.856 16.992,-14.832"
          id="path3000"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 283.12932,45.283286 c 0.576,-30.52797 -47.232,-29.66397 -47.232,0 l 0,31.536 c 0,26.207974 19.15203,48.384004 47.232,48.384004 l 0,-79.920004"
          id="path3778"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 334.10532,76.819286 0,-31.536 c 0,-31.10397 -47.232,-29.37597 -47.232,0 l 0,79.920004 c 27.93597,0 47.232,-22.17603 47.232,-48.384004"
          id="path3002"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 337.55232,44.851286 c 0,11.08799 7.77601,20.88 18,23.328 l 45.936,-46.224 -40.896,0 c -12.67199,0 -23.04,10.36801 -23.04,22.896"
          id="path3788"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 407.96832,21.955286 -1.44,0 -61.056,62.064 c -4.752,4.32 -8.208,10.22401 -8.208,17.424004 0,12.67199 10.65601,22.896 23.328,22.896 l 1.152,0 c 45.79195,-46.511954 54.43201,-54.720014 62.352,-62.784004 13.53599,-13.53599 6.33598,-39.6 -16.128,-39.6"
          id="path3786"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 408.40032,124.33929 c 12.52799,0 22.896,-11.52001 22.896,-22.896 0,-13.247994 -7.48801,-19.728004 -19.584,-22.752004 l -44.928,45.648004 41.616,0"
          id="path3004"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 482.81682,45.283286 c 0.576,-30.52797 -47.232,-29.66397 -47.232,0 l 0,31.536 c 0,26.207974 19.15203,48.384004 47.232,48.384004 l 0,-79.920004"
          id="path3792"
          inkscape:connector-curvature="0" />
       <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#000000;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 533.79282,76.819286 0,-31.536 c 0,-31.10397 -47.232,-29.37597 -47.232,0 l 0,79.920004 c 27.93597,0 47.232,-22.17603 47.232,-48.384004"
          id="path3006"
          inkscape:connector-curvature="0" />

@@ -18,14 +18,14 @@
             {{/has_triples}}
             {{^has_triples}}
                 {{#literal}}
-                    <span property="{{#prop}}{{uri}}{{/prop}}">{{display}}</span>
+                    <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
+                     {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
                     {{#lang}}
                         <span class="pull-right"><img src="/assets/flag/{{lang}}.gif"/></span>
                     {{/lang}}
                     {{#datatype}}
                         <span class="pull-right rdf_datatype"><a href="{{uri}}">{{display}}</a></span>
                     {{/datatype}}
-                    </span>
                 {{/literal}}
                 {{^literal}}
                     {{#bnode}}
