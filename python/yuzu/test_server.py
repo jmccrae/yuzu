@@ -281,6 +281,13 @@ class ServerTest(unittest.TestCase):
         self.assertIn("Distribution", content)
         conn.close()
 
+    def test_backlinks(self):
+        conn = self.do_get("/data/example2")
+        content = str(conn.getresponse().read())
+        self.assertIn("Is <a", content)
+        self.assertIn("href=\"http://localhost:8080/data/example\"", content)
+        conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()

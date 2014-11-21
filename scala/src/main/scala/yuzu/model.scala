@@ -10,7 +10,7 @@ case class Element(val display : String,
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
   val triples : JList[TripleFrag] = null, val datatype : Element = null,
-  val bnode : Boolean = false) {
+  val bnode : Boolean = false, val inverses : JList[TripleFrag] = null) {
     override def toString = display + Option(triples).map({ ts => 
       " [" + (ts.map({ t =>
         t.prop.display + " " + t.obj.mkString(",")
@@ -188,6 +188,20 @@ object QueryElement {
     }
   }
 
+  def inverseTripleFrags(model : Model, elem : Resource, query : String) = {
+    ((model.listStatements(null, null, elem).toSeq.filter { stat =>
+      val uriStr = stat.getSubject().getURI()
+      uriStr != null && ((uriStr.contains('#') && 
+        uriStr.substring(0, uriStr.indexOf('#')) != query) || 
+        (!uriStr.contains('#') && uriStr != query))
+    } groupBy { stat =>
+      stat.getPredicate()
+    }).toList.map {
+      case (p, ss) =>
+        new TripleFrag(fromNode(p, Nil), ss.map(s => fromNode(s.getSubject(), Nil)))
+    } sortBy(_.prop.display)).toList
+  }
+
   def fromModel(model : Model, query : String) : Element = {
     val elem = model.createResource(query)
     val classOf = elem.getProperty(RDF.`type`) match {
@@ -207,7 +221,8 @@ object QueryElement {
     Element(label,
       uri=elem.getURI(),
       triples=tripleFrags(elem, Nil, classOf),
-      classOf=fromNode(classOf))
+      classOf=fromNode(classOf),
+      inverses=inverseTripleFrags(model, elem, query))
   }
 
   def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {

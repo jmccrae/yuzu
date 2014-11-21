@@ -85,6 +85,8 @@ object YuzuSettings {
   val LINKED_SETS = List("http://dbpedia.org/")
   val NOT_LINKED = List("http://www.w3.org/", "http://purl.org/dc/",
     "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/")
+  // The minimum number of links to another dataset to be included in metadata
+  val MIN_LINKS = 1
     
   // Metadata
  
