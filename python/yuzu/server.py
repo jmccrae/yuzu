@@ -350,7 +350,15 @@ class RDFServer:
             return self.list_resources(start_response, offset,
                                        prop, obj, obj_offset)
         elif METADATA_PATH and (uri == METADATA_PATH or
-                                uri == ("/" + METADATA_PATH)):
+                                uri == ("/" + METADATA_PATH) or
+                                uri == ("/" + METADATA_PATH + ".rdf") or
+                                uri == (METADATA_PATH + ".rdf") or
+                                uri == ("/" + METADATA_PATH + ".ttl") or
+                                uri == (METADATA_PATH + ".ttl") or
+                                uri == ("/" + METADATA_PATH + ".nt") or
+                                uri == (METADATA_PATH + ".nt") or
+                                uri == ("/" + METADATA_PATH + ".json") or
+                                uri == (METADATA_PATH + ".json")):
             graph = dataid()
             if mime == "html":
                 content = self.rdfxml_to_html(graph, BASE_NAME + METADATA_PATH,

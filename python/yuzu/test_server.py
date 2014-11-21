@@ -274,11 +274,17 @@ class ServerTest(unittest.TestCase):
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
         self.assertIn("Example Resource", content)
-        self.assertIn("href=\"/data/example\"", content)
+        self.assertIn("href=\"http://localhost:8080/data/example\"", content)
         self.assertIn(">http://localhost:8080/</a>", content)
         self.assertIn("Link Set", content)
         self.assertIn("Instance of", content)
         self.assertIn("Distribution", content)
+        conn.close()
+
+    def test_dataid_rdf(self):
+        conn = self.do_get("/dataid.rdf")
+        content = str(conn.getresponse().read())
+        self.assertIn("<rdf", content)
         conn.close()
 
     def test_backlinks(self):

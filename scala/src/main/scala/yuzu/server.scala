@@ -427,7 +427,10 @@ class RDFServer extends HttpServlet {
         case _ => None
       }
       listResources(resp, offset, property, obj, objOffset)
-    } else if(METADATA_PATH != null && uri == ("/" + METADATA_PATH)) {
+    } else if(METADATA_PATH != null && (
+        uri == ("/" + METADATA_PATH) || uri == ("/" + METADATA_PATH + ".rdf") ||
+        uri == ("/" + METADATA_PATH + ".ttl") || uri == ("/" + METADATA_PATH + ".json") ||
+        uri == ("/" + METADATA_PATH + ".nt"))) {
       val model = DataID.get
       val content = if(mime == html) {
         rdfxmlToHtml(model, Some(BASE_NAME + METADATA_PATH), YZ_METADATA)

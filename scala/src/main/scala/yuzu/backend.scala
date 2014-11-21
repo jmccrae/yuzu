@@ -522,7 +522,8 @@ where object match ? limit ?""", query, limit)
                 try {
                   val objUri = URI.create(obj.drop(1).dropRight(1))
 
-                  if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_))) {
+                  if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_)) &&
+                    objUri.getScheme().startsWith("http")) {
                     val target = LINKED_SETS.find(objUri.toString.startsWith(_)) match {
                       case Some(l) => l
                       case None => new URI(
