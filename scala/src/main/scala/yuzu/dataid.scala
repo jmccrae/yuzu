@@ -33,7 +33,7 @@ object DataID {
       case Some(SearchResult(link, _)) =>
         dataid.addProperty(
           model.createProperty(VOID + "exampleResource"),
-          model.createResource(link))
+          model.createResource(BASE_NAME.dropRight(1) + link))
       case None =>
     }
 

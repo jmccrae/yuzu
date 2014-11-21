@@ -36,7 +36,7 @@ def dataid():
     g.add((dataid, DCAT.landingPage, URIRef(BASE_NAME)))
 
     g.add((dataid, VOID.exampleResource,
-          URIRef(backend.list_resources(0, 1)[1][0]["link"])))
+           URIRef(BASE[backend.list_resources(0, 1)[1][0]["link"][1:]])))
 
     g.add((dataid, DC.language, Literal(LANG)))
 

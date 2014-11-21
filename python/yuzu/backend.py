@@ -494,6 +494,8 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
                     for link in NOT_LINKED:
                         if obj_uri.startswith(link):
                             ignore = True
+                    if not obj_uri.startswith("http"):
+                        ignore = True
                     if not ignore:
                         up = urlparse(obj_uri)
                         target = "%s://%s/" % (up.scheme, up.netloc)
