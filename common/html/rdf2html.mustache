@@ -24,7 +24,8 @@
         {{/has_triples}}
     {{/triples}}
     {{#inverses}}
-        <td class="rdf_prop">
+    <tr>
+        <td class="rdf_prop rdf_first_value">
             {{#prop}}
                 Is <a href="{{uri}}">{{display}}</a> of
             {{/prop}}
@@ -34,8 +35,16 @@
                 {{#elem}}
                     <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" resource="">{{display}}</a>
                 {{/elem}}
-        </td>
+            {{^last}}
+    </td>
+</tr>
+<tr>
+    <td></td>
+    <td class="rdf_value rdf_rest_value">
+            {{/last}}
         {{/obj}}
+    </td>
+</tr>                
     {{/inverses}}
         
 </table>
@@ -50,7 +59,7 @@
                 {{#classOf}}<h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
             {{/elem}}
         <span property="{{#prop}}{{uri}}{{/prop}}" resource="{{#elem}}{{uri}}{{/elem}}"></span>
-        <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}" id="{{fragment}}">
+        <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}" id="{{#elem}}{{fragment}}{{/elem}}">
                 {{#elem}}
                     {{#triples}}
                         {{> triple}}

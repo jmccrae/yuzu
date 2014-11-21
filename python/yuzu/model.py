@@ -92,12 +92,16 @@ def inverse_triple_frags(elem, graph, query):
 
 def from_node(graph, node, stack):
     if type(node) == URIRef:
+        fragment = None
+        if '#' in str(node):
+            fragment = str(node)[str(node).index('#') + 1:]
         return {
             'display': DISPLAYER.apply(node),
             'uri': str(node),
             'triples': list(triple_frags(node, graph, stack, None)),
             'has_triples': len(list(graph.predicate_objects(node))) > 0,
-            'context': CONTEXT
+            'context': CONTEXT,
+            'fragment': fragment
         }
     elif type(node) == BNode:
         return {
