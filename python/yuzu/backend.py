@@ -15,7 +15,7 @@ else:
 
 from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
-                           LINKED_SETS)
+                           LINKED_SETS, MIN_LINKS)
 from yuzu.user_text import YZ_BAD_MIME, YZ_BAD_REQUEST
 
 __author__ = 'John P. McCrae'
@@ -517,8 +517,9 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
         cursor.execute("""create table if not exists links (count integer,
 target text)""")
         for target, count in link_counts.items():
-            cursor.execute(
-                """insert into links values (?, ?)""", (count, target))
+            if count >= MIN_LINKS:
+                cursor.execute(
+                    """insert into links values (?, ?)""", (count, target))
         cursor.execute("""create table if not exists freq_ids (pid integer,
 oid integer, count integer)""")
         for facet in FACETS:

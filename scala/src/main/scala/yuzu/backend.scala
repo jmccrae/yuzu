@@ -559,7 +559,7 @@ where object match ? limit ?""", query, limit)
         }
         cursor.execute("""create table if not exists links (count integer,
           target text)""")
-        for((target, count) <- linkCounts) {
+        for((target, count) <- linkCounts if count >= MIN_LINKS) {
           sqlexecuteonce(conn,
             """insert into links values (?, ?)""", count, target)
         }

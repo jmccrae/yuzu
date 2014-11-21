@@ -86,6 +86,8 @@ LABELS = [
 LINKED_SETS = ["http://dbpedia.org/"]
 NOT_LINKED = ["http://www.w3.org/", "http://purl.org/dc/",
               "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/"]
+# The minimum number of links to another dataset to be included in metadata
+MIN_LINKS = 1
 
 # Metadata
 

@@ -23,6 +23,21 @@
             {{> triple}}
         {{/has_triples}}
     {{/triples}}
+    {{#inverses}}
+        <td class="rdf_prop">
+            {{#prop}}
+                Is <a href="{{uri}}">{{display}}</a> of
+            {{/prop}}
+        </td>
+        <td class="rdf_value">
+            {{#obj}}
+                {{#elem}}
+                    <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" resource="">{{display}}</a>
+                {{/elem}}
+            {{/obj}}
+        </td>
+    {{/inverses}}
+        
 </table>
 
 {{#triples}}

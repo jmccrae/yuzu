@@ -22,7 +22,8 @@ def from_model(graph, query):
         'triples': list(triple_frags(elem, graph, [], class_of_value)),
         'has_triples': len(list(graph.predicate_objects(elem))) > 0,
         'classOf': class_of,
-        'context': CONTEXT
+        'context': CONTEXT,
+        'inverses': list(inverse_triple_frags(elem, graph, query))
     }
     return model
 
@@ -72,6 +73,21 @@ def triple_frags(elem, graph, stack, classOf):
                 "prop": p,
                 "obj": triple_elems(objs)
             }
+
+
+def inverse_triple_frags(elem, graph, query):
+    triples = [(from_node(graph, p, []),
+                from_node(graph, s, []))
+               for s, p in graph.subject_predicates(elem)
+               if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
+                   ('#' not in str(s) and str(s) != query))]
+    sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
+    grouped = groupby(sortt)
+    for p, objs in grouped:
+        yield {
+            "prop": p,
+            "obj": triple_elems(objs)
+        }
 
 
 def from_node(graph, node, stack):
