@@ -300,14 +300,15 @@ class RDFBackend(Store):
         if prop:
             if obj:
                 cursor.execute("""select distinct subject from triples where
-                property=? and object=? limit ? offset ?""",
+                property=? and object=? and inverse=0 limit ? offset ?""",
                                (prop, obj, limit + 1, offset))
             else:
                 cursor.execute("""select distinct subject from triples where
-                property=? limit ? offset ?""", (prop, limit + 1, offset))
+                property=? and inverse=0 limit ? offset ?""",
+                               (prop, limit + 1, offset))
         else:
-            cursor.execute("""select distinct subject from triples limit ?
-            offset ?""", (limit + 1, offset))
+            cursor.execute("""select distinct subject from triples where
+            inverse=0 limit ? offset ?""", (limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         refs = []

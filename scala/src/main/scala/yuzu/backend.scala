@@ -295,16 +295,16 @@ where object match ? limit ?""", query, limit)
         case Some(p) => obj match {
           case Some(o) => 
             sqlexecute(conn, 
-              "select distinct subject, label from triples where property=? and object=? limit ? offset ?",
+              "select distinct subject, label from triples where property=? and object=? and inverse=0 limit ? offset ?",
               p, o, limit+1, offset)
           case None =>
             sqlexecute(conn, 
-              "select distinct subject, label from triples where property=? limit ? offset ?",
+              "select distinct subject, label from triples where property=? and inverse=0 limit ? offset ?",
               p, limit+1, offset)
         }
         case None =>
           sqlexecute(conn, 
-            "select distinct subject, label from triples limit ? offset ?",
+            "select distinct subject, label from triples where inverse=0 limit ? offset ?",
             limit + 1, offset)
       }
     } catch {
