@@ -49,7 +49,7 @@ class RDFBackend(db : String) extends Backend {
     }
   }
 
-  def graph(conn : Connection) = new RDFBackendGraph(this, conn)
+  def graph(conn : Connection, stopFlag : StopFlag) = new RDFBackendGraph(this, conn, stopFlag)
  
   def from_n3(n3 : String, model : Model) = if(n3.startsWith("<") && n3.endsWith(">")) {
     model.createResource(n3.drop(1).dropRight(1))
@@ -605,7 +605,8 @@ pids.pid where property=? group by oid order by count(*) desc""",
   def query(query : String, mimeType : ResultType, 
       defaultGraphURI : Option[String], 
       timeout : Int = 10) : SPARQLResult = withConn { conn =>
-    val backendModel = ModelFactory.createModelForGraph(graph(conn))
+    val stopFlag = new StopFlag()
+    val backendModel = ModelFactory.createModelForGraph(graph(conn, stopFlag))
     val q = defaultGraphURI match {
       case Some(uri) => QueryFactory.create(query, uri)
       case None => QueryFactory.create(query)
@@ -624,7 +625,7 @@ pids.pid where property=? group by oid order by count(*) desc""",
     ste.shutdown()
     ste.awaitTermination(timeout, TimeUnit.SECONDS)
     if(!ste.isTerminated()) {
-      ste.shutdownNow()
+      stopFlag.isSet = true
       throw new TimeoutException()
     } else {
       return executor.result

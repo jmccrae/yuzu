@@ -11,6 +11,10 @@ import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 
 sealed trait SPARQLResult
 
+class StopFlag {
+  var isSet = false
+}
+
 case class TableResult(result : RDFResultSet) extends SPARQLResult {
   import scala.collection.JavaConversions._
 
@@ -89,14 +93,18 @@ class SPARQLExecutor(query : Query, qx : QueryExecution) extends Runnable {
 }
 
 
-class RDFBackendGraph(backend : RDFBackend, conn : Connection)  extends com.hp.hpl.jena.graph.impl.GraphBase {
+class RDFBackendGraph(backend : RDFBackend, conn : Connection, stopFlag : StopFlag)  extends com.hp.hpl.jena.graph.impl.GraphBase {
   import scala.collection.JavaConversions._
   protected def graphBaseFind(m : TripleMatch) : ExtendedIterator[Triple] = {
-    _graphBaseFind(m) match {
-      case Some((rs,ps)) =>
-        new SQLResultSetAsExtendedIterator(rs,ps)
-      case None => 
-        new NullExtendedIterator()
+    if(stopFlag.isSet) {
+      new NullExtendedIterator()
+    } else {
+      _graphBaseFind(m) match {
+        case Some((rs,ps)) =>
+          new SQLResultSetAsExtendedIterator(rs,ps, stopFlag)
+        case None => 
+          new NullExtendedIterator()
+      }
     }
   }
 
@@ -136,7 +144,7 @@ class NullExtendedIterator() extends ExtendedIterator[Triple] {
   def remove(): Unit = throw new UnsupportedOperationException()
 }
 
-class SQLResultSetAsExtendedIterator(rs : ResultSet, ps : PreparedStatement) extends ExtendedIterator[Triple] {
+class SQLResultSetAsExtendedIterator(rs : ResultSet, ps : PreparedStatement, stopFlag : StopFlag) extends ExtendedIterator[Triple] {
   def close() { rs.close(); ps.close() }
   def andThen[X <: Triple](x : java.util.Iterator[X]) : ExtendedIterator[Triple] = throw new UnsupportedOperationException()
   def filterDrop(x : com.hp.hpl.jena.util.iterator.Filter[com.hp.hpl.jena.graph.Triple]):
@@ -176,7 +184,7 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet, ps : PreparedStatement) ext
 
   private var _hasNext = rs.next()
   def hasNext(): Boolean = {
-    _hasNext
+    _hasNext && !stopFlag.isSet
   }
   def next(): Triple = {
     val s = rs.getString("subject")
