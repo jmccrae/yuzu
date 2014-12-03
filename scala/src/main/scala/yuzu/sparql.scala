@@ -145,7 +145,7 @@ class NullExtendedIterator() extends ExtendedIterator[Triple] {
 }
 
 class SQLResultSetAsExtendedIterator(rs : ResultSet, ps : PreparedStatement, stopFlag : StopFlag) extends ExtendedIterator[Triple] {
-  def close() { rs.close(); ps.close() }
+  def close() { println("close"); rs.close(); ps.close() }
   def andThen[X <: Triple](x : java.util.Iterator[X]) : ExtendedIterator[Triple] = throw new UnsupportedOperationException()
   def filterDrop(x : com.hp.hpl.jena.util.iterator.Filter[com.hp.hpl.jena.graph.Triple]):
   com.hp.hpl.jena.util.iterator.ExtendedIterator[com.hp.hpl.jena.graph.Triple] = throw new UnsupportedOperationException()
@@ -187,6 +187,7 @@ class SQLResultSetAsExtendedIterator(rs : ResultSet, ps : PreparedStatement, sto
     _hasNext && !stopFlag.isSet
   }
   def next(): Triple = {
+    println("next")
     val s = rs.getString("subject")
     val f = rs.getString("fragment")
     val p = rs.getString("property")

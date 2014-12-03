@@ -241,6 +241,7 @@ where object match ? limit ?""", query, limit)
         }
       }
     }
+    println(ps)
     return (ps.executeQuery(),ps)
   }
 
