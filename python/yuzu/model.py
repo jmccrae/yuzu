@@ -5,21 +5,16 @@ from yuzu.settings import DISPLAYER, CONTEXT
 
 def from_model(graph, query):
     elem = URIRef(query)
-    class_of_value = graph.objects(elem, RDF.type)
-    try:
-        class_of_value = class_of_value.next()
-    except AttributeError:
-        class_of_value = None
-    except StopIteration:
-        class_of_value = None
-    if class_of_value:
-        class_of = from_node(graph, class_of_value, [])
-    else:
-        class_of = None
+    class_of = None
+    class_of_objects = graph.objects(elem, RDF.type)
+    if class_of_objects:
+        for class_of_value in graph.objects(elem, RDF.type):
+            class_of = from_node(graph, class_of_value, [])
+            break
     model = {
         'display': DISPLAYER.apply(elem),
         'uri': query,
-        'triples': list(triple_frags(elem, graph, [], class_of_value)),
+        'triples': list(triple_frags(elem, graph, [], class_of)),
         'has_triples': len(list(graph.predicate_objects(elem))) > 0,
         'classOf': class_of,
         'context': CONTEXT,
