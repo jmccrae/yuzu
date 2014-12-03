@@ -626,6 +626,7 @@ pids.pid where property=? group by oid order by count(*) desc""",
     ste.awaitTermination(timeout, TimeUnit.SECONDS)
     if(!ste.isTerminated()) {
       stopFlag.isSet = true
+      ste.awaitTermination(1, TimeUnit.DAYS)
       throw new TimeoutException()
     } else {
       return executor.result
