@@ -32,7 +32,7 @@ from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
                             YZ_INVALID_QUERY, YZ_BAD_REQUEST,
                             YZ_NOT_FOUND_TITLE, YZ_NOT_FOUND_PAGE,
                             YZ_JSON_LD_NOT_INSTALLED, YZ_NOT_IMPLEMENTED,
-                            YZ_METADATA)
+                            YZ_METADATA, YZ_NO_RESULTS)
 from yuzu.dataid import dataid
 
 
@@ -279,7 +279,7 @@ class RDFServer:
                         prop = None
                     return self.search(start_response, query, prop)
                 else:
-                    return self.send400(start_response, YZ_NO_QUERY)
+                    return self.send400(start_response, YZ_NO_RESULTS)
             else:
                 return self.send400(start_response, YZ_NO_QUERY)
         # The dump file
