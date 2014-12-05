@@ -39,6 +39,9 @@ object Schema {
     def subject = foreignKey("sids", sid, sids)(_.sid)
     def property = foreignKey("pids", pid, pids)(_.pid)
     def `object` = foreignKey("object", oid, oids)(_.oid)
+    def ps = index("k_triples_subject", sid)
+    def pp = index("k_triples_property", pid)
+    def po = index("k_triples_object", oid)
   }
   lazy val triple_ids = TableQuery[TripleIds]
 
