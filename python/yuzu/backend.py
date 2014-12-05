@@ -421,11 +421,17 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
             """create table if not exists sids (sid integer primary key,
                 subject text not null, label text, unique(subject))""")
         cursor.execute(
+            """create index if not exists sid_idx on sids (subject)""")
+        cursor.execute(
             """create table if not exists pids (pid integer primary key,
                 property text not null, unique(property))""")
         cursor.execute(
+            """create index if not exists pid_idx on pids (property)""")
+        cursor.execute(
             """create table if not exists oids (oid integer primary key,
                 object text not null, unique(object))""")
+        cursor.execute(
+            """create index if not exists sid_idx on oids (object)""")
         cursor.execute(
             """create table if not exists triple_ids (sid integer not null,
           fragment varchar(65535), pid integer not null, oid integer not null,
