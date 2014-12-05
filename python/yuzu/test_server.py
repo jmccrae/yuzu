@@ -169,7 +169,7 @@ class ServerTest(unittest.TestCase):
         conn = self.do_get("/search/?property=&query=English")
         content = str(conn.getresponse().read())
         self.assertIn("href=\"/data/example2\"", content)
-        self.assertNotIn("No Results!", content)
+        self.assertNotIn("No Results", content)
         conn.close()
 
     def test_search2(self):
@@ -181,7 +181,13 @@ class ServerTest(unittest.TestCase):
     def test_search_fail(self):
         conn = self.do_get("/search/?property=&query=gobbledegook")
         content = str(conn.getresponse().read())
-        self.assertIn("No Results!", content)
+        self.assertIn("No Results", content)
+        conn.close()
+
+    def test_search_fail2(self):
+        conn = self.do_get("/search/?query=")
+        content = str(conn.getresponse().read())
+        self.assertIn("No Results", content)
         conn.close()
 
     def test_search_prop(self):
