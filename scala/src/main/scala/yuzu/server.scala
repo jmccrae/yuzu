@@ -183,7 +183,7 @@ object RDFServer {
   }
 }
 
-class RDFServer extends HttpServlet {
+class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet {
   import RDFServer._
  
   implicit class URLPimps(url : URL) {
@@ -219,8 +219,6 @@ class RDFServer extends HttpServlet {
     }
   }
 
-  lazy val db : String = DB_FILE
-  lazy val backend : Backend = new RDFBackend(db)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
 
   def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
