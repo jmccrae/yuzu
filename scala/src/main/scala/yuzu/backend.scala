@@ -12,18 +12,10 @@ import java.net.URI
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLException}
 import java.util.concurrent.{Executors, TimeoutException, TimeUnit}
 import java.util.zip.GZIPInputStream
-import scala.slick.driver.SQLiteDriver.simple._
-import scala.slick.jdbc.StaticQuery.interpolation
-import org.apache.lucene.analysis.standard.StandardAnalyzer
-import org.apache.lucene.document.{Document, Field, StringField, TextField}
-import org.apache.lucene.index.{DirectoryReader, IndexReader, IndexWriter, IndexWriterConfig}
-import org.apache.lucene.queryparser.classic.QueryParser
-import org.apache.lucene.search.{IndexSearcher, Query, ScoreDoc, TopScoreDocCollector }
-import org.apache.lucene.store.FSDirectory
-import org.apache.lucene.util.Version
 
 case class SearchResult(link : String, label : String)
 case class SearchResultWithCount(link : String, label : String, count : Int)
+
 
 trait Backend {
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
@@ -38,20 +30,26 @@ trait Backend {
   def linkCounts : Seq[(String, Int)]
 }
 
+
 // Standard SQL Implementation
 class RDFBackend(db : String) extends Backend {
   import RDFBackend._
-  import Schema._
+  try {
+    Class.forName("org.sqlite.JDBC")
+  } catch {
+    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x)
+  }
 
-  def withConn[A](foo : Session => A) : A = {
-    val database = Database.forURL("jdbc:sqlite:" + db, driver="org.sqlite.JDBC")
-    database.withSession { implicit session =>
-      foo(session)
+  def withConn[A](foo : Connection => A) = {
+    val conn = DriverManager.getConnection("jdbc:sqlite:" + db)
+    try {
+      foo(conn)
+    } finally {
+      conn.close()
     }
   }
 
-
-  def graph(conn : Session, stopFlag : StopFlag) = new RDFBackendGraph(this, conn, stopFlag)
+  def graph(conn : Connection, stopFlag : StopFlag) = new RDFBackendGraph(this, conn, stopFlag)
  
   def from_n3(n3 : String, model : Model) = if(n3.startsWith("<") && n3.endsWith(">")) {
     model.createResource(n3.drop(1).dropRight(1))
@@ -86,48 +84,48 @@ class RDFBackend(db : String) extends Backend {
   }
 
   def lookup(id : String) : Option[Model] = withConn { conn =>
-    val trips = (for {
-      (((t, s), p), o) <- triples
-      if s.subject === id 
-    } yield (t.fragment, p.property, o._object, t.inverse)).run(conn)
-    if(trips.isEmpty) {
-      None
-    } else {
-      val model = ModelFactory.createDefaultModel()
-      for((f,p,o,i) <- trips) {
-        if(i != 0) {
-          val subject = from_n3(o, model)
-          val property = prop_from_n3(p, model)
-          val obj = model.getRDFNode(RDFBackend.name(id, Option(f)))
-          subject match {
-            case r : Resource => r.addProperty(property, obj)
-            case _ => {println(subject)}
-          }
-        } else {
-          val subject = model.getRDFNode(RDFBackend.name(id, Option(f)))
-          val property = prop_from_n3(p, model)
-          val obj = from_n3(o, model)
-          subject match {
-            case r : Resource => r.addProperty(property, obj)
-          }
-          if(o.startsWith("_:")) {
-            lookupBlanks(model, obj.asInstanceOf[Resource])
-          }
+    val ps = sqlexecute(conn, "select fragment, property, object, inverse from triples where subject=?", id)
+    val rows = ps.executeQuery()
+    if(!rows.next()) {
+      return None
+    }
+    val model = ModelFactory.createDefaultModel()
+    do {
+      val f = rows.getString(1)
+      val p = rows.getString(2)
+      val o = rows.getString(3)
+      val i = rows.getInt(4)
+      if(i != 0) {
+        val subject = from_n3(o, model)
+        val property = prop_from_n3(p, model)
+        val obj = model.getRDFNode(RDFBackend.name(id, Option(f)))
+        subject match {
+          case r : Resource => r.addProperty(property, obj)
+          case _ => {println(subject)}
+        }
+      } else {
+        val subject = model.getRDFNode(RDFBackend.name(id, Option(f)))
+        val property = prop_from_n3(p, model)
+        val obj = from_n3(o, model)
+        subject match {
+          case r : Resource => r.addProperty(property, obj)
+        }
+        if(o.startsWith("_:")) {
+          lookupBlanks(model, obj.asInstanceOf[Resource])
         }
       }
-      Some(model)
-    }
+    } while(rows.next())
+    ps.close()
+    return Some(model)
   }
 
   def lookupBlanks(model : Model, bn : Resource) { 
     withConn { conn =>
-      val ps = (for {
-        (((t, s), p), o) <- triples
-        if s.subject === "<BLANK>" && 
-           t.fragment === bn.getId().getLabelString()
-      } yield(p.property, o._object)).run(conn)
-
-      for((p, o) <- ps) {
+      val ps = sqlexecute(conn,"select property, object from triples where subject=\"<BLANK>\" and fragment=?",  bn.getId().getLabelString())
+      val rows = ps.executeQuery()
+      while(rows.next()) {
+        val p = rows.getString(1)
+        val o = rows.getString(2)
         val property = prop_from_n3(p, model)
         val obj = from_n3(o, model)
         bn.addProperty(property, obj)
@@ -135,156 +133,294 @@ class RDFBackend(db : String) extends Backend {
           lookupBlanks(model, obj.asInstanceOf[Resource])
         }
       }
+      ps.close()
     }
   }
+
 
   def search(query : String, property : Option[String], 
       limit : Int = 20) : Seq[SearchResult] = withConn { conn =>
-    val reader = DirectoryReader.open(
-      FSDirectory.open(new File(DB_FILE + "-lucene")))
- 
+    val ps = property match {
+      case Some(p) => 
+        sqlexecute(conn, """select distinct subject, label from free_text join
+pids on free_text.pid = pids.pid join sids on free_text.sid = 
+sids.sid where property=? and object match ? limit ?""", "<%s>" format p, 
+                   query, limit)
+      case None =>
+        sqlexecute(conn, """select distinct subject, label from free_text join
+pids on free_text.pid = pids.pid join sids on free_text.sid = sids.sid
+where object match ? limit ?""", query, limit)
+    }
     try {
-      val searcher = new IndexSearcher(reader)
-      val collector = TopScoreDocCollector.create(limit, true)
-      val sa = new StandardAnalyzer()
-      val qb = new org.apache.lucene.util.QueryBuilder(sa)
-
-      val q1 = qb.createBooleanQuery("object", query, org.apache.lucene.search.BooleanClause.Occur.MUST)
-      if(q1 == null) {
-        Nil
-      } else {
-        val q = property match {
-          case Some(p) =>
-            val q2 = new org.apache.lucene.search.TermQuery(
-              new org.apache.lucene.index.Term("property", "<"+p+">"))
-            val bq = new org.apache.lucene.search.BooleanQuery()
-            bq.add(q1, org.apache.lucene.search.BooleanClause.Occur.MUST)
-            bq.add(q2, org.apache.lucene.search.BooleanClause.Occur.MUST)
-            bq
-          case None =>
-            q1
+      val rs = ps.executeQuery()
+      try {
+        val results = collection.mutable.ListBuffer[SearchResult]()
+        while(rs.next()) {
+          results += SearchResult(CONTEXT + "/" + rs.getString(1), 
+            Option(rs.getString(2)).getOrElse(rs.getString(1)))
         }
-          searcher.search(q, collector)
-        val hits = collector.topDocs().scoreDocs
-       
-        for(hit <- hits.toSeq) yield {
-          val subj = searcher.doc(hit.doc).get("subject")
-          SearchResult(
-            CONTEXT + "/" + subj,
-            getLabel(subj).getOrElse(subj))
-        }
+        results.toSeq
+      } finally {
+        rs.close()
       }
     } finally {
-      reader.close()
+      ps.close()
     }
   }
 
-  private[yuzu] def listInternal(conn : Session,
+
+
+
+
+//    val reader = DirectoryReader.open(
+//      FSDirectory.open(new File(DB_FILE + "-lucene")))
+// 
+//    try {
+//      val searcher = new IndexSearcher(reader)
+//      val collector = TopScoreDocCollector.create(limit, true)
+//      val qp = new QueryParser("object", 
+//        new StandardAnalyzer())
+//
+//      val q = property match {
+//        case Some(p) => 
+//          qp.parse("object:\"%s\" AND property:\"%s\"" format (
+//            query.replaceAll("\"","\\\\\""), p))
+//        case None =>
+//          qp.parse("object:\"%s\"" format (
+//            query.replaceAll("\"", "\\\\\"")))
+//      }
+//      searcher.search(q, collector)
+//      val hits = collector.topDocs().scoreDocs
+//     
+//      for(hit <- hits.toSeq) yield {
+//        val subj = searcher.doc(hit.doc).get("subject")
+//        SearchResult(
+//          CONTEXT + "/" + subj,
+//          getLabel(subj).getOrElse(subj))
+//      }
+//    } finally {
+//      reader.close()
+//    }
+//  }
+
+  private[yuzu] def listInternal(conn : Connection,
     subj : Option[String], frag : Option[String], 
     prop : Option[String], obj : Option[String], 
-    offset : Int = 0) : Seq[(String, String, String, String)] = { 
-    (for {
-      (((t, s), p), o) <- triples
-      if ((subj == None).asColumnOf[Boolean] || s.subject === subj.getOrElse("")) &&
-        ((frag == None).asColumnOf[Boolean] || t.fragment === frag.getOrElse("")) &&
-        ((prop == None).asColumnOf[Boolean] || p.property === prop.getOrElse("")) &&
-        ((obj == None).asColumnOf[Boolean] || o._object === obj.getOrElse("")) &&
-        t.inverse === 0
-    } yield(s.subject, t.fragment, p.property, o._object)).drop(offset).run(conn)
+    offset : Int = 0) : (ResultSet, PreparedStatement) = { 
+    val ps = subj match {
+      case None => prop match {
+        case None => obj match {
+          case None => 
+            sqlexecute(conn, "select subject, fragment, property, object from triples where inverse=0")
+          case Some(o) =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where object=? and inverse=0", o)
+        }
+        case Some(p) => obj match {
+          case None =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where property=? and inverse=0", p)
+          case Some(o) =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where property=? and inverse=0 and object=?", p, o)
+        }
+      }
+      case Some(id) => prop match {
+        case None => obj match {
+          case None =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and inverse=0", id,
+              frag.getOrElse(""))
+          case Some(o) =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and object=? and inverse=0", 
+              id, frag.getOrElse(""), o)
+          }
+        case Some(p) => obj match {
+          case None =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and inverse=0", 
+              id, frag.getOrElse(""), p)
+          case Some(o) =>
+            sqlexecute(conn, "select subject, fragment, property, object from triples where subject=? and fragment=? and property=? and object=? and inverse=0", 
+              id, frag.getOrElse(""), p, o)
+        }
+      }
+    }
+    return (ps.executeQuery(),ps)
   }
 
+/*  def list(subj : Option[String], prop : Option[String], obj : Option[String], 
+    offset : Int = 0, limit : Int = 20) : (Boolean, Seq[Triple]) = {
+    val (id,frag) = subj match {
+      case Some(s) => RDFBackend.unname(s) match {
+        case Some((i,f)) => (Some(i),f)
+        case None => return (false,Nil)
+      }
+      case None => (None,None)
+    }
+    val (rs, ps) = listInternal(id,frag,prop,obj,offset)
+    val model = ModelFactory.createDefaultModel()
+    try {
+      var results = collection.mutable.ListBuffer[Triple]()
+      while(results.size < limit && rs.next()) {
+        val subject = RDFBackend.name(rs.getString(1), Some(rs.getString(2)))
+        val property = from_n3(rs.getString(3),model).asNode()
+        val obj = from_n3(rs.getString(4),model).asNode()
+        results += new Triple(subject,property,obj)
+      }
+      return (rs.next(), results.toSeq)
+    } finally {
+      rs.close()
+      ps.close()
+    }
+  }*/
+
   def getLabel(s : String) : Option[String] = withConn { conn =>
-    (for {
-      sid <- sids
-      if sid.subject === s
-    } yield(sid.label)).first(conn)
+    val ps = sqlexecute(conn, "select label from sids where subject=?", s)
+    try {
+      val rs = ps.executeQuery() 
+      try {
+        if(rs.next()) {
+          return Some(rs.getString(1))
+        } else {
+          return None
+        }
+      } finally {
+        rs.close()
+      }
+    } finally {
+      ps.close()
+    }
   }
    
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, 
     obj : Option[String] = None) : (Boolean,Seq[SearchResult]) = withConn { conn =>
-    val ps = prop match {
-      case Some(prop) => obj match {
-        case Some(obj) => 
-          (for {
-            (((t, s), p), o) <- triples
-            if p.property === prop && o._object === obj && t.inverse === 0
-          } yield(s.subject, s.label)).run(conn).distinct
+    val ps = try {
+      prop match {
+        case Some(p) => obj match {
+          case Some(o) => 
+            sqlexecute(conn, 
+              "select distinct subject, label from triples where property=? and object=? and inverse=0 limit ? offset ?",
+              p, o, limit+1, offset)
+          case None =>
+            sqlexecute(conn, 
+              "select distinct subject, label from triples where property=? and inverse=0 limit ? offset ?",
+              p, limit+1, offset)
+        }
         case None =>
-          (for {
-            (((t, s), p), o) <- triples
-            if p.property === prop && t.inverse === 0
-          } yield(s.subject, s.label)).run(conn).distinct
+          sqlexecute(conn, 
+            "select distinct subject, label from triples where inverse=0 limit ? offset ?",
+            limit + 1, offset)
       }
-      case None =>
-        (for {
-          (((t, s), p), o) <- triples
-          if t.inverse === 0
-        } yield(s.subject, s.label)).run(conn).distinct
+    } catch {
+      case x : SQLException => throw new RuntimeException("Database @ " + db + " not initialized", x)
     }
-    val n = ps.size
-    val results = ps.flatMap { 
-      case ("<BLANK>", l) => None
-      case (s, l) => Some(SearchResult(CONTEXT + "/" + s,
-        l.getOrElse(s)))
+   val rs = ps.executeQuery()
+    var n = 0
+    if(!rs.next()) {
+      ps.close()
+      return (false, Nil)
     }
+    var results = collection.mutable.ListBuffer[SearchResult]()
+    do {
+      rs.getString(1) match {
+        case "<BLANK>" => {}
+        case result => results += SearchResult(CONTEXT+"/"+result, Option(rs.getString(2)).getOrElse(result))//getLabel(result).getOrElse(result))
+      }
+      n += 1
+    } while(rs.next())
+    rs.close()
+    ps.close()
     if(n >= limit) {
-      (true, results.dropRight(1))
+      results.remove(n - 1)
+      return (true, results.toSeq)
     } else {
-      (false, results)
+      return (false, results.toSeq)
     }
   }
 
   def listValues(offset : Int, limit : Int, 
     prop : String) : (Boolean,Seq[SearchResultWithCount]) = withConn { conn =>
-
-    val ps = sql"""select distinct object, count(*) from triple_ids 
-          join pids on pids.pid = triple_ids.pid 
-          join oids on oids.oid = triple_ids.oid
-          where property=$prop group by object order by count(*) desc 
-          limit $limit offset $offset""".as[(String, Int)].list(conn)
-    val n = ps.size
+    val ps = sqlexecute(conn, "select distinct object, count(*) from triples where property=? group by object order by count(*) desc limit ? offset ?", 
+        prop, limit + 1, offset)
+    val rs = ps.executeQuery()
+    var n = 0
+    if(!rs.next()) {
+      ps.close()
+      return (false, Nil)
+    }
     val model = ModelFactory.createDefaultModel()
-    val results = ps.map { 
-      case (n3, c) =>
-        from_n3(n3, model) match {
-          case l : Literal =>
-            SearchResultWithCount(n3, l.getValue().toString(), c)
-          case r : Resource =>
+    var results = collection.mutable.ListBuffer[SearchResultWithCount]()
+    do {
+      val n3 = rs.getString(1)
+      from_n3(rs.getString(1), model) match {
+        case l : Literal => 
+          results += SearchResultWithCount(n3, l.getValue().toString(), rs.getInt(2))
+        case r : Resource =>
+          if(r.getURI() != null) {
             unname(r.getURI()) match {
               case Some((s,_)) => 
-                SearchResultWithCount(n3, 
-                  getLabel(s).getOrElse(s), c)
+                results += SearchResultWithCount(n3, 
+                  getLabel(s).getOrElse(s), rs.getInt(2))
               case None =>
-                SearchResultWithCount(n3,
-                  DISPLAYER.uriToStr(r.getURI()), c)
+                results += SearchResultWithCount(n3,
+                  DISPLAYER.uriToStr(r.getURI()), rs.getInt(2))
             }
-        }
-    }
+          } 
+      }
+      n += 1
+    } while(rs.next())
+    rs.close()
+    ps.close()
     if(n >= limit) {
-      (true, results.dropRight(1))
+      results.remove(n - 1)
+      return (true, results.toSeq)
     } else {
-      (false, results)
+      return (false, results.toSeq)
     }
   }
 
-  def loadCache(conn : Session, get : String => Option[Int], put : String => Unit) = {
+  def loadCache(conn : Connection, cache : String, column : String) = {
     val builder = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[String, Int]]
     builder.maximumSize(1000).build(new CacheLoader[String, Int] {
       def load(key : String) = {
-        get(key) match {
-          case Some(v) => v
-          case None => 
-            put(key)
-            get(key).get
+        val ps = sqlexecute(conn, "select %s from %ss where %s=?" format (cache, cache, column), key)
+        val rs = ps.executeQuery()
+        if(rs.next()) {
+          val rv = rs.getInt(1)
+          rs.close()
+          ps.close()
+          rv
+        } else {
+          val ps2 = sqlexecute(conn, "insert into %ss (%s) values (?)" format (cache, column), key)
+          ps2.execute()
+          ps2.close()
+          val ps3 = sqlexecute(conn, "select %s from %ss where %s=?" format (cache, cache, column), key)
+          val rs3 = ps3.executeQuery()
+          rs3.next()
+          val rv = rs3.getInt(1)
+          rs3.close()
+          ps3.close()
+          rs.close()
+          ps.close()
+          rv
         }
       }
     })
   }
 
-  lazy val tripleCount : Int = withConn { conn => triple_ids.length.run(conn) }
+  lazy val tripleCount = withConn { conn =>
+    val ps = sqlexecute(conn, "select count(*) from triple_ids")
+    try {
+      val rs = ps.executeQuery()
+      try {
+        rs.next()
+        rs.getInt(1)
+      } finally {
+        rs.close()
+      }
+    } finally {
+      ps.close()
+    }
+  }
 
   def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) {
-    withConn { implicit conn => conn.withTransaction {
+    withConn { conn => 
       def splitUri(subj : String) : (String, String) = {
         val (id2, frag) = if(subj contains '#') {
           (subj.slice(BASE_NAME.length, subj.indexOf('#')),
@@ -300,117 +436,171 @@ class RDFBackend(db : String) extends Backend {
         }
         (id,frag)
       }
-      var linkCounts = collection.mutable.Map[String, Int]()
-        (sids.ddl ++ pids.ddl ++ oids.ddl ++ triple_ids.ddl ++ 
-         links.ddl ++ freqs.ddl).create
-      val writer = new IndexWriter(FSDirectory.open(new File(DB_FILE + "-lucene")),
-                                   new IndexWriterConfig(Version.LATEST,
-                                   new StandardAnalyzer()))
-      val sidCache = loadCache(conn, 
-        k => sids.filter(_.subject === k).map(_.sid).firstOption,
-        k => sids.map(_.subject).insert(k))
-      val pidCache = loadCache(conn, 
-        k => pids.filter(_.property === k).map(_.pid).firstOption,
-        k => pids.map(_.property).insert(k))
-      val oidCache = loadCache(conn, 
-        k => oids.filter(_._object === k).map(_.oid).firstOption,
-        k => oids.map(_._object).insert(k))
+      val cursor = conn.createStatement()
+      val oldAutocommit = conn.getAutoCommit()
 
-      var linesRead = 0
-      var lineIterator = io.Source.fromInputStream(inputStream).getLines
-      while(lineIterator.hasNext) {
-        try {
-          val line = unicodeEscape(lineIterator.next)
-          linesRead += 1
-          if(linesRead % 100000 == 0) {
-            System.err.print(".")
-            System.err.flush()
-          }
-          val e = line.split(" ")
-          val subj = e(0).drop(1).dropRight(1)
-          if(subj.startsWith(BASE_NAME)) {
-            val (id, frag) = splitUri(subj)
-            val prop = e(1)
-            val obj = e.drop(2).dropRight(1).mkString(" ")
+      try {
+        conn.setAutoCommit(false)
+        var linkCounts = collection.mutable.Map[String, Int]()
+        cursor.execute(
+          """create table if not exists sids (sid integer primary key, 
+        subject text not null, label text, unique(subject))""")
+        cursor.execute(
+          """create table if not exists pids (pid integer primary key, 
+          property text not null, unique(property))""")
+        cursor.execute(
+          """create table if not exists oids (oid integer primary key, 
+          object text not null, unique(object))""")
+        cursor.execute("""create table triple_ids (sid integer not null, 
+          fragment text, pid integer not null, oid integer not null,
+          inverse integer, foreign key (sid)
+          references sids, foreign key (pid) references pids,
+          foreign key (oid) references oids)""")
+        cursor.execute(
+          "create index k_triples_subject ON triple_ids ( sid )")
+        cursor.execute(
+          "create index k_triples_fragment ON triple_ids ( fragment )")
+        cursor.execute(
+          "create index k_triples_property ON triple_ids ( pid )")
+        cursor.execute(
+          "create index k_triples_object ON triple_ids ( oid )")
+        cursor.execute("insert into sids (subject) values ('<BLANK>')")
+        cursor.execute("""create view triples as select subject, fragment, 
+          property, object, label, inverse from triple_ids join sids on
+          triple_ids.sid = sids.sid join pids on triple_ids.pid = pids.pid
+          join oids on triple_ids.oid = oids.oid""") 
+        cursor.execute("""create virtual table if not exists free_text using
+            fts4 ( sid integer, pid integer, object TEXT NOT NULL )""")
+        val sidCache = loadCache(conn, "sid", "subject")
+        val pidCache = loadCache(conn, "pid", "property")
+        val oidCache = loadCache(conn, "oid", "object")
 
-            triple_ids.insert(
-              (sidCache.get(id), frag, pidCache.get(prop), oidCache.get(obj), 0))
-            
-            if(FACETS.exists(_("uri") == prop.drop(1).dropRight(1)) || obj.startsWith("\"")) {
-              val doc = new Document()
-              doc.add(new TextField("object", obj, Field.Store.YES))
-              doc.add(new StringField("property", prop, Field.Store.YES))
-              doc.add(new StringField("subject", id, Field.Store.YES))
-              writer.addDocument(doc)
+        var linesRead = 0
+        var lineIterator = io.Source.fromInputStream(inputStream).getLines
+        while(lineIterator.hasNext) {
+          try {
+            val line = unicodeEscape(lineIterator.next)
+            linesRead += 1
+            if(linesRead % 100000 == 0) {
+              System.err.print(".")
+              System.err.flush()
+              conn.commit()
             }
-           
-            if(obj.startsWith("<"+BASE_NAME)) {
-              val (id2, frag2) = splitUri(obj.drop(1).dropRight(1))
-              triple_ids.insert(
-                (sidCache.get(id2), frag2, pidCache.get(prop), oidCache.get("<" + subj + ">"), 1))
-            }
+            val e = line.split(" ")
+            val subj = e(0).drop(1).dropRight(1)
+            if(subj.startsWith(BASE_NAME)) {
+              val (id, frag) = splitUri(subj)
+              val prop = e(1)
+              val obj = e.drop(2).dropRight(1).mkString(" ")
 
-            if(LABELS.contains(prop) && frag == "") {
-              val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
-              if(label != "") {
-                sids.filter(_.sid === sidCache.get(id)).
-                  map(_.label).update(Some(label))
+              sqlexecuteonce(conn,
+                """insert into triple_ids values(?, ?, ?, ?, 0)""",
+                  sidCache.get(id), frag, pidCache.get(prop), oidCache.get(obj))
+              
+              if(FACETS.exists(_("uri") == prop.drop(1).dropRight(1)) || obj.startsWith("\"")) {
+                sqlexecuteonce(conn, "insert into free_text values (?, ?, ?)",
+                  sidCache.get(id), pidCache.get(prop), obj)
               }
-            }
-            
-            if(obj.startsWith("<")) {
-              try {
-                val objUri = URI.create(obj.drop(1).dropRight(1))
+             
+              if(obj.startsWith("<"+BASE_NAME)) {
+                val (id2, frag2) = splitUri(obj.drop(1).dropRight(1))
+                sqlexecuteonce(conn,
+                  """insert into triple_ids values(?, ?, ?, ?, 1)""",
+                  sidCache.get(id2), frag2, pidCache.get(prop), oidCache.get("<" + subj + ">"))
+              }
 
-                if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_)) &&
-                  objUri.getScheme().startsWith("http")) {
-                  val target = LINKED_SETS.find(objUri.toString.startsWith(_)) match {
-                    case Some(l) => l
-                    case None => new URI(
-                      objUri.getScheme(),
-                      objUri.getUserInfo(),
-                      objUri.getHost(),
-                      objUri.getPort(),
-                      "/", null, null).toString
-                  }
-                  if(linkCounts.contains(target)) {
-                    linkCounts(target) += 1
-                  } else {
-                    linkCounts(target) = 1
-                  }
+              if(LABELS.contains(prop) && frag == "") {
+                val label = obj.slice(obj.indexOf('"')+1,obj.lastIndexOf('"'))
+                if(label != "") {
+                  sqlexecuteonce(conn, 
+                    "update sids set label=? where sid=?",
+                    label, sidCache.get(id))
                 }
-              } catch {
-                case x : IllegalArgumentException =>
               }
+              
+              if(obj.startsWith("<")) {
+                try {
+                  val objUri = URI.create(obj.drop(1).dropRight(1))
+
+                  if(!(NOT_LINKED :+ BASE_NAME).exists(objUri.toString.startsWith(_)) &&
+                    objUri.getScheme().startsWith("http")) {
+                    val target = LINKED_SETS.find(objUri.toString.startsWith(_)) match {
+                      case Some(l) => l
+                      case None => new URI(
+                        objUri.getScheme(),
+                        objUri.getUserInfo(),
+                        objUri.getHost(),
+                        objUri.getPort(),
+                        "/", null, null).toString
+                    }
+                    if(linkCounts.contains(target)) {
+                      linkCounts(target) += 1
+                    } else {
+                      linkCounts(target) = 1
+                    }
+                  }
+                } catch {
+                  case x : IllegalArgumentException =>
+                }
+              }
+            } else if(subj.startsWith("_:")) {
+              val (id, frag) = ("<BLANK>", subj.drop(2))
+              val prop = e(1)
+              val obj = e.drop(2).dropRight(1).mkString(" ")
+              sqlexecuteonce(conn, "insert into triple_ids values (1, ?, ?, ?, 0)",
+                frag, pidCache.get(prop), oidCache.get(obj))
             }
-          } else if(subj.startsWith("_:")) {
-            val (id, frag) = ("<BLANK>", subj.drop(2))
-            val prop = e(1)
-            val obj = e.drop(2).dropRight(1).mkString(" ")
-            triple_ids.insert(
-              (1, frag, pidCache.get(prop), oidCache.get(obj), 0))
+          } catch {
+            case t : Throwable =>
+              System.err.println("Error on line %d: %s" format (linesRead, t.getMessage()))
+              if(!ignoreErrors) {
+                throw t
+              }
           }
-        } catch {
-          case t : Throwable =>
-            System.err.println("Error on line %d: %s" format (linesRead, t.getMessage()))
-            if(!ignoreErrors) {
-              throw t
-            }
         }
-      }
-      for((target, count) <- linkCounts if count >= MIN_LINKS) {
-        links.insert((count, target))
-      }
-      if(linesRead > 100000) {
-        System.err.println()
-      }
-      writer.close()
-    }}
+        cursor.execute("""create table if not exists links (count integer,
+          target text)""")
+        for((target, count) <- linkCounts if count >= MIN_LINKS) {
+          sqlexecuteonce(conn,
+            """insert into links values (?, ?)""", count, target)
+        }
+        cursor.execute("""create table if not exists freq_ids (pid integer,
+oid integer, count integer)""")
+        for(facet <- FACETS) {
+          sqlexecuteonce(conn, """insert into freq_ids (pid, oid, count) select 
+triple_ids.pid, oid, count(*) from triple_ids join pids on triple_ids.pid =
+pids.pid where property=? group by oid order by count(*) desc""", 
+            "<" + facet("uri") + ">")
+        }
+        if(linesRead > 100000) {
+          System.err.println()
+        }
+      } finally {
+        cursor.close()
+        conn.commit()
+        conn.setAutoCommit(oldAutocommit)
+       }
+    }
   }
 
-  def linkCounts = withConn { implicit conn => 
-    links.map(f => (f.target, f.count)).run 
+  def linkCounts = withConn { conn =>
+    val ps = sqlexecute(conn, "select count, target from links")
+    try {
+      val rs = ps.executeQuery()
+      try {
+        val results = collection.mutable.ListBuffer[(String, Int)]()
+        while(rs.next()) {
+          results += ((rs.getString(2), rs.getInt(1)))
+        }
+        results.toSeq
+      } finally {
+        rs.close()
+      }
+    } finally {
+      ps.close()
+    }
   }
+
 
   def query(query : String, mimeType : ResultType, 
       defaultGraphURI : Option[String], 
@@ -553,6 +743,7 @@ object RDFBackend {
       case file => new FileInputStream(file)
     }
     backend.load(inputStream, opts contains "-e")
+    //backend.close()
   }
 }
 
