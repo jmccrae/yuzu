@@ -9,6 +9,7 @@ object Schema {
     def subject = column[String]("subject")
     def label = column[Option[String]]("label")
     def * = (sid, subject, label)
+    def idx = index("k_subject", subject)
   }
   lazy val sids = TableQuery[Sids]
 
@@ -17,6 +18,7 @@ object Schema {
     def pid = column[Int]("pid", O.PrimaryKey, O.AutoInc)
     def property = column[String]("property")
     def * = (pid, property)
+    def idx = index("k_property", property)
   }
   lazy val pids = TableQuery[Pids]
 
@@ -25,6 +27,7 @@ object Schema {
     def oid = column[Int]("oid", O.PrimaryKey, O.AutoInc)
     def _object = column[String]("object")
     def * = (oid, _object)
+    def idx = index("k_object", _object)
   }
   lazy val oids = TableQuery[Oids]
 
