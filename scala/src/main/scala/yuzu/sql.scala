@@ -530,6 +530,13 @@ package sqlutils {
         prA(ps, xA, 10)
         ps.execute() }
   }
+  
+  object SQLQuery {
+    def apply(query : String)(implicit session : Session) = {
+      val ps = session.conn.prepareStatement(query)
+      session.monitor(ps)
+      new SQLQuery(ps, session) }
+  }
 }
 
 package object sqlutils {

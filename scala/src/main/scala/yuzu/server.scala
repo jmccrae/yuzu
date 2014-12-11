@@ -251,7 +251,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       } else {
         val (content, mime) = result match {
           case r : TableResult =>
-            (ResultSetFormatter.asXMLString(r.result), sparql)
+            (r.toXML, sparql)
           case BooleanResult(r) =>
             (ResultSetFormatter.asXMLString(r), sparql)
           case ModelResult(model) =>

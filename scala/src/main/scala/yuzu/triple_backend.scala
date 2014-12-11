@@ -1,6 +1,7 @@
 package com.github.jmccrae.yuzu
 
 import com.github.jmccrae.yuzu.YuzuSettings._
+import com.github.jmccrae.yuzu.ql.{QueryBuilder, YuzuQLSyntax}
 import com.github.jmccrae.sqlutils._
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.hp.hpl.jena.graph.{Node, NodeFactory, Triple}
@@ -93,10 +94,10 @@ class TripleBackend(db : String) extends Backend {
     sql"""CREATE INDEX properties ON tripids(pid)""".execute
     sql"""CREATE INDEX objects ON tripids(oid)""".execute
     sql"""CREATE INDEX pages ON tripids(page)""".execute
-    sql"""CREATE VIEW triples AS SELECT page,
-              subj.n3 AS subj_n3, subj.label AS subj_label,
-              prop.n3 AS prop_n3, prop.label AS prop_label,
-              obj.n3 AS obj_n3, obj.label AS obj_label, obj.id AS obj_id
+    sql"""CREATE VIEW triples AS SELECT page, sid, pid, oid,
+              subj.n3 AS subject, subj.label AS subj_label,
+              prop.n3 AS property, prop.label AS prop_label,
+              obj.n3 AS object, obj.label AS obj_label
               FROM tripids 
               JOIN ids AS subj ON tripids.sid=subj.id
               JOIN ids AS prop ON tripids.pid=prop.id
@@ -198,14 +199,11 @@ class TripleBackend(db : String) extends Backend {
     }
   }
 
-  def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
-    timeout : Int = 10) = throw new UnsupportedOperationException("TODO")
-
-  /** Look up a single page */
+    /** Look up a single page */
   def lookup(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
     var found = false
-    sql"""SELECT subj_n3, prop_n3, obj_n3 FROM triples WHERE page=$page""".
+    sql"""SELECT subject, property, object FROM triples WHERE page=$page""".
       as3[String, String, String].
       foreach { 
         case (s, p, o) =>
@@ -231,7 +229,7 @@ class TripleBackend(db : String) extends Backend {
   /** Add all blank nodes that have this subject */
   private def addBlanks(subj : Node, model : Model)(implicit session : Session) {
     val s = toN3(subj)
-    sql"""SELECT prop_n3, obj_n3 FROM triples WHERE subj_n3=$s""".
+    sql"""SELECT property, object FROM triples WHERE subject=$s""".
       as2[String, String].
       foreach {
         case (p, o) =>
@@ -257,11 +255,11 @@ class TripleBackend(db : String) extends Backend {
           obj match {
             case Some(o) => 
               sql"""SELECT DISTINCT page, subj_label FROM triples
-                    WHERE prop_n3=$p AND obj_n3=$o AND page!="<BLANK>"
+                    WHERE property=$p AND object=$o AND page!="<BLANK>"
                     LIMIT $limit2 OFFSET $offset""".as2[String, String]
             case None =>
               sql"""SELECT DISTINCT page, subj_label FROM triples
-                    WHERE prop_n3=$p AND page!="<BLANK>"
+                    WHERE property=$p AND page!="<BLANK>"
                     LIMIT $limit2 OFFSET $offset""".as2[String, String] }
         case None =>
           sql"""SELECT DISTINCT page, subj_label FROM triples
@@ -278,9 +276,9 @@ class TripleBackend(db : String) extends Backend {
   def listValues(offset : Int , limit : Int, prop : String) = {
     withSession(conn) { implicit session => 
       val limit2 = limit + 1
-      val results = sql"""SELECT DISTINCT obj_n3, obj_label, count(*) FROM triples
-                          WHERE prop_n3=$prop 
-                          GROUP BY obj_id ORDER BY count(*) DESC 
+      val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
+                          WHERE property=$prop 
+                          GROUP BY oid ORDER BY count(*) DESC 
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit,
       results.map {
@@ -316,4 +314,23 @@ class TripleBackend(db : String) extends Backend {
   /** Get the size of the dataset for DataID */
   def tripleCount = withSession(conn) { implicit session =>
     sql"""SELECT count(*) FROM tripids""".as1[Int].head }
+
+
+  /** Answer a SPARQL or YuzuQL query */
+  def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
+    timeout : Int = 10) = {
+
+    try {
+      val select = YuzuQLSyntax.parse(query)
+      val builder = new QueryBuilder(select)
+      val sqlQuery = builder.build
+      val vars = builder.vars
+      withSession(conn) { implicit session => 
+        val results = SQLQuery(sqlQuery).as { rs =>
+          (for((v, idx) <- vars.zipWithIndex) yield {
+            v -> GetNode(rs, idx + 1) }).toMap }
+        TableResult(ResultSet(vars, results.toVector)) }}
+    catch {
+      case x : IllegalArgumentException =>
+        throw new RuntimeException("TODO fall back to SPARQL endpoint") } }
 }
