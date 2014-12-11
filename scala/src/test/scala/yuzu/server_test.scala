@@ -33,14 +33,14 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
 
   val rdfServer = new RDFServer(new DummyBackend())
 
-  "sparql executor" should "answer a query" in {
-    val model =  ModelFactory.createDefaultModel()
-    val q = QueryFactory.create("select * { ?s ?p ?o }")
-    val qx = QueryExecutionFactory.create(q, model)
-    val executor = new SPARQLExecutor(q, qx)
-    executor.run()
-    assert(!executor.result.isInstanceOf[ErrorResult])
-  }
+//  "sparql executor" should "answer a query" in {
+//    val model =  ModelFactory.createDefaultModel()
+//    val q = QueryFactory.create("select * { ?s ?p ?o }")
+//    val qx = QueryExecutionFactory.create(q, model)
+//    val executor = new SPARQLExecutor(q, qx)
+//    executor.run()
+//    assert(!executor.result.isInstanceOf[ErrorResult])
+//  }
 
   "server" should "render html" in {
     val result = RDFServer.renderHTML("Title","Some text", false)(new PathResolver { def apply(s : String) = new URL("file:../common/"+s) } )

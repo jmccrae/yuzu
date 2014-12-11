@@ -183,7 +183,7 @@ object RDFServer {
   }
 }
 
-class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet {
+class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServlet {
   import RDFServer._
  
   implicit class URLPimps(url : URL) {
@@ -362,7 +362,7 @@ class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet
         if(qsParsed.containsKey("query")) {
           val query = qsParsed.get("query")(0)
           val prop = if(qsParsed.containsKey("property") && qsParsed.get("property")(0) != "") {
-            Some(qsParsed.get("property")(0))
+            Some("<" + qsParsed.get("property")(0) + ">")
           } else {
             None
           }

@@ -2,6 +2,7 @@ package com.github.jmccrae.yuzu
 
 import com.hp.hpl.jena.rdf.model.{Literal, Model, RDFNode, Resource}
 import com.hp.hpl.jena.datatypes.RDFDatatype
+import com.hp.hpl.jena.graph.Node
 import com.hp.hpl.jena.vocabulary._
 import java.util.{List=>JList}
 import scala.collection.JavaConversions._
@@ -54,6 +55,14 @@ trait URIDisplayer {
       l.getValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
         replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\")
   }
+  def apply(node : Node) = 
+    if(node.isURI()) {
+      uriToStr(node.getURI()) }
+    else if(node.isLiteral()) {
+      node.getLiteralValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\") }
+    else {
+      "" }
   def apply(dt : RDFDatatype) = uriToStr(dt.getURI())
 
 }
