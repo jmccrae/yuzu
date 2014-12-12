@@ -1,6 +1,7 @@
 package com.github.jmccrae.yuzu
 
-import com.hp.hpl.jena.rdf.model._
+import com.hp.hpl.jena.rdf.model.{Seq => _, _}
+import com.hp.hpl.jena.graph.NodeFactory
 import com.hp.hpl.jena.query.{QueryFactory, QueryExecutionFactory}
 import java.io.{File, PrintWriter, StringWriter}
 import java.net.URL
@@ -28,7 +29,7 @@ class DummyBackend extends Backend {
   def linkCounts = Nil
 }
 
-class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
+class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with Matchers {
   import YuzuSettings._
 
   val rdfServer = new RDFServer(new DummyBackend())
@@ -144,5 +145,46 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar {
     rdfServer.search(mockResponse, "test", Some("http://www.w3.org/2000/01/rdf-schema#label"))
     //assert(out.toString() contains "href='/test_resource")
   }
+
+  "sparql results" should "produce valid xml" in {
+    val resultSet = new ResultSet(Seq("a","b","c"),
+      Seq(
+        Map("a" -> NodeFactory.createURI("http://www.example.org"),
+            "b" -> NodeFactory.createLiteral("foo"),
+            "c" -> NodeFactory.createLiteral("foo", "en", false)),
+        Map("a" -> NodeFactory.createAnon(AnonId.create("bar")),
+            "c" -> NodeFactory.createLiteral("foo", 
+                      NodeFactory.getType("http://www.w3.org/2001/XMLSchema#string")))))
+    TableResult(resultSet).toXML.toString should be ((
+<sparql xmlns="http://www.w3.org/2005/sparql-results#">
+  <head><variable name="a"/><variable name="b"/><variable name="c"/></head>
+  <results><result><binding name="a"><uri>http://www.example.org</uri></binding><binding name="b"><literal>foo</literal></binding><binding name="c"><literal xml:lang="en">foo</literal></binding></result><result><binding name="a"><bnode>bar</bnode></binding><binding name="c"><literal datatype="http://www.w3.org/2001/XMLSchema#string">foo</literal></binding></result></results>
+</sparql> ).toString)}
+
+  "sparql results" should "produce valid json" in {
+    val resultSet = new ResultSet(Seq("a","b","c"),
+      Seq(
+        Map("a" -> NodeFactory.createURI("http://www.example.org"),
+            "b" -> NodeFactory.createLiteral("foo"),
+            "c" -> NodeFactory.createLiteral("foo", "en", false)),
+        Map("a" -> NodeFactory.createAnon(AnonId.create("bar")),
+            "c" -> NodeFactory.createLiteral("foo", 
+                      NodeFactory.getType("http://www.w3.org/2001/XMLSchema#string")))))
+    TableResult(resultSet).toJSON should be ("""{
+  "head": { "vars": [ "a", "b", "c" ] },
+  "results": {
+    "bindings": [
+      {
+        "a": { "type": "uri", "value": "http://www.example.org" },
+        "b": { "type": "literal", "value": "foo" },
+        "c": { "type": "literal", "value": "foo", "xml:lang": "en" }
+      }, {
+        "a": { "type": "bnode", "value": "bar" },
+        "c": { "type": "literal", "value": "foo", "datatype": "http://www.w3.org/2001/XMLSchema#string" }
+      }
+    ]
+  }
+}""") }
+
 
 }

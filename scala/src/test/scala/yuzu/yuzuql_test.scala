@@ -55,7 +55,7 @@ class TestYuzuQL extends FunSuite with Matchers {
 
     test("with_vars") {
         check_good("select ?s ?o where { ?s <foo> ?o }",
-                   "SELECT table0.object, table0.subject FROM triples AS " +
+                   "SELECT table0.subject, table0.object FROM triples AS " +
                    "table0 WHERE table0.property=\"<foo>\"") }
 
     test("with_offset_limit") {
@@ -194,7 +194,7 @@ class TestYuzuQL extends FunSuite with Matchers {
 
     test("bnode_query") {
         check_good("select * { ?s <foo> [ <bar> ?x ; <baz> ?y ] }",
-                   "SELECT table0.subject, table1.object, table2.object " +
+                   "SELECT table2.object, table1.object, table0.subject " +
                    "FROM triples AS table0 " +
                    "JOIN triples AS table1 " +
                    "ON table0.oid=table1.sid " +
@@ -228,7 +228,7 @@ class TestYuzuQL extends FunSuite with Matchers {
     test("prefix") {
         check_good("prefix dc: <http://purl.org/dc/elements/1.1/>" +
                    "select * { ?s dc:language ?l }",
-                   "SELECT table0.object, table0.subject " +
+                   "SELECT table0.subject, table0.object " +
                    "FROM triples AS table0 " +
                    "WHERE table0.property=\"<http://purl.org/dc/" +
                    "elements/1.1/language>\"") }

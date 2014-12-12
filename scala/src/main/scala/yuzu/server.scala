@@ -25,6 +25,7 @@ import scala.math.max
 sealed class ResultType(val mime : String, val jena : Option[RDFFormat])
 
 object sparql extends ResultType("application/sparql-results+xml", None)
+object sparqljson extends ResultType("application/sparql-results+json", None)
 object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PRETTY))
 object html extends ResultType("text/html", None)
 object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE))
@@ -113,6 +114,7 @@ object RDFServer {
     case "application/json" => Some(jsonld)
     case "application/ld+json" => Some(jsonld)
     case "application/sparql-results+xml" => Some(sparql)
+    case "application/sparql-results+json" => Some(sparqljson)
     case _ => None
   }
  
@@ -251,9 +253,19 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       } else {
         val (content, mime) = result match {
           case r : TableResult =>
-            (r.toXML, sparql)
+            if(mimeType == sparql) {
+              (r.toXML, sparql)
+            } else {
+              (r.toJSON, sparqljson)
+            }
           case BooleanResult(r) =>
-            (ResultSetFormatter.asXMLString(r), sparql)
+            if(mimeType == sparql) {
+              (ResultSetFormatter.asXMLString(r), sparql)
+            } else {
+              val baos = new java.io.ByteArrayOutputStream()
+              ResultSetFormatter.outputAsJSON(baos, r)
+              (baos.toString(), sparqljson)
+            }
           case ModelResult(model) =>
             val out = new java.io.StringWriter()
             val mime = if(mimeType == sparql) {
@@ -329,13 +341,13 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       jsonld
     } else if(req.getHeader("Accept") != null) {
       if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
-        bestMimeType(req.getHeader("Accept"), sparql)
+        bestMimeType(req.getHeader("Accept"), sparqljson)
       } else {
         bestMimeType(req.getHeader("Accept"), html)
       }
     } else {
       if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
-        sparql
+        sparqljson
       } else {
         html
       }

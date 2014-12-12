@@ -100,7 +100,60 @@ case class TableResult(result : ResultSet) extends SPARQLResult {
     Seq[(String, Any)]("variables" -> variables, "results" -> results)
   }
 
-  def toXML = ""
+  def toXML = <sparql xmlns="http://www.w3.org/2005/sparql-results#">
+  <head>{
+    for(v <- result.resultVars) yield {
+      <variable name={v}/> }
+  }</head>
+  <results>{
+    for(r <- result.results) yield {
+      <result>{
+        for((varName, node) <- r) yield {
+          <binding name={varName}>{
+            if(node.isURI()) {
+              <uri>{node.getURI()}</uri> }
+            else if(node.isBlank()) {
+              <bnode>{node.getBlankNodeId()}</bnode> }
+            else if(node.isLiteral() && node.getLiteralLanguage() != null
+                    && node.getLiteralLanguage() != "") {
+              <literal xml:lang={node.getLiteralLanguage()}>{node.getLiteralLexicalForm()}</literal> }
+            else if(node.isLiteral() && node.getLiteralDatatypeURI() != null) {
+              <literal datatype={node.getLiteralDatatypeURI()}>{node.getLiteralLexicalForm()}</literal> }
+            else /*if(node.isLiteral())*/ {
+              <literal>{node.getLiteralLexicalForm()}</literal> }
+          }</binding>}
+      }</result>}
+  }</results>
+</sparql>
+
+  def toJSON = """{
+  "head": { "vars": [ %s ] },
+  "results": {
+    "bindings": [
+      %s
+    ]
+  }
+}""" format (
+  result.resultVars.map("\"" + _ + "\"").mkString(", "),
+  "{\n" + (result.results.map { m =>
+    (m.map {
+      case (varName, node) =>
+        val binding = """        "%s": { "type": "%s", "value": "%s"%s }"""
+        if(node.isURI()) {
+          binding format (varName, "uri", node.getURI(), "") }
+        else if(node.isBlank()) {
+          binding format (varName, "bnode", node.getBlankNodeId(),"") }
+        else if(node.isLiteral() && node.getLiteralLanguage() != null
+                && node.getLiteralLanguage() != "") {
+          binding format (varName, "literal", node.getLiteralLexicalForm(),
+                          ", \"xml:lang\": \"" + node.getLiteralLanguage() + "\"") }
+        else if(node.isLiteral() && node.getLiteralDatatypeURI() != null) {
+          binding format (varName, "literal", node.getLiteralLexicalForm(),
+                          ", \"datatype\": \"" + node.getLiteralDatatypeURI() + "\"") }
+        else /*if(node.isLiteral())*/ {
+          binding format (varName, "literal", node.getLiteralLexicalForm(), "") } }).
+      mkString(",\n") } ).mkString("\n      }, {\n") + "\n      }")
+
 }
 
 case class BooleanResult(result : Boolean) extends SPARQLResult

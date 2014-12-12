@@ -1,17 +1,18 @@
 package com.github.jmccrae.yuzu
 
+import com.github.jmccrae.sqlutils._
 import com.github.jmccrae.yuzu.YuzuSettings._
 import com.github.jmccrae.yuzu.ql.{QueryBuilder, YuzuQLSyntax}
-import com.github.jmccrae.sqlutils._
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.hp.hpl.jena.graph.{Node, NodeFactory, Triple}
+import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import com.hp.hpl.jena.rdf.model.{AnonId, Model, ModelFactory}
 import com.hp.hpl.jena.sparql.core.Quad
-import org.apache.jena.atlas.web.TypedInputStream
-import org.apache.jena.riot.{Lang, RDFDataMgr}
-import org.apache.jena.riot.system.{StreamRDF, StreamRDFBase}
 import java.net.URI
 import java.sql.DriverManager
+import org.apache.jena.atlas.web.TypedInputStream
+import org.apache.jena.riot.system.{StreamRDF, StreamRDFBase}
+import org.apache.jena.riot.{Lang, RDFDataMgr}
 
 /**
  * Standard 3-column SQL implementation of a triple store, with foreign keys
@@ -324,6 +325,7 @@ class TripleBackend(db : String) extends Backend {
       val select = YuzuQLSyntax.parse(query)
       val builder = new QueryBuilder(select)
       val sqlQuery = builder.build
+      println(sqlQuery)
       val vars = builder.vars
       withSession(conn) { implicit session => 
         val results = SQLQuery(sqlQuery).as { rs =>
@@ -332,5 +334,31 @@ class TripleBackend(db : String) extends Backend {
         TableResult(ResultSet(vars, results.toVector)) }}
     catch {
       case x : IllegalArgumentException =>
-        throw new RuntimeException("TODO fall back to SPARQL endpoint") } }
+        SPARQL_ENDPOINT match {
+          case Some(endpoint) => {
+            val q = defaultGraphURI match {
+              case Some(uri) => QueryFactory.create(query, uri)
+              case None => QueryFactory.create(query) }
+
+          val qx = QueryExecutionFactory.sparqlService(endpoint, q) 
+          if(q.isAskType()) {
+            val r = qx.execAsk()
+            BooleanResult(r)
+          } else if(q.isConstructType()) {
+            val model2 = ModelFactory.createDefaultModel()
+            val r = qx.execConstruct(model2)
+            ModelResult(model2)
+          } else if(q.isDescribeType()) {
+            val model2 = ModelFactory.createDefaultModel()
+            val r = qx.execDescribe(model2)
+            ModelResult(model2)
+          } else if(q.isSelectType()) {
+            val r = qx.execSelect()
+            TableResult(ResultSet(r))
+          } else {
+            ErrorResult("Unsupported query type")
+          }
+        }
+        case None =>
+          ErrorResult("Query not valid in YuzuQL:" + x.getMessage()) } } }
 }

@@ -244,7 +244,7 @@ class QueryBuilder(select : SelectQuery) {
         case v => "%s.%s" format (nameTable(var2col(v)._1), 
                                   var2col(v)._2) }}
 
-    val cols = vs.toSeq.sorted.mkString(", ")
+    val cols = vs.toSeq.mkString(", ")
 
     val joinStr = (joins.map {
       case Join(t1, t2, c1, c2, lj) =>
