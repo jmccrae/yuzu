@@ -140,6 +140,9 @@ class YuzuQLSyntax:
     whereClause = (pp.Literal("{").suppress() +
                    triplePattern + pp.Literal("}").suppress())
 
+    groupByClause = (pp.CaselessKeyword("group") + pp.CaselessKeyword("by") +
+                     varList).suppress()
+
     asc = (pp.CaselessKeyword("asc").suppress() +
            pp.Literal("(").suppress() + var +
            pp.Literal(")").suppress()).setParseAction(
@@ -170,7 +173,8 @@ class YuzuQLSyntax:
         (offsetClause + pp.Optional(limitClause)).setParseAction(
             offset_unwrap))
 
-    solutionModifier = (pp.Group(pp.Optional(orderClause)) +
+    solutionModifier = (pp.Optional(groupByClause) +
+                        pp.Group(pp.Optional(orderClause)) +
                         pp.Group(pp.Optional(limitOffsetClause)))
 
     query = (prefixes + select + countVarList +
