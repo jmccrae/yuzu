@@ -246,27 +246,29 @@ class ServerTest(unittest.TestCase):
         self.assertIn("data/example", content)
         conn.close()
 
-    def test_sparql_ask(self):
-        conn = HTTPConnection(self.address, self.port)
-        conn.request("GET",
-                     "/sparql/?query=ASK+{+<http%3A%2F%2Flocalhost%3A8080%2Fda"
-                     + "ta%2Fexample>+%3Fp+%3Fo+}",
-                     headers={'Accept': 'text/html'})
-        content = str(conn.getresponse().read())
-        self.assertIn("<h3>True</h3>", content)
-        conn.close()
+#    def test_sparql_ask(self):
+#        conn = HTTPConnection(self.address, self.port)
+#        conn.request("GET",
+#                     "/sparql/?query=ASK+{+<http%3A%2F%2Flocalhost%3A8080%2Fda"
+#                     + "ta%2Fexample>+%3Fp+%3Fo+}",
+#                     headers={'Accept': 'text/html'})
+#        content = str(conn.getresponse().read())
+#        self.assertIn("<h3>True</h3>", content)
+#        conn.close()
 
     def test_sparql_query2(self):
         conn = HTTPConnection(self.address, self.port)
         conn.request("GET",
-                     "/sparql/?query=SELECT+*+WHERE+{+<http%3A%2F%2Flocalhost%"
-                     + "3A8080%2Fdata%2Fexample>+%3Fp+%3Fo+}",
+                     "/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org"
+                     "%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+WHERE+{%0D"
+                     "%0A++%3Chttp%3A%2F%2Flocalhost%3A8080%2Fdata%2Fexample%3"
+                     "E+rdfs%3Alabel+%3Fo+|+rdfs%3AseeAlso+%3Fo%0D%0A}+LIMIT+"
+                     "100",
                      headers={'Accept': 'text/html'})
         content = str(conn.getresponse().read())
         self.assertIn("en.gif", content)
         self.assertIn("href=\"http://dbpedia.org", content)
         self.assertIn("English", content)
-        self.assertIn("See Also", content)
         conn.close()
 
     def test_onboarding_not_avail(self):

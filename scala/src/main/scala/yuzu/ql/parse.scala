@@ -32,9 +32,14 @@ object YuzuQLSyntax extends JavaTokenParsers {
 
   def `var` = regex("[\\?\\$][A-Za-z0-9]+".r) ^^ (s => Var(s.drop(1)))
 
-  def varList = rep1(`var`)
+  def count = ("(" ~> ignoreCase("count") ~> "(" ~> "*" ~> ")" ~> 
+    ignoreCase("as") ~> `var` <~ ")")
 
-  def vars : Parser[List[Var]] = ("*" ^^^ Nil) | varList
+  def varList = rep1(`var`) | ("*" ^^^ Nil)
+
+  def countVarList = (count ~ rep1(`var`) ^^ { case x ~ y => (Some(x), y) }) |
+    (count ^^ { x => (Some(x), Nil) }) | 
+    (varList ^^ { (None, _) })
 
   def where  = ignoreCase("where")
 
@@ -100,11 +105,12 @@ object YuzuQLSyntax extends JavaTokenParsers {
   def solutionModifier = orderClause.? ~ limitOffsetClause.? ^^ {
     case x ~ y => (x.getOrElse(Nil), y.getOrElse((-1, -1))) }
 
-  def query = prefixes ~ select ~ vars ~ where.? ~ whereClause ~ 
+  def query = prefixes ~ select ~ countVarList ~ where.? ~ whereClause ~ 
     solutionModifier ^^ {
-    case p ~ s ~ v ~ _ ~ w ~ o => 
+    case p ~ s ~ cv ~ _ ~ w ~ o => 
       val (by, (l, of)) = o
-      SelectQuery(s, v, w, by, l, of).resolve(p) }
+      val (c, v) = cv
+      SelectQuery(s, c, v, w, by, l, of).resolve(p) }
 
   def parse(s : String) = parseAll(query, s) match {
     case Success(query, _) => 

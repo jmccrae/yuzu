@@ -85,13 +85,19 @@ case class PropObj(prop : Uri, objs : ObjList) {
         conditions += Condition(table, "property", prop.toString)
         subj match {
           case Some(v : Var) =>
-            qb.register(v, table, "subject")
+            qb.register(v, table, "subject") match {
+              case Some(cond) => 
+                conditions += cond
+              case None => }
           case Some(subj) =>
             conditions += Condition(table, "subject", subj.toString)
           case None => }
         o match {
           case v : Var =>
-            qb.register(v, table, "object")
+            qb.register(v, table, "object") match {
+              case Some(cond) =>
+                conditions += cond
+              case None => }
           case o : BNC =>
             conditions += o.toSql(table, qb)
           case o =>
@@ -141,11 +147,13 @@ case class Order(variable : Var, direction : Int) {
       " ASC" }}
 }
 
-case class SelectQuery(distinct : Boolean, varList : List[Var], body : Triple,
-  orderVars : List[Order], limit : Int, offset : Int) {
+case class SelectQuery(distinct : Boolean, countVar : Option[Var],
+  varList : List[Var], body : Triple, orderVars : List[Order], 
+  limit : Int, offset : Int) {
 
   def resolve(prefixes : Map[String, FullURI]) : SelectQuery = {
-    SelectQuery(distinct, varList, body.resolve(prefixes), orderVars, limit, offset)
+    SelectQuery(distinct, countVar, varList, body.resolve(prefixes), 
+      orderVars, limit, offset)
   }
 }
 
@@ -163,7 +171,7 @@ object QueryBuilder {
       value : String) extends Condition {
     def build(qb : QueryBuilder) = {
       "%s.%s=\"%s\"" format (
-        qb.nameTable(table), column, value.replaceAll("\"", "\\\\\"")) }
+        qb.nameTable(table), column, value.replaceAll("\"", "\"\"")) }
   }
 
   case class EqualCondition(table1 : Table, column1 : String,
@@ -203,7 +211,6 @@ class QueryBuilder(select : SelectQuery) {
   private var var2col = collection.mutable.Map[Var, (Table, String)]()
   private var tables = collection.mutable.Seq[Table](new Table())
   private var joins = collection.mutable.Seq[Join]()
-  private var implicitConds = AndCondition()
 
   private def left(optional : Boolean) = {
     if(optional) {
@@ -223,12 +230,14 @@ class QueryBuilder(select : SelectQuery) {
     joins :+= Join(table, table2, "oid", "sid", left(false))
     table2 }
 
-  def register(variable : Var, table : Table, column : String) {
+  def register(variable : Var, table : Table, column : String) = {
     var2col.get(variable) match {
-      case Some((table1, column1)) if column != "subject" && column1 != "subject" =>
-        implicitConds += EqualCondition(table1, column1, table, column)
-      case _ => }
-    var2col(variable) = (table, column) }
+      case Some((table1, column1)) if column != "subject" || column1 != "subject" =>
+        var2col(variable) = (table,column)
+        Some(EqualCondition(table1, column1, table, column))
+      case _ => 
+        var2col(variable) = (table,column)
+        None }}
 
   def nameTable(table : Table) = "table" + tables.indexOf(table)
   
@@ -244,74 +253,21 @@ class QueryBuilder(select : SelectQuery) {
         case v => "%s.%s" format (nameTable(var2col(v)._1), 
                                   var2col(v)._2) }}
 
-    val cols = vs.toSeq.mkString(", ")
-
-    val joinStr = (joins.map {
-      case Join(t1, t2, c1, c2, lj) =>
-        " %sJOIN triples AS %s ON %s.%s=%s.%s" format (
-          lj, nameTable(t2), nameTable(t1), c1, nameTable(t2), c2) }).mkString("")
-
-    val conds = if(!implicitConds.isEmpty) {
-      (conditions + implicitConds).build(this) }
-      else {
-        conditions.build(this) }
-
-    val ovs = select.orderVars match {
-      case Nil => ""
-      case ov => " ORDER BY " + (ov.map { v =>
-        "%s.%s%s" format (nameTable(var2col(v.variable)._1), 
-                          var2col(v.variable)._2, v.dirStr) }).mkString(", ") }
-
-    val lim = if(select.limit >= 0) {
-        " LIMIT %d" format select.limit }
-      else {
-        "" }
-
-    val off = if(select.offset >= 0) {
-        " OFFSET %d" format select.offset }
-      else {
-        "" }
-
-    val dis = if(select.distinct) {
-        " DISTINCT" }
-      else { 
-        "" }
-
-    "SELECT%s %s FROM triples AS table0%s WHERE %s%s%s%s" format 
-      (dis, cols, joinStr, conds, ovs, lim, off) }
-
-  def vars : Seq[String] = {
-    val conditions = _conditions
-    var2col.keys.map(_.name).toSeq
-  }
-
-  def buildCount = {
-    val conditions = _conditions
-    val vs = if(select.varList == Nil) {
-      var2col.values map {
-        case (t, c) => "%s.%s" format (nameTable(t), c) }
-    } else {
-      select.varList map {
-        case v => "%s.%s" format (nameTable(var2col(v)._1), 
-                                  var2col(v)._2) }}
-
-    val (groupBy, cols) = if(select.varList == Nil) {
+    val (groupBy, cols) = if(select.countVar == None) {
+        ("", vs.toSeq.mkString(", "))
+      } else if(select.varList == Nil) { 
         ("", "COUNT(*)") }
       else {
         (" GROUP BY " + vs.toSeq.sorted.mkString(", "),
          "COUNT(*), " +  vs.toSeq.sorted.mkString(", "))
       }
 
-
     val joinStr = (joins.map {
       case Join(t1, t2, c1, c2, lj) =>
         " %sJOIN triples AS %s ON %s.%s=%s.%s" format (
           lj, nameTable(t2), nameTable(t1), c1, nameTable(t2), c2) }).mkString("")
 
-    val conds = if(!implicitConds.isEmpty) {
-      (conditions + implicitConds).build(this) }
-      else {
-        conditions.build(this) }
+    val conds = conditions.build(this) 
 
     val ovs = select.orderVars match {
       case Nil => ""
@@ -337,6 +293,8 @@ class QueryBuilder(select : SelectQuery) {
     "SELECT%s %s FROM triples AS table0%s WHERE %s%s%s%s%s" format 
       (dis, cols, joinStr, conds, groupBy, ovs, lim, off) }
 
+  def vars : Seq[String] = {
+    val conditions = _conditions
+    var2col.keys.map(_.name).toSeq
+  }
 }
-
-  

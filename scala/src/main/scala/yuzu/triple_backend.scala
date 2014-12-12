@@ -325,7 +325,6 @@ class TripleBackend(db : String) extends Backend {
       val select = YuzuQLSyntax.parse(query)
       val builder = new QueryBuilder(select)
       val sqlQuery = builder.build
-      println(sqlQuery)
       val vars = builder.vars
       withSession(conn) { implicit session => 
         val results = SQLQuery(sqlQuery).as { rs =>

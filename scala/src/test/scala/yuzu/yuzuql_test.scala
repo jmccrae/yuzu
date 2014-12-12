@@ -23,19 +23,19 @@ class TestYuzuQL extends FunSuite with Matchers {
         check_good("select * { ?s <foo> \"bar\" }",
                    "SELECT table0.subject FROM triples AS table0 " +
                    "WHERE table0.property=\"<foo>\" AND " +
-                   "table0.object=\"\\\"bar\\\"\"") }
+                   "table0.object=\"\"\"bar\"\"\"") }
 
     test("lang_literal") {
         check_good("select * { ?s <foo> \"bar\"@en }",
                    "SELECT table0.subject FROM triples AS table0 " +
                    "WHERE table0.property=\"<foo>\" AND " +
-                   "table0.object=\"\\\"bar\\\"@en\"") }
+                   "table0.object=\"\"\"bar\"\"@en\"") }
 
     test("lc_lang") {
         check_good("select * { ?s <foo> \"bar\"@EN }",
                    "SELECT table0.subject FROM triples AS table0 " +
                    "WHERE table0.property=\"<foo>\" AND " +
-                   "table0.object=\"\\\"bar\\\"@en\"") }
+                   "table0.object=\"\"\"bar\"\"@en\"") }
 
     test("implicit_join") {
         check_good("select ?s { ?s <foo> ?o ; <bar> ?o }",
@@ -51,7 +51,7 @@ class TestYuzuQL extends FunSuite with Matchers {
         check_good("select * { ?s <foo> \"bar\"^^<baz> }",
                    "SELECT table0.subject FROM triples AS table0 " +
                    "WHERE table0.property=\"<foo>\" AND " +
-                   "table0.object=\"\\\"bar\\\"^^<baz>\"") }
+                   "table0.object=\"\"\"bar\"\"^^<baz>\"") }
 
     test("with_vars") {
         check_good("select ?s ?o where { ?s <foo> ?o }",
@@ -244,7 +244,7 @@ class TestYuzuQL extends FunSuite with Matchers {
                    "ON table0.sid=table1.sid " +
                    "WHERE table0.property=\"<http://purl.org/dc/" +
                    "elements/1.1/language>\" " +
-                   "AND table0.object=\"\\\"english\\\"^^<http://" +
+                   "AND table0.object=\"\"\"english\"\"^^<http://" +
                    "www.w3.org/2001/XMLSchema#string>\" " +
                    "AND table1.property=\"<http://purl.org/dc/" +
                    "elements/1.1/type>\" " +
@@ -272,10 +272,18 @@ class TestYuzuQL extends FunSuite with Matchers {
                    "FROM triples AS table0 " +
                    "WHERE table0.property=\"<foo>\"") }
 
+    test("count_mode") {
+        check_good("select (count(*) as ?count) ?o where { ?s <foo> ?o }",
+                   "SELECT COUNT(*), table0.object FROM triples AS table0 " +
+                   "WHERE table0.property=\"<foo>\" GROUP BY table0.object") }
+
+    test("count_mode2") {
+        check_good("select (count(*) as ?count) where { ?s <foo> ?o }",
+                   "SELECT COUNT(*) FROM triples AS table0 " +
+                   "WHERE table0.property=\"<foo>\"") }
+
     // Non-SPARQL extensions
 
-    // Standard Query:
-    // select ?s { ?s <foo> ?o . optional { ?s <bar> ?o2 } }
     test("optional_clause") {
         check_good("select ?s { ?s <foo> ?o ; (<bar> ?o2) }",
                    "SELECT table1.subject " +
@@ -292,9 +300,9 @@ class TestYuzuQL extends FunSuite with Matchers {
                    "SELECT table0.subject " +
                    "FROM triples AS table0 " +
                    "WHERE (table0.property=\"<foo>\" " +
-                   "AND table0.object=\"\\\"bar\\\"\" " +
+                   "AND table0.object=\"\"\"bar\"\"\" " +
                    "OR table0.property=\"<baz>\" " +
-                   "AND table0.object=\"\\\"bing\\\"\")") }
+                   "AND table0.object=\"\"\"bing\"\"\")") }
 
     // Standard Query:
     // select ?s { ?s <foo> "x" . optional { 
@@ -307,31 +315,18 @@ class TestYuzuQL extends FunSuite with Matchers {
                    "LEFT JOIN triples AS table1 " +
                    "ON table0.sid=table1.sid " +
                    "WHERE table0.property=\"<foo>\" " +
-                   "AND table0.object=\"\\\"x\\\"\" " +
+                   "AND table0.object=\"\"\"x\"\"\" " +
                    "AND (table1.property=\"<foo>\" " +
-                   "AND table1.object=\"\\\"bar\\\"\" " +
+                   "AND table1.object=\"\"\"bar\"\"\" " +
                    "OR table1.property=\"<baz>\" " +
-                   "AND table1.object=\"\\\"bing\\\"\")") }
+                   "AND table1.object=\"\"\"bing\"\"\")") }
 
-    // Standard Query:
-    // select (count(*) as ?count) ?o { ?s <foo> ?o } group by ?o
-    test("count_mode") {
-        val q = "select ?o where { ?s <foo> ?o }"
-        val select = YuzuQLSyntax.parse(q)
-        val qb = new QueryBuilder(select)
-        val sql2 = qb.buildCount
-        val sql = "SELECT COUNT(*), table0.object FROM triples AS table0 " +
-                  "WHERE table0.property=\"<foo>\" GROUP BY table0.object"
-        sql2 should be (sql) }
-
-    // Standard Query:
-    // select (count(*) as ?count) where { ?s <foo> ?o }
-    test("count_mode2") {
-        val q = "select * where { ?s <foo> ?o }"
-        val select = YuzuQLSyntax.parse(q)
-        val qb = new QueryBuilder(select)
-        val sql2 = qb.buildCount
-        val sql = ("SELECT COUNT(*) FROM triples AS table0 " +
-                   "WHERE table0.property=\"<foo>\"")
-        sql2 should be (sql) }
+    test("optional_implicit_join") {
+        check_good("select ?s { ?s <foo> \"x\" | <bar> ?s }",
+                   "SELECT table0.object " +
+                   "FROM triples AS table0 " +
+                   "WHERE (table0.property=\"<foo>\" " +
+                   "AND table0.object=\"\"\"x\"\"\" " +
+                   "OR table0.property=\"<bar>\" " +
+                   "AND table0.subject=table0.object)") }
 }
