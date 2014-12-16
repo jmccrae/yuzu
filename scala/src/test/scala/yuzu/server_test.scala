@@ -24,7 +24,7 @@ class DummyBackend extends Backend {
   def listValues(offset : Int, limit : Int, prop : String) = (false, Nil)
   //def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], limit : Int = 20) = Nil
-  def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) { }
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { }
   def tripleCount = 0
   def linkCounts = Nil
 }
