@@ -15,6 +15,23 @@ import org.apache.jena.atlas.web.TypedInputStream
 import org.apache.jena.riot.system.{StreamRDF, StreamRDFBase}
 import org.apache.jena.riot.{Lang, RDFDataMgr}
 
+object UnicodeEscape {
+  /** Fix unicode escape characters */
+  def unescape(str : String) : String = {
+    val sb = new StringBuilder(str)
+    var i = 0
+    while(i < sb.length) {
+      if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
+      try {
+        sb.replace(i,i+6, 
+          Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
+      catch {
+      case x : NumberFormatException =>
+        System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
+      i += 1 }
+    sb.toString }
+}
+
 /**
  * Standard 3-column SQL implementation of a triple store, with foreign keys
  * for N3 form of the triple
@@ -28,21 +45,6 @@ class TripleBackend(db : String) extends Backend {
   /** Create a connection */
   private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
 
-  /** Fix unicode escape characters */
-  def unicodeEscape(str : String) : String = {
-    val sb = new StringBuilder(str)
-    var i = 0
-    while(i < sb.length) {
-      if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
-      try {
-        sb.replace(i,i+6, 
-          Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
-      catch {
-      case x : NumberFormatException =>
-        System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
-      i += 1 }
-    sb.toString }
-
   /** Convert an N3 string to a node */
   private def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
     NodeFactory.createURI(java.net.URLDecoder.decode(n3.drop(1).dropRight(1), "UTF-8")) }
@@ -50,12 +52,12 @@ class TripleBackend(db : String) extends Backend {
     NodeFactory.createAnon(AnonId.create(n3.drop(2))) }
   else if(n3.startsWith("\"") && n3.contains("^^")) {
     val Array(lit, typ) = n3.split("\"\\^\\^",2) 
-    NodeFactory.createLiteral(unicodeEscape(lit.drop(1)), NodeFactory.getType(typ.drop(1).dropRight(1))) }
+    NodeFactory.createLiteral(UnicodeEscape.unescape(lit.drop(1)), NodeFactory.getType(typ.drop(1).dropRight(1))) }
   else if(n3.startsWith("\"") && n3.contains("\"@")) {
     val Array(lit, lang) = n3.split("\"@", 2) 
-    NodeFactory.createLiteral(unicodeEscape(lit.drop(1)), lang, false) }
+    NodeFactory.createLiteral(UnicodeEscape.unescape(lit.drop(1)), lang, false) }
   else if(n3.startsWith("\"") && n3.endsWith("\"")) {
-    NodeFactory.createLiteral(unicodeEscape(n3.drop(1).dropRight(1))) }
+    NodeFactory.createLiteral(UnicodeEscape.unescape(n3.drop(1).dropRight(1))) }
   else {
     throw new IllegalArgumentException("Not N3: %s" format n3) }
 
@@ -355,7 +357,7 @@ class TripleBackend(db : String) extends Backend {
        results2.map {
          case (s, null) => SearchResult(CONTEXT + "/" + s, s)
          case (s, "") => SearchResult(CONTEXT + "/" + s, s)
-         case (s, l) => SearchResult(CONTEXT + "/" + s, l) })}}
+         case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l)) })}}
 
   /** List all pages by value */
   def listValues(offset : Int , limit : Int, prop : String) = {
@@ -369,7 +371,7 @@ class TripleBackend(db : String) extends Backend {
       results.map {
         case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
         case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
-        case (s, l, c) => SearchResultWithCount(s, l, c) })}}
+        case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), c) })}}
 
   /** Free text search */
   def search(query : String, property : Option[String], limit : Int = 20) = {
@@ -390,7 +392,7 @@ class TripleBackend(db : String) extends Backend {
       result.toVector.map {
         case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
         case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), l) }}}
+        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l)) }}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>

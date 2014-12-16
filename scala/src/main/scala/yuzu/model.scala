@@ -52,15 +52,19 @@ trait URIDisplayer {
           }
       }
     case l : Literal =>
-      l.getValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
-        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\")
+      UnicodeEscape.unescape(l.getValue().toString().
+        replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
+        replaceAll("\\\\","\\\\"))
   }
   def apply(node : Node) = 
     if(node.isURI()) {
       uriToStr(node.getURI()) }
     else if(node.isLiteral()) {
-      node.getLiteralValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
-        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\") }
+      UnicodeEscape.unescape(node.getLiteralValue().toString().
+        replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
+        replaceAll("\\\\","\\\\")) }
     else {
       "" }
   def apply(dt : RDFDatatype) = uriToStr(dt.getURI())
