@@ -115,20 +115,19 @@ can be used to obtain the next selection of results:
     } limit 100 offset 100
 
 Results may be sorted by the use of an `ORDER BY` clause, where the results will
-be sorted by some order (note the order of these
-results depends on the implementation of the endpoint and may not follow the
-SPARQL standard):
+be sorted by the literal order (other order may be supported at some point 
+in the future):
 
     select ?resource {
       ?resource dc:issued ?date .
-    } limit 100 order by ?date
+    } limit 100 order by str(?date)
 
 The `ASC` and `DESC` keywords indicate if a query is ascending or descending:
 
     select ?resource {
       ?resource dc:issued ?date ;
                 dc:modified ?date2
-    } limit 100 order by desc(?date) asc(?date2)
+    } limit 100 order by desc(str(?date)) asc(str(?date2))
 
 In addition to returning the resources matching a resource it is possible to
 return the counts of resources as follows

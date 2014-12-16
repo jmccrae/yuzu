@@ -68,28 +68,28 @@ class TestYuzuQL(unittest.TestCase):
                         "table0 WHERE table0.property=\"<foo>\"")
 
     def test_with_offset_limit(self):
-        self.check_good("select * { ?s <foo> ?o } order by ?o limit "
+        self.check_good("select * { ?s <foo> ?o } order by str(?o) limit "
                         "10 offset 20",
                         "SELECT table0.subject, table0.object FROM triples AS "
                         "table0 WHERE table0.property=\"<foo>\" "
                         "ORDER BY table0.object LIMIT 10 OFFSET 20")
 
     def test_asc(self):
-        self.check_good("select ?s { ?s <foo> ?o } order by asc(?o)",
+        self.check_good("select ?s { ?s <foo> ?o } order by asc(str(?o))",
                         "SELECT table0.subject "
                         "FROM triples AS table0 "
                         "WHERE table0.property=\"<foo>\" "
                         "ORDER BY table0.object ASC")
 
     def test_desc(self):
-        self.check_good("select ?s { ?s <foo> ?o } order by desc(?o)",
+        self.check_good("select ?s { ?s <foo> ?o } order by desc(str(?o))",
                         "SELECT table0.subject "
                         "FROM triples AS table0 "
                         "WHERE table0.property=\"<foo>\" "
                         "ORDER BY table0.object DESC")
 
     def test_case(self):
-        self.check_good("SELECT * { ?s <foo> ?o } ORDER BY ?o "
+        self.check_good("SELECT * { ?s <foo> ?o } ORDER BY str(?o) "
                         "LIMIT 10 OFFSET 20",
                         "SELECT table0.subject, table0.object FROM triples AS "
                         "table0 WHERE table0.property=\"<foo>\" "
@@ -114,19 +114,19 @@ class TestYuzuQL(unittest.TestCase):
         self.check_bad("construct { ?s a ?o } where { ?s a ?o }")
 
     def test_order_by(self):
-        self.check_good("select * { ?s <foo> ?o } order by ?s",
+        self.check_good("select * { ?s <foo> ?o } order by str(?s)",
                         "SELECT table0.subject, table0.object FROM triples "
                         "AS table0 WHERE table0.property=\"<foo>\" "
                         "ORDER BY table0.subject")
 
     def test_multiple_order_by(self):
-        self.check_good("select * { ?s <foo> ?o } order by ?s ?o",
+        self.check_good("select * { ?s <foo> ?o } order by str(?s) str(?o)",
                         "SELECT table0.subject, table0.object FROM triples "
                         "AS table0 WHERE table0.property=\"<foo>\" "
                         "ORDER BY table0.subject, table0.object")
 
     def test_order_by_expr(self):
-        self.check_bad("select * { ?s a ?o } order by (str(?s))")
+        self.check_bad("select * { ?s a ?o } order by int(?s)")
 
     def test_limit_offset(self):
         self.check_good("select * { ?s <foo> ?o } limit 10 offset 20",

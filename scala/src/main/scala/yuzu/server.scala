@@ -111,7 +111,6 @@ object RDFServer {
     case "application/x-turtle" => Some(turtle)
     case "application/n-triples" => Some(nt)
     case "text/plain" => Some(nt)
-    case "application/json" => Some(jsonld)
     case "application/ld+json" => Some(jsonld)
     case "application/sparql-results+xml" => Some(sparql)
     case "application/sparql-results+json" => Some(sparqljson)
@@ -126,7 +125,7 @@ object RDFServer {
   def bestMimeType(acceptString : String, deflt : ResultType) : ResultType = {
     val accepts = acceptString.split("\\s*,\\s*")
     for(accept <- accepts) {
-      mimeToResultType(accept) match {
+      mimeToResultType(accept, deflt) match {
         case Some(t) => return t
         case None => // noop
      }
@@ -135,7 +134,7 @@ object RDFServer {
       accept => if(accept.contains(";")) {
         try {
           val e = accept.split("\\s*;\\s*")
-          val mime = mimeToResultType(e.head)
+          val mime = mimeToResultType(e.head, deflt)
           val extensions = e.tail
           for(extension <- extensions if extension.startsWith("q=") && mime != None) yield {
             (extension.drop(2).toDouble, mime.get)

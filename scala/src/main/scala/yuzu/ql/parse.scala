@@ -81,17 +81,19 @@ object YuzuQLSyntax extends JavaTokenParsers {
 
   def whereClause = "{" ~> triplePattern <~ "}"
 
-  def asc = ignoreCase("asc") ~> "(" ~> `var` <~ ")" ^^ { Order(_, 1) }
+  def asc = ignoreCase("asc") ~> "(" ~> ignoreCase("str") ~> "(" ~> `var` <~ 
+    ")" <~ ")" ^^ { Order(_, 1) }
 
-  def desc = ignoreCase("desc") ~> "(" ~> `var` <~ ")" ^^ { Order(_, -1) }
+  def desc = ignoreCase("desc") ~> "(" ~> ignoreCase("str") ~> "(" ~> `var` <~ 
+    ")" <~ ")" ^^ { Order(_, -1) }
 
   def groupByClause = ignoreCase("group") ~> ignoreCase("by") ~> rep1(`var`)
 
-  def orderCond = asc | desc | (`var` ^^ { Order(_, 0) })
+  def orderCond = asc | desc | (ignoreCase("str") ~> "(" ~> `var` <~ ")" ^^ { Order(_, 0) })
 
-  def orderCondtions = rep1(orderCond)
+  def orderConditions = rep1(orderCond)
 
-  def orderClause = ignoreCase("order") ~> ignoreCase("by") ~> orderCondtions
+  def orderClause = ignoreCase("order") ~> ignoreCase("by") ~> orderConditions
 
   def limitClause = ignoreCase("limit") ~> "[0-9]+".r ^^ (_.toInt)
 

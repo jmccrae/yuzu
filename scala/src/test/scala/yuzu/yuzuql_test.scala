@@ -59,28 +59,28 @@ class TestYuzuQL extends FunSuite with Matchers {
                    "table0 WHERE table0.property=\"<foo>\"") }
 
     test("with_offset_limit") {
-        check_good("select * { ?s <foo> ?o } order by ?o limit " +
+        check_good("select * { ?s <foo> ?o } order by str(?o) limit " +
                    "10 offset 20",
                    "SELECT table0.object, table0.subject FROM triples AS " +
                    "table0 WHERE table0.property=\"<foo>\" " +
                    "ORDER BY table0.object LIMIT 10 OFFSET 20") }
 
     test("asc") {
-        check_good("select ?s { ?s <foo> ?o } order by asc(?o)",
+        check_good("select ?s { ?s <foo> ?o } order by asc(str(?o))",
                    "SELECT table0.subject " + 
                    "FROM triples AS table0 " + 
                    "WHERE table0.property=\"<foo>\" " + 
                    "ORDER BY table0.object ASC") }
 
     test("desc") {
-        check_good("select ?s { ?s <foo> ?o } order by desc(?o)",
+        check_good("select ?s { ?s <foo> ?o } order by desc(str(?o))",
                    "SELECT table0.subject " + 
                    "FROM triples AS table0 " + 
                    "WHERE table0.property=\"<foo>\" " + 
                    "ORDER BY table0.object DESC") }
 
     test("case") {
-        check_good("SELECT * { ?s <foo> ?o } ORDER BY ?o " +
+        check_good("SELECT * { ?s <foo> ?o } ORDER BY str(?o) " +
                    "LIMIT 10 OFFSET 20",
                    "SELECT table0.object, table0.subject FROM triples AS " +
                    "table0 WHERE table0.property=\"<foo>\" " +
@@ -105,19 +105,19 @@ class TestYuzuQL extends FunSuite with Matchers {
         check_bad("construct { ?s a ?o } where { ?s a ?o }") }
 
     test("order_by") {
-        check_good("select * { ?s <foo> ?o } order by ?s",
+        check_good("select * { ?s <foo> ?o } order by str(?s)",
                    "SELECT table0.object, table0.subject FROM triples " +
                    "AS table0 WHERE table0.property=\"<foo>\" " +
                    "ORDER BY table0.subject") }
 
     test("multiple_order_by") {
-        check_good("select * { ?s <foo> ?o } order by ?s ?o",
+        check_good("select * { ?s <foo> ?o } order by str(?s) str(?o)",
                    "SELECT table0.object, table0.subject FROM triples " +
                    "AS table0 WHERE table0.property=\"<foo>\" " +
                    "ORDER BY table0.subject, table0.object") }
 
     test("order_by_expr") {
-        check_bad("select * { ?s a ?o } order by (str(?s))") }
+        check_bad("select * { ?s a ?o } order by int(?s)") }
 
     test("limit_offset") {
         check_good("select * { ?s <foo> ?o } limit 10 offset 20",

@@ -144,16 +144,22 @@ class YuzuQLSyntax:
                      varList).suppress()
 
     asc = (pp.CaselessKeyword("asc").suppress() +
+           pp.Literal("(").suppress() + pp.CaselessKeyword("str").suppress() +
            pp.Literal("(").suppress() + var +
+           pp.Literal(")").suppress() +
            pp.Literal(")").suppress()).setParseAction(
         lambda s, l, t: Order(t[0], 1))
 
     desc = (pp.CaselessKeyword("desc").suppress() +
+            pp.Literal("(").suppress() + pp.CaselessKeyword("str").suppress() +
             pp.Literal("(").suppress() + var +
+            pp.Literal(")").suppress() +
             pp.Literal(")").suppress()).setParseAction(
         lambda s, l, t: Order(t[0], -1))
 
-    orderCond = asc ^ desc ^ var2
+    orderCond = asc ^ desc ^ (pp.CaselessKeyword("str").suppress() +
+                              pp.Literal("(").suppress() + var2 +
+                              pp.Literal(")").suppress())
 
     orderConditions = pp.Group(pp.OneOrMore(orderCond))
 
