@@ -4,7 +4,6 @@ import com.github.jmccrae.sqlutils._
 import com.github.jmccrae.yuzu.YuzuSettings._
 import com.github.jmccrae.yuzu.YuzuUserText._
 import com.github.jmccrae.yuzu.ql.{PrefixCCLookup, QueryBuilder, YuzuQLSyntax}
-import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.hp.hpl.jena.graph.{Node, NodeFactory, Triple}
 import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import com.hp.hpl.jena.rdf.model.{AnonId, Model, ModelFactory}
@@ -70,15 +69,18 @@ class TripleBackend(db : String) extends Backend {
 
   /** The ID cache */
   private def cache(implicit session : Session) = {
-    val builder = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[String, Int]]
-    builder.maximumSize(1000).build(new CacheLoader[String, Int] {
+    new SimpleCache {
+      val size = 1000000
       def load(key : String) = {
+        println("miss")
         sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].headOption match {
           case Some(id) => 
+            println("restored: " + id)
             id
           case None =>
+            println("new: " + key)
             sql"""INSERT INTO ids (n3) VALUES (?)""".insert(key)
-            sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].head }}})}
+            sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].head }}}}
       
   /** The database schema */
   private def createTables(implicit session : Session) = {
@@ -122,7 +124,7 @@ class TripleBackend(db : String) extends Backend {
    * Load the database from a stream
    * @param inputStream An N-Triple Input Stream
    */
-  def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) { 
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { 
     val c = conn
     c.setAutoCommit(false)
     withSession(c) { implicit session =>
@@ -130,6 +132,8 @@ class TripleBackend(db : String) extends Backend {
       createTables 
 
       // Queries
+      val insertKey = sql"""INSERT OR IGNORE INTO ids (n3) VALUES (?)""".
+        insert1[String]
       val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
         insert5[Int, Int, Int, String, Boolean]
       val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
@@ -140,6 +144,23 @@ class TripleBackend(db : String) extends Backend {
       var linkCounts = collection.mutable.Map[String, Int]()
 
       var n = 0
+      var n2 = 0
+
+      val preLoader = new StreamRDFBase {
+        override def quad(q : Quad) = triple(q.asTriple())
+        override def triple(t : Triple) = {
+          val subj = t.getSubject()
+          val prop = t.getPredicate()
+          val obj = t.getObject()
+
+          insertKey(toN3(subj))
+          insertKey(toN3(prop))
+          insertKey(toN3(obj))
+
+          n2 += 1
+          if(n2 % 100000 == 0) {
+            System.err.print(".") 
+            System.err.flush()  }}}
 
       val loader = new StreamRDFBase {
         override def quad(q : Quad) = triple(q.asTriple())
@@ -151,9 +172,9 @@ class TripleBackend(db : String) extends Backend {
           if(subj.isURI()) {
             if(subj.getURI().startsWith(BASE_NAME)) {
               val page = node2page(subj)
-              val sid = cache.get(toN3(subj))
-              val pid = cache.get(toN3(prop))
-              val oid = cache.get(toN3(obj))
+              val sid = idCache.get(toN3(subj))
+              val pid = idCache.get(toN3(prop))
+              val oid = idCache.get(toN3(obj))
 
               insertTriples(sid, pid, oid, page, subj.getURI().contains("#"))
 
@@ -180,30 +201,56 @@ class TripleBackend(db : String) extends Backend {
                   else {
                     linkCounts(target) = 1 }}}}}
           else {
-            val sid = cache.get(toN3(subj))
-            val pid = cache.get(toN3(prop))
-            val oid = cache.get(toN3(obj))
+            val sid = idCache.get(toN3(subj))
+            val pid = idCache.get(toN3(prop))
+            val oid = idCache.get(toN3(obj))
 
             insertTriples(sid, pid, oid, "<BLANK>", false) }
 
           if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
             val page = node2page(obj)
-            val sid = cache.get(toN3(subj))
-            val pid = cache.get(toN3(prop))
-            val oid = cache.get(toN3(obj))
+            val sid = idCache.get(toN3(subj))
+            val pid = idCache.get(toN3(prop))
+            val oid = idCache.get(toN3(obj))
 
             insertTriples(sid, pid, oid, page, false) }
           
           n += 1
           if(n % 100000 == 0) {
-            System.err.print(".") }
+            System.err.print(".") 
+            System.err.flush() }
         }}
+
+      System.err.print("Preloading")
+
+      RDFDataMgr.parse(preLoader, new TypedInputStream(inputStream), Lang.NTRIPLES)
+      insertKey.execute
+      c.commit()
+
+      System.err.println()
+
+      System.err.print("Caching")
+
+      var n4 = 0
+      for((id, n3) <- sql"""SELECT id, n3 FROM ids""".as2[Int, String]) {
+        idCache.put(n3, id) 
+        n4 += 1
+        if(n4 % 100000 == 0) {
+          System.err.print(".")
+          System.err.flush() }}
+
+      System.err.println()
+
+      System.err.print("Loading")
+
       RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES)
       
       insertTriples.execute
       insertFreeText.execute
       updateLabel.execute
       c.commit()
+
+      System.err.println("")
       
       val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
       linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
@@ -396,4 +443,27 @@ class TripleBackend(db : String) extends Backend {
         }
         case None =>
           ErrorResult("Query not valid in YuzuQL: " + x.getMessage()) } } }
+}
+
+trait SimpleCache {
+  private val theMap = collection.mutable.Map[String, Int]()
+  private val addList = collection.mutable.Queue[String]()
+
+  def size : Int
+  def load(key : String) : Int
+
+  def get(key : String) = theMap.get(key) match {
+    case Some(id) =>
+      id
+    case None =>
+      val id = load(key)
+      put(key, id)
+      id }
+
+  def put(key : String, id : Int) {
+      theMap.put(key, id)
+      addList.enqueue(key)
+      if(theMap.size > size) {
+        val oldKey = addList.dequeue()
+        theMap.remove(oldKey) }}
 }

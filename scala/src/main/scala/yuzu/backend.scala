@@ -46,7 +46,7 @@ trait Backend {
   /**
    * Load the data from an input stream 
    */
-  def load(inputStream : java.io.InputStream, ignoreErrors : Boolean) : Unit
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) : Unit
   /**
    * Return the total number of triples in the model
    */
@@ -189,7 +189,7 @@ object RDFBackend {
     }
     val backend = new TripleBackend(opts.getOrElse("-d", DB_FILE))
     val endsGZ = ".*\\.gz".r
-    val inputStream = opts.getOrElse("-f", DUMP_FILE) match {
+    def inputStream = opts.getOrElse("-f", DUMP_FILE) match {
       case file @ endsGZ() => new GZIPInputStream(new FileInputStream(file))
       case file => new FileInputStream(file)
     }
