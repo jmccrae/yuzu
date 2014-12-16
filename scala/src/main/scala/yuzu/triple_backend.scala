@@ -72,13 +72,10 @@ class TripleBackend(db : String) extends Backend {
     new SimpleCache {
       val size = 1000000
       def load(key : String) = {
-        println("miss")
         sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].headOption match {
           case Some(id) => 
-            println("restored: " + id)
             id
           case None =>
-            println("new: " + key)
             sql"""INSERT INTO ids (n3) VALUES (?)""".insert(key)
             sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].head }}}}
       
@@ -115,9 +112,9 @@ class TripleBackend(db : String) extends Backend {
   /** Work out the page for a node (assuming the node is in the base namespace */
   def node2page(n : Node) = uri2page(n.getURI())
   def uri2page(uri : String) =
-    if(uri.contains('#')) {
+    java.net.URLDecoder.decode(if(uri.contains('#')) {
       uri.take(uri.indexOf('#')).drop(BASE_NAME.size) }
-    else { uri.drop(BASE_NAME.size) }
+    else { uri.drop(BASE_NAME.size) }, "UTF-8")
 
 
   /** 
@@ -263,6 +260,7 @@ class TripleBackend(db : String) extends Backend {
   def lookup(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
     var found = false
+    println(page)
     sql"""SELECT subject, property, object FROM triples WHERE page=$page""".
       as3[String, String, String].
       foreach { 
