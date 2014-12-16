@@ -193,7 +193,7 @@ class TripleBackend(db : String) extends Backend {
               val pid = idCache.get(toN3(prop))
               val oid = idCache.get(toN3(obj))
 
-              insertTriples(sid, pid, oid, page, subj.getURI().contains("#"))
+              insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
 
               if(FACETS.exists(_("uri") == prop.getURI()) || obj.isLiteral()) {
                 insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
@@ -339,16 +339,16 @@ class TripleBackend(db : String) extends Backend {
             case Some(o) => 
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND object=$o AND page!="<BLANK>"
-                    AND head=0
+                    AND head=1
                     LIMIT $limit2 OFFSET $offset""".as2[String, String]
             case None =>
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND page!="<BLANK>"
-                    AND head=0
+                    AND head=1
                     LIMIT $limit2 OFFSET $offset""".as2[String, String] }
         case None =>
           sql"""SELECT DISTINCT page, subj_label FROM triples
-                WHERE page!="<BLANK>" AND head=0
+                WHERE page!="<BLANK>" AND head=1
                 LIMIT $limit2 OFFSET $offset""".as2[String, String] }
       val results2 = results.toVector
       (results2.size > limit,
