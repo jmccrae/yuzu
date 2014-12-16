@@ -314,6 +314,18 @@ class ServerTest(unittest.TestCase):
         self.assertIn("href=\"http://localhost:8080/data/example\"", content)
         conn.close()
 
+    def test_unicode(self):
+        conn = self.do_get("/list")
+        content = conn.getresponse().read().decode('utf-8')
+        self.assertIn(u"bosättningsstopp", content)
+        conn.close()
+
+        conn = self.do_get("/data/saldo/bos%C3%A4ttningsstopp..nn.1")
+        content = conn.getresponse().read().decode('utf-8')
+        self.assertIn(u"☺", content)
+        self.assertIn(u"✓", content)
+        conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()
