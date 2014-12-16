@@ -260,34 +260,49 @@ package sqlutils {
 
     /** Insert 1 value **/
     def insert[A]
-      (a : A)(implicit pr1 : PutResult[A]) = 
-      insert1(pr1)(a)
+      (a : A)(implicit pr1 : PutResult[A]) = {
+        pr1(ps, a, 1)
+        ps.execute() }
     /** Insert 2 values **/
     def insert[A, B](a : A, b : B)(
       implicit pr1 : PutResult[A],
-               pr2 : PutResult[B]) = 
-      insert2(pr1, pr2)(a, b)
+               pr2 : PutResult[B]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        ps.execute() }
     /** Insert 3 values **/
     def insert[A, B, C](a : A, b : B, c : C)(
       implicit pr1 : PutResult[A],
                pr2 : PutResult[B],
-               pr3 : PutResult[C]) = 
-      insert3(pr1, pr2, pr3)(a, b, c)
+               pr3 : PutResult[C]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        ps.execute() }
     /** Insert 4 values **/
     def insert[A, B, C, D](a : A, b : B, c : C, d : D)(
       implicit pr1 : PutResult[A],
                pr2 : PutResult[B],
                pr3 : PutResult[C],
-               pr4 : PutResult[D]) =
-      insert4(pr1, pr2, pr3, pr4)(a, b, c, d)
+               pr4 : PutResult[D]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        ps.execute() }
     /** Insert 5 values **/
     def insert[A, B, C, D, E](a : A, b : B, c : C, d : D, e : E)(
       implicit pr1 : PutResult[A],
                pr2 : PutResult[B],
                pr3 : PutResult[C],
                pr4 : PutResult[D],
-               pr5 : PutResult[E]) =
-      insert5(pr1, pr2, pr3, pr4, pr5)(a, b, c, d, e)
+               pr5 : PutResult[E]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        pr5(ps, e, 5)
+        ps.execute() }
     /** Insert 6 values **/
     def insert[A, B, C, D, E, F](a : A, b : B, c : C, d : D, e : E, f : F)(
       implicit pr1 : PutResult[A],
@@ -295,8 +310,14 @@ package sqlutils {
                pr3 : PutResult[C],
                pr4 : PutResult[D],
                pr5 : PutResult[E],
-               pr6 : PutResult[F]) =
-      insert6(pr1, pr2, pr3, pr4, pr5, pr6)(a, b, c, d, e, f)
+               pr6 : PutResult[F]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        pr5(ps, e, 5)
+        pr6(ps, f, 6)
+        ps.execute() }
     /** Insert 7 values **/
     def insert[A, B, C, D, E, F, G](a : A, b : B, c : C, d : D, e : E, f : F, g : G)(
       implicit pr1 : PutResult[A],
@@ -305,8 +326,15 @@ package sqlutils {
                pr4 : PutResult[D],
                pr5 : PutResult[E],
                pr6 : PutResult[F],
-               pr7 : PutResult[G]) =
-      insert7(pr1, pr2, pr3, pr4, pr5, pr6, pr7)(a, b, c, d, e, f, g)
+               pr7 : PutResult[G]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        pr5(ps, e, 5)
+        pr6(ps, f, 6)
+        pr7(ps, g, 7)
+        ps.execute() }
     /** Insert 8 values **/
     def insert[A, B, C, D, E, F, G, H](a : A, b : B, c : C, d : D, e : E, f : F, g : G, h : H)(
       implicit pr1 : PutResult[A],
@@ -316,8 +344,16 @@ package sqlutils {
                pr5 : PutResult[E],
                pr6 : PutResult[F],
                pr7 : PutResult[G],
-               pr8 : PutResult[H]) = 
-      insert8(pr1, pr2, pr3, pr4, pr5, pr6, pr7, pr8)(a, b, c, d, e, f, g, h)
+               pr8 : PutResult[H]) =  {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        pr5(ps, e, 5)
+        pr6(ps, f, 6)
+        pr7(ps, g, 7)
+        pr8(ps, h, 8)
+        ps.execute() }
     /** Insert 9 values **/
     def insert[A, B, C, D, E, F, G, H, I](a : A, b : B, c : C, d : D, e : E, f : F, g : G, h : H, i : I)(
       implicit pr1 : PutResult[A],
@@ -328,8 +364,17 @@ package sqlutils {
                pr6 : PutResult[F],
                pr7 : PutResult[G],
                pr8 : PutResult[H],
-               pr9 : PutResult[I]) = 
-      insert9(pr1, pr2, pr3, pr4, pr5, pr6, pr7, pr8, pr9)(a, b, c, d, e, f, g, h, i)
+               pr9 : PutResult[I]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        pr5(ps, e, 5)
+        pr6(ps, f, 6)
+        pr7(ps, g, 7)
+        pr8(ps, h, 8)
+        pr9(ps, i, 9)
+        ps.execute() }
     /** Insert 10 values **/
     def insert[A, B, C, D, E, F, G, H, I, J](a : A, b : B, c : C, d : D, e : E, f : F, g : G, h : H , i : I, j : J)(
       implicit pr1 : PutResult[A],
@@ -341,64 +386,92 @@ package sqlutils {
                pr7 : PutResult[G],
                pr8 : PutResult[H],
                pr9 : PutResult[I],
-               prA : PutResult[J]) = 
-      insert10(pr1, pr2, pr3, pr4, pr5, pr6, pr7, pr8, pr9, prA)(a, b, c, d, e, f, g, h, i, j)
+               prA : PutResult[J]) = {
+        pr1(ps, a, 1)
+        pr2(ps, b, 2)
+        pr3(ps, c, 3)
+        pr4(ps, d, 4)
+        pr5(ps, e, 5)
+        pr6(ps, f, 6)
+        pr7(ps, g, 7)
+        pr8(ps, h, 8)
+        pr9(ps, i, 9)
+        prA(ps, j, 10)
+        ps.execute() }
+
+    /**
+     * A bulk insertion
+     */
+    trait BulkInsertion {
+      def execute = ps.executeBatch() }
 
     /** Generate function for bulk inserting 1 value */
     def insert1[A](
-      implicit pr1 : PutResult[A]) = (x1 : A) => {
+      implicit pr1 : PutResult[A]) = new BulkInsertion1(pr1)
+    class BulkInsertion1[A](pr1 : PutResult[A]) extends BulkInsertion {
+      def apply(x1 : A) {
         pr1(ps, x1, 1)
-        ps.execute() }
+        ps.addBatch() }}
+
     /** Generate function for bulk inserting 2 values */
     def insert2[A, B](
       implicit pr1 : PutResult[A],
-               pr2 : PutResult[B]) = (x1 : A,
-                                      x2 : B) => {
+               pr2 : PutResult[B]) = new BulkInsertion2(pr1, pr2)
+    class BulkInsertion2[A, B](pr1 : PutResult[A],
+               pr2 : PutResult[B]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 3 values */
     def insert3[A, B, C](
       implicit pr1 : PutResult[A],
                pr2 : PutResult[B],
-               pr3 : PutResult[C]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C) => {
+               pr3 : PutResult[C]) = new BulkInsertion3(pr1, pr2, pr3)
+    class BulkInsertion3[A, B, C](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 4 values */
     def insert4[A, B, C, D](
       implicit pr1 : PutResult[A],
                pr2 : PutResult[B],
                pr3 : PutResult[C],
-               pr4 : PutResult[D]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D) => {
+               pr4 : PutResult[D]) = new BulkInsertion4(pr1, pr2, pr3, pr4)
+    class BulkInsertion4[A, B, C, D](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4 : D) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
         pr4(ps, x4, 4)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 5 values */
     def insert5[A, B, C, D, E](
       implicit pr1 : PutResult[A],
                pr2 : PutResult[B],
                pr3 : PutResult[C],
                pr4 : PutResult[D],
-               pr5 : PutResult[E]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D,
-                                      x5 : E) => {
+               pr5 : PutResult[E]) = new BulkInsertion5(pr1, pr2, pr3, pr4, pr5)
+    class BulkInsertion5[A, B, C, D, E](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D],
+               pr5 : PutResult[E]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4 : D, x5 : E) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
         pr4(ps, x4, 4)
         pr5(ps, x5, 5)
-        ps.execute() }
+        ps.addBatch() }}
+
     /** Generate function for bulk inserting 6 values */
     def insert6[A, B, C, D, E, F](
       implicit pr1 : PutResult[A],
@@ -406,19 +479,21 @@ package sqlutils {
                pr3 : PutResult[C],
                pr4 : PutResult[D],
                pr5 : PutResult[E],
-               pr6 : PutResult[F]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D,
-                                      x5 : E,
-                                      x6 : F) => {
+               pr6 : PutResult[F]) = new BulkInsertion6(pr1, pr2, pr3, pr4, pr5, pr6)
+    class BulkInsertion6[A, B, C, D, E, F](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D],
+               pr5 : PutResult[E],
+               pr6 : PutResult[F]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4 : D, x5 : E, x6 : F) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
         pr4(ps, x4, 4)
         pr5(ps, x5, 5)
         pr6(ps, x6, 6)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 7 values */
     def insert7[A, B, C, D, E, F, G](
       implicit pr1 : PutResult[A],
@@ -427,13 +502,15 @@ package sqlutils {
                pr4 : PutResult[D],
                pr5 : PutResult[E],
                pr6 : PutResult[F],
-               pr7 : PutResult[G]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D,
-                                      x5 : E,
-                                      x6 : F,
-                                      x7 : G) => {
+               pr7 : PutResult[G]) = new BulkInsertion7(pr1, pr2, pr3, pr4, pr5, pr6, pr7)
+    class BulkInsertion7[A, B, C, D, E, F, G](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D],
+               pr5 : PutResult[E],
+               pr6 : PutResult[F],
+               pr7 : PutResult[G]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4 : D, x5 : E, x6 : F, x7 : G) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
@@ -441,7 +518,7 @@ package sqlutils {
         pr5(ps, x5, 5)
         pr6(ps, x6, 6)
         pr7(ps, x7, 7)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 8 values */
     def insert8[A, B, C, D, E, F, G, H](
       implicit pr1 : PutResult[A],
@@ -451,14 +528,16 @@ package sqlutils {
                pr5 : PutResult[E],
                pr6 : PutResult[F],
                pr7 : PutResult[G],
-               pr8 : PutResult[H]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D,
-                                      x5 : E,
-                                      x6 : F,
-                                      x7 : G,
-                                      x8 : H) => {
+               pr8 : PutResult[H]) = new BulkInsertion8(pr1, pr2, pr3, pr4, pr5, pr6, pr7, pr8)
+    class BulkInsertion8[A, B, C, D, E, F, G, H](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D],
+               pr5 : PutResult[E],
+               pr6 : PutResult[F],
+               pr7 : PutResult[G],
+               pr8 : PutResult[H]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4: D, x5 : E, x6 : F, x7 : G, x8 : H) {
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
@@ -467,7 +546,7 @@ package sqlutils {
         pr6(ps, x6, 6)
         pr7(ps, x7, 7)
         pr8(ps, x8, 8)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 9 values */
     def insert9[A, B, C, D, E, F, G, H, I](
       implicit pr1 : PutResult[A],
@@ -478,15 +557,17 @@ package sqlutils {
                pr6 : PutResult[F],
                pr7 : PutResult[G],
                pr8 : PutResult[H],
-               pr9 : PutResult[I]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D,
-                                      x5 : E,
-                                      x6 : F,
-                                      x7 : G,
-                                      x8 : H,
-                                      x9 : I) => {
+               pr9 : PutResult[I]) = new BulkInsertion9(pr1, pr2, pr3, pr4, pr5, pr6, pr7, pr8, pr9)
+    class BulkInsertion9[A, B, C, D, E, F, G, H, I](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D],
+               pr5 : PutResult[E],
+               pr6 : PutResult[F],
+               pr7 : PutResult[G],
+               pr8 : PutResult[H],
+               pr9 : PutResult[I]) extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4: D, x5 : E, x6 : F, x7 : G, x8 : H, x9 : I) { 
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
@@ -496,7 +577,7 @@ package sqlutils {
         pr7(ps, x7, 7)
         pr8(ps, x8, 8)
         pr9(ps, x9, 9)
-        ps.execute() }
+        ps.addBatch() }}
     /** Generate function for bulk inserting 10 values */
     def insert10[A, B, C, D, E, F, G, H, I, J](
       implicit pr1 : PutResult[A],
@@ -508,16 +589,18 @@ package sqlutils {
                pr7 : PutResult[G],
                pr8 : PutResult[H],
                pr9 : PutResult[I],
-               prA : PutResult[J]) = (x1 : A,
-                                      x2 : B,
-                                      x3 : C,
-                                      x4 : D,
-                                      x5 : E,
-                                      x6 : F,
-                                      x7 : G,
-                                      x8 : H,
-                                      x9 : I,
-                                      xA : J) => {
+               prA : PutResult[J]) = new BulkInsertion10(pr1, pr2, pr3, pr4, pr5, pr6, pr7, pr8, pr9, prA)
+    class BulkInsertion10[A, B, C, D, E, F, G, H, I, J](pr1 : PutResult[A],
+               pr2 : PutResult[B],
+               pr3 : PutResult[C],
+               pr4 : PutResult[D],
+               pr5 : PutResult[E],
+               pr6 : PutResult[F],
+               pr7 : PutResult[G],
+               pr8 : PutResult[H],
+               pr9 : PutResult[I],
+               prA : PutResult[J])  extends BulkInsertion {
+      def apply(x1 : A, x2 : B, x3 : C, x4: D, x5 : E, x6 : F, x7 : G, x8 : H, x9 : I, xA : J) { 
         pr1(ps, x1, 1)
         pr2(ps, x2, 2)
         pr3(ps, x3, 3)
@@ -528,7 +611,7 @@ package sqlutils {
         pr8(ps, x8, 8)
         pr9(ps, x9, 9)
         prA(ps, xA, 10)
-        ps.execute() }
+        ps.addBatch() }}
   }
   
   object SQLQuery {

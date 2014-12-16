@@ -139,6 +139,8 @@ class TripleBackend(db : String) extends Backend {
 
       var linkCounts = collection.mutable.Map[String, Int]()
 
+      var n = 0
+
       val loader = new StreamRDFBase {
         override def quad(q : Quad) = triple(q.asTriple())
         override def triple(t : Triple) = {
@@ -191,9 +193,16 @@ class TripleBackend(db : String) extends Backend {
             val oid = cache.get(toN3(obj))
 
             insertTriples(sid, pid, oid, page, false) }
+          
+          n += 1
+          if(n % 100000 == 0) {
+            System.err.print(".") }
         }}
       RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES)
       
+      insertTriples.execute
+      insertFreeText.execute
+      updateLabel.execute
       c.commit()
       
       val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
