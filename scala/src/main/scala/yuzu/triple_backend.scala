@@ -28,19 +28,34 @@ class TripleBackend(db : String) extends Backend {
   /** Create a connection */
   private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
 
+  /** Fix unicode escape characters */
+  def unicodeEscape(str : String) : String = {
+    val sb = new StringBuilder(str)
+    var i = 0
+    while(i < sb.length) {
+      if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
+      try {
+        sb.replace(i,i+6, 
+          Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
+      catch {
+      case x : NumberFormatException =>
+        System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
+      i += 1 }
+    sb.toString }
+
   /** Convert an N3 string to a node */
   private def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
-    NodeFactory.createURI(n3.drop(1).dropRight(1)) }
+    NodeFactory.createURI(java.net.URLDecoder.decode(n3.drop(1).dropRight(1), "UTF-8")) }
   else if(n3.startsWith("_:")) {
     NodeFactory.createAnon(AnonId.create(n3.drop(2))) }
   else if(n3.startsWith("\"") && n3.contains("^^")) {
     val Array(lit, typ) = n3.split("\"\\^\\^",2) 
-    NodeFactory.createLiteral(lit.drop(1), NodeFactory.getType(typ.drop(1).dropRight(1))) }
+    NodeFactory.createLiteral(unicodeEscape(lit.drop(1)), NodeFactory.getType(typ.drop(1).dropRight(1))) }
   else if(n3.startsWith("\"") && n3.contains("\"@")) {
     val Array(lit, lang) = n3.split("\"@", 2) 
-    NodeFactory.createLiteral(lit.drop(1), lang, false) }
+    NodeFactory.createLiteral(unicodeEscape(lit.drop(1)), lang, false) }
   else if(n3.startsWith("\"") && n3.endsWith("\"")) {
-    NodeFactory.createLiteral(n3.drop(1).dropRight(1)) }
+    NodeFactory.createLiteral(unicodeEscape(n3.drop(1).dropRight(1))) }
   else {
     throw new IllegalArgumentException("Not N3: %s" format n3) }
 
@@ -111,10 +126,15 @@ class TripleBackend(db : String) extends Backend {
 
   /** Work out the page for a node (assuming the node is in the base namespace */
   def node2page(n : Node) = uri2page(n.getURI())
+
   def uri2page(uri : String) =
     java.net.URLDecoder.decode(if(uri.contains('#')) {
       uri.take(uri.indexOf('#')).drop(BASE_NAME.size) }
     else { uri.drop(BASE_NAME.size) }, "UTF-8")
+
+  def fixURI(n : Node) = if(n.isURI()) {
+    NodeFactory.createURI(java.net.URLDecoder.decode(n.getURI(), "UTF-8")) }
+  else { n }
 
 
   /** 
@@ -146,9 +166,9 @@ class TripleBackend(db : String) extends Backend {
       val preLoader = new StreamRDFBase {
         override def quad(q : Quad) = triple(q.asTriple())
         override def triple(t : Triple) = {
-          val subj = t.getSubject()
-          val prop = t.getPredicate()
-          val obj = t.getObject()
+          val subj = fixURI(t.getSubject())
+          val prop = fixURI(t.getPredicate())
+          val obj = fixURI(t.getObject())
 
           insertKey(toN3(subj))
           insertKey(toN3(prop))
@@ -162,9 +182,9 @@ class TripleBackend(db : String) extends Backend {
       val loader = new StreamRDFBase {
         override def quad(q : Quad) = triple(q.asTriple())
         override def triple(t : Triple) = {
-          val subj = t.getSubject()
-          val prop = t.getPredicate()
-          val obj = t.getObject()
+          val subj = fixURI(t.getSubject())
+          val prop = fixURI(t.getPredicate())
+          val obj = fixURI(t.getObject())
 
           if(subj.isURI()) {
             if(subj.getURI().startsWith(BASE_NAME)) {
@@ -251,6 +271,7 @@ class TripleBackend(db : String) extends Backend {
       
       val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
       linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
+      insertLinkCount.execute
 
       c.commit()
     }
@@ -260,7 +281,6 @@ class TripleBackend(db : String) extends Backend {
   def lookup(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
     var found = false
-    println(page)
     sql"""SELECT subject, property, object FROM triples WHERE page=$page""".
       as3[String, String, String].
       foreach { 
