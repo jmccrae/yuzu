@@ -343,13 +343,9 @@ class TestYuzuQL(unittest.TestCase):
                         "OR table1.property=\"<baz>\" "
                         "AND table1.object=\"\"\"bing\"\"\")")
 
-    def test_optional_implicit_join(self):
-        self.check_good("select ?s { ?s <foo> \"x\" | <bar> ?s }",
-                        "SELECT table0.object "
-                        "FROM triples AS table0 "
-                        "WHERE (table0.property=\"<foo>\" "
-                        "AND table0.object=\"\"\"x\"\"\" "
-                        "OR table0.property=\"<bar>\" "
-                        "AND table0.subject=table0.object)")
+    def test_optional_harmony(self):
+        self.check_bad("select ?s { ?s <foo> \"x\" | <bar> ?s }")
+
+
 if __name__ == '__main__':
     unittest.main()

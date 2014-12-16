@@ -2,6 +2,7 @@ package com.github.jmccrae.yuzu.ql
 
 sealed trait CanBeObject {
   def resolve(prefixes : PrefixLookup) : CanBeObject
+  def vars : Set[String]
 }
 
 sealed trait CanBeSubject {
@@ -10,6 +11,7 @@ sealed trait CanBeSubject {
 
 sealed trait Uri extends CanBeObject with CanBeSubject {
   def resolve(prefixes : PrefixLookup) : Uri
+  val vars = Set[String]()
 }
 
 case class FullURI(uri : String) extends Uri {
@@ -24,18 +26,21 @@ case class PrefixedName(prefix : String, suffix : String) extends Uri {
 
 case class Var(name : String) extends CanBeObject with CanBeSubject {
   def resolve(prefixes : PrefixLookup) = this
+  val vars = Set(name)
 }
 
 case class PlainLiteral(literal : String) extends CanBeObject {
   def resolve(prefixes : PrefixLookup) = this
 
   override def toString = literal
+  val vars = Set[String]()
 }
 
 case class LangLiteral(literal : String, lang : String) extends CanBeObject {
   def resolve(prefixes : PrefixLookup) = this
 
   override def toString = literal + "@" + lang
+  val vars = Set[String]()
 }
 
 case class TypedLiteral(literal : String, `type` : Uri) extends CanBeObject {
@@ -44,6 +49,8 @@ case class TypedLiteral(literal : String, `type` : Uri) extends CanBeObject {
       `type`.resolve(prefixes)) }
 
   override def toString = literal + "^^" + `type`.toString
+  
+  val vars = Set[String]()
 }
 
 
@@ -62,11 +69,14 @@ case class BNC(pos : List[PropObjDisjunction]) extends CanBeObject {
       if(i + 1 < pos.size) {
         table = qb.ssJoin(table, pos(i + 1).optional) } }
     condition }
+  lazy val vars = pos.flatMap(_.vars).toSet
 }
 
 case class ObjList(objs : Seq[CanBeObject]) {
   def resolve(prefixes : PrefixLookup) = {
     ObjList(objs.map(_.resolve(prefixes))) }
+
+  def vars = objs.flatMap(_.vars).toSet
 }
 
 case class PropObj(prop : Uri, objs : ObjList) {
@@ -104,9 +114,17 @@ case class PropObj(prop : Uri, objs : ObjList) {
           table = qb.ssJoin(table, optional) } }
       conditions }
 
+  def vars = objs.vars
 }
 
 case class PropObjDisjunction(elements : Seq[PropObj], optional : Boolean) {
+  elements.reduce { (x, y) =>
+    if(x.vars == y.vars) {
+      y
+    } else {
+      throw new IllegalArgumentException("Variables are not harmonious")
+    }
+  }
   def resolve(prefixes : PrefixLookup) = {
     PropObjDisjunction(elements.map(_.resolve(prefixes)), optional) }
 
@@ -116,6 +134,8 @@ case class PropObjDisjunction(elements : Seq[PropObj], optional : Boolean) {
     for(element <- elements) {
       condition += element.toSql(_table, qb, subj, optional) }
     condition }
+
+  lazy val vars = elements.flatMap(_.vars).toSet
 }
 
 case class Triple(subj : CanBeSubject, pos : List[PropObjDisjunction]) {

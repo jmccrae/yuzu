@@ -155,6 +155,8 @@ endpoints, firstly you may specify an alternative value with the `|` operator:
                 lvont:language ?language
     } limit 100
 
+NB. The set of variables used in the alternatives must be the same.
+
 This is equivalent to the following standard SPARQL query:
 
     select ?language {
@@ -163,7 +165,7 @@ This is equivalent to the following standard SPARQL query:
       } union {
         ?resource lvont:language ?language
       }
-    }
+    } limit 100
 
 Secondly a property query may be made optional by surrounding it with `()`. 
 This may only be done after a `;`:
@@ -171,7 +173,7 @@ This may only be done after a `;`:
     select ?resource ?label {
       ?resource dc:languge "en" ;
                 (rdfs:label ?label)
-    }
+    } limit 100
 
 This is equivalent to the following standard SPARQL query:
 
@@ -180,7 +182,7 @@ This is equivalent to the following standard SPARQL query:
       optional {
         rdfs:label ?label
       }
-    }
+    } limit 100
 
 Result Format
 =============

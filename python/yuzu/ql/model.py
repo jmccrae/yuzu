@@ -18,6 +18,9 @@ class FullURI:
     def __repr__(self):
         return self.uri
 
+    def vars(self):
+        return []
+
 
 class PrefixedName:
     def __init__(self, prefix, suffix):
@@ -38,6 +41,9 @@ class PrefixedName:
             except HTTPError:
                 raise ("Prefix not found: %s" % self.prefix)
 
+    def vars(self):
+        return []
+
 
 class Var:
     def __init__(self, name):
@@ -55,6 +61,9 @@ class Var:
     def __eq__(self, other):
         return self.name == other.name
 
+    def vars(self):
+        return [self]
+
 
 class PlainLiteral:
     def __init__(self, literal):
@@ -65,6 +74,9 @@ class PlainLiteral:
 
     def __repr__(self):
         return self.literal
+
+    def vars(self):
+        return []
 
 
 class LangLiteral:
@@ -78,6 +90,9 @@ class LangLiteral:
     def __repr__(self):
         return self.literal + "@" + self.lang
 
+    def vars(self):
+        return []
+
 
 class TypedLiteral:
     def __init__(self, literal, datatype):
@@ -89,6 +104,9 @@ class TypedLiteral:
 
     def __repr__(self):
         return self.literal + "^^" + str(self.datatype)
+
+    def vars(self):
+        return []
 
 
 class BNC:
@@ -108,6 +126,9 @@ class BNC:
                 table = qb.ss_join(table, self.pos[i + 1].optional)
         return condition
 
+    def vars(self):
+        return self.pos.vars()
+
 
 class ObjList:
     def __init__(self, objs):
@@ -115,6 +136,9 @@ class ObjList:
 
     def resolve(self, prefixes):
         return ObjList([o.resolve(prefixes) for o in self.objs])
+
+    def vars(self):
+        return [v for obj in self.objs for v in obj.vars()]
 
 
 class PropObj:
@@ -152,11 +176,17 @@ class PropObj:
                 table = qb.ss_join(table, optional)
         return conditions
 
+    def vars(self):
+        return self.obj.vars()
+
 
 class PropObjDisjunction:
     def __init__(self, elements, optional):
         self.elements = elements
         self.optional = optional
+        for i in range(1, len(elements)):
+            if set(elements[i-1].vars()) != set(elements[i].vars()):
+                raise "Variables are not harmonious across a disjunct"
 
     def resolve(self, prefixes):
         return PropObjDisjunction([e.resolve(prefixes) for e in self.elements],
