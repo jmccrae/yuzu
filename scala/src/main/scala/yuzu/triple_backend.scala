@@ -133,7 +133,7 @@ class TripleBackend(db : String) extends Backend {
     else { uri.drop(BASE_NAME.size) }, "UTF-8")
 
   def fixURI(n : Node) = if(n.isURI()) {
-    NodeFactory.createURI(java.net.URLDecoder.decode(n.getURI(), "UTF-8")) }
+    NodeFactory.createURI(java.net.URLDecoder.decode(n.getURI(), "UTF-8").replaceAll(" ", "+").replaceAll("\u00a0", "%C2%A0")) }
   else { n }
 
 
@@ -193,7 +193,7 @@ class TripleBackend(db : String) extends Backend {
               val pid = idCache.get(toN3(prop))
               val oid = idCache.get(toN3(obj))
 
-              insertTriples(sid, pid, oid, page, subj.getURI().contains("#"))
+              insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
 
               if(FACETS.exists(_("uri") == prop.getURI()) || obj.isLiteral()) {
                 insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
@@ -202,21 +202,26 @@ class TripleBackend(db : String) extends Backend {
                 updateLabel(obj.getLiteralLexicalForm(), sid) }
 
               if(obj.isURI()) {
-                val objUri = URI.create(obj.getURI())
-                if(!(NOT_LINKED :+ BASE_NAME).exists(obj.getURI().startsWith(_)) &&
-                    obj.getURI().startsWith("http")) {
-                  val target = LINKED_SETS.find(obj.getURI().startsWith(_)) match {
-                    case Some(l) => l
-                    case None => new URI(
-                      objUri.getScheme(),
-                      objUri.getUserInfo(),
-                      objUri.getHost(),
-                      objUri.getPort(),
-                      "/", null, null).toString }
-                  if(linkCounts.contains(target)) {
-                    linkCounts(target) += 1 } 
-                  else {
-                    linkCounts(target) = 1 }}}}}
+                try {
+                  val objUri = URI.create(obj.getURI())
+                  if(!(NOT_LINKED :+ BASE_NAME).exists(obj.getURI().startsWith(_)) &&
+                      obj.getURI().startsWith("http")) {
+                    val target = LINKED_SETS.find(obj.getURI().startsWith(_)) match {
+                      case Some(l) => l
+                      case None => new URI(
+                        objUri.getScheme(),
+                        objUri.getUserInfo(),
+                        objUri.getHost(),
+                        objUri.getPort(),
+                        "/", null, null).toString }
+                    if(linkCounts.contains(target)) {
+                      linkCounts(target) += 1 } 
+                    else {
+                      linkCounts(target) = 1 }}}
+                catch {
+                  case x : Exception => // oh well 
+                }}}}
+                
           else {
             val sid = idCache.get(toN3(subj))
             val pid = idCache.get(toN3(prop))
@@ -334,16 +339,16 @@ class TripleBackend(db : String) extends Backend {
             case Some(o) => 
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND object=$o AND page!="<BLANK>"
-                    AND head=0
+                    AND head=1
                     LIMIT $limit2 OFFSET $offset""".as2[String, String]
             case None =>
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND page!="<BLANK>"
-                    AND head=0
+                    AND head=1
                     LIMIT $limit2 OFFSET $offset""".as2[String, String] }
         case None =>
           sql"""SELECT DISTINCT page, subj_label FROM triples
-                WHERE page!="<BLANK>" AND head=0
+                WHERE page!="<BLANK>" AND head=1
                 LIMIT $limit2 OFFSET $offset""".as2[String, String] }
       val results2 = results.toVector
       (results2.size > limit,
