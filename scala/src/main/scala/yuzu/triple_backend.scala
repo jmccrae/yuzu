@@ -357,7 +357,7 @@ class TripleBackend(db : String) extends Backend {
        results2.map {
          case (s, null) => SearchResult(CONTEXT + "/" + s, s)
          case (s, "") => SearchResult(CONTEXT + "/" + s, s)
-         case (s, l) => SearchResult(CONTEXT + "/" + s, l) })}}
+         case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l)) })}}
 
   /** List all pages by value */
   def listValues(offset : Int , limit : Int, prop : String) = {
@@ -371,7 +371,7 @@ class TripleBackend(db : String) extends Backend {
       results.map {
         case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
         case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
-        case (s, l, c) => SearchResultWithCount(s, l, c) })}}
+        case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), c) })}}
 
   /** Free text search */
   def search(query : String, property : Option[String], limit : Int = 20) = {
@@ -392,7 +392,7 @@ class TripleBackend(db : String) extends Backend {
       result.toVector.map {
         case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
         case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), l) }}}
+        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l)) }}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>
