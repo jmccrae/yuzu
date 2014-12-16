@@ -40,6 +40,7 @@ class ServerTest(unittest.TestCase):
                       + " btn-default disabled\\\'>&lt;&lt;</a>", content)
         self.assertIn("<a href=\\\'/list/?offset=20\\\' class=\\\'btn"
                       + " btn-default disabled\\\'>&gt;&gt;</a>", content)
+        self.assertNotIn(">data/example2<", content)
         conn.close()
 
     def test_list_by_value(self):
@@ -269,6 +270,17 @@ class ServerTest(unittest.TestCase):
         self.assertIn("en.gif", content)
         self.assertIn("href=\"http://dbpedia.org", content)
         self.assertIn("English", content)
+        conn.close()
+
+    def test_yuzuql(self):
+        conn = HTTPConnection(self.address, self.port)
+        conn.request("GET",
+                     "/sparql/?query=SELECT+%3Fs+WHERE+{%0D%0A++%3Fs+"
+                     "rdfs%3Alabel+\"Beispiel\"%40de%0D%0A}+LIMIT+1",
+                     headers={'Accept': ''})
+        content = str(conn.getresponse().read())
+        self.assertIn("\"value\": \"http://localhost:8080/data/example\"",
+                      content)
         conn.close()
 
     def test_onboarding_not_avail(self):

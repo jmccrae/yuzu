@@ -1,7 +1,7 @@
 import pyparsing as pp
-from model import Triple, Var, BNC, TypedLiteral, PropObjDisjunction
-from model import ObjList, SelectQuery, PropObj, Order, PrefixedName, FullURI
-from model import PlainLiteral, LangLiteral
+from yuzu.ql.model import Triple, Var, BNC, TypedLiteral, PropObjDisjunction
+from yuzu.ql.model import ObjList, SelectQuery, PropObj, Order, PrefixedName
+from yuzu.ql.model import FullURI, PlainLiteral, LangLiteral
 
 
 def limit_unwrap(s, l, t):
@@ -180,7 +180,7 @@ class YuzuQLSyntax:
     query = (prefixes + select + countVarList +
              pp.Optional(where).suppress() + whereClause + solutionModifier)
 
-    def parse(self, q):
+    def parse(self, q, ext_prefixes):
         t = self.query.parseString(q, parseAll=True)
         prefixes, distinct, count_var_list, body, orderBy, lo = t
         count_var, varList = count_var_list
@@ -194,5 +194,8 @@ class YuzuQLSyntax:
 
         sq = SelectQuery(distinct, count_var, varList, body, orderBy,
                          int(limit), int(offset))
+        for k in ext_prefixes:
+            if k not in prefixes:
+                prefixes[k] = ext_prefixes[k]
         sq = sq.resolve(prefixes)
         return sq

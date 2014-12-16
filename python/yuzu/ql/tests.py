@@ -1,7 +1,7 @@
 import unittest
 
-from parse import YuzuQLSyntax
-from model import QueryBuilder
+from yuzu.ql.parse import YuzuQLSyntax
+from yuzu.ql.model import QueryBuilder
 
 
 class TestYuzuQL(unittest.TestCase):
@@ -11,14 +11,14 @@ class TestYuzuQL(unittest.TestCase):
         self.syntax = YuzuQLSyntax()
 
     def check_good(self, q, sql):
-        select = self.syntax.parse(q)
+        select = self.syntax.parse(q, {})
         qb = QueryBuilder(select)
         sql2 = qb.build()
         self.assertEqual(sql, sql2)
 
     def check_bad(self, q):
         try:
-            self.syntax.parse(q)
+            self.syntax.parse(q, {})
             self.fail("Should fail")
         except:
             pass
@@ -293,6 +293,21 @@ class TestYuzuQL(unittest.TestCase):
         self.check_good("select (count(*) as ?count) where { ?s <foo> ?o }",
                         "SELECT COUNT(*) FROM triples AS table0 "
                         "WHERE table0.property=\"<foo>\"")
+
+    def test_count_mode3(self):
+        self.check_good("select (count(*) as ?count) ?o where { ?s <foo> ?o }"
+                        "group by ?o",
+                        "SELECT COUNT(*), table0.object "
+                        "FROM triples AS table0 "
+                        "WHERE table0.property=\"<foo>\" "
+                        "GROUP BY table0.object")
+
+    def test_prefix_lookup(self):
+        self.check_good("select ?s where { ?s rdfs:label ?o }",
+                        "SELECT table0.subject "
+                        "FROM triples AS table0 "
+                        "WHERE table0.property=\"<http://www.w3.org/2000/01/"
+                        "rdf-schema#label>\"")
 
     ## Non-SPARQL extensions
 

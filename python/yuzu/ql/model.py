@@ -1,3 +1,13 @@
+import sys
+if sys.version_info[0] < 3:
+    from urllib2 import urlopen, HTTPError
+else:
+    from urllib.request import urlopen
+    from urllib.error import HTTPError
+from rdflib import URIRef, BNode
+from rdflib.util import from_n3
+
+
 class FullURI:
     def __init__(self, uri):
         self.uri = uri
@@ -15,7 +25,18 @@ class PrefixedName:
         self.suffix = suffix
 
     def resolve(self, prefixes):
-        return FullURI(prefixes[self.prefix].uri[:-1] + self.suffix + ">")
+        if self.prefix in prefixes:
+            return FullURI(prefixes[self.prefix].uri[:-1] + self.suffix + ">")
+        else:
+            try:
+                full = (urlopen(
+                    "http://prefix.cc/%s.file.txt" % self.prefix,
+                    timeout=1).readlines()[0].decode('utf-8').strip().
+                    split("\t")[1])
+                prefixes[self.prefix] = FullURI("<%s>" % full)
+                return FullURI("<%s%s>" % (full, self.suffix))
+            except HTTPError:
+                raise ("Prefix not found: %s" % self.prefix)
 
 
 class Var:
@@ -265,6 +286,98 @@ class Table:
         pass
 
 
+def srtsx_head(vars):
+    for v in vars:
+        yield "    <variable name=\"%s\"/>" % v
+
+
+def srtsx_body2(r, vars):
+    for v in vars:
+        val = from_n3(r[vars.index(v)])
+        if isinstance(val, URIRef):
+            yield ("    <binding name=\"%s\"><uri>%s</uri></binding>"
+                   % (v, str(val)))
+        elif isinstance(val, BNode):
+            yield ("    <binding name=\"%s\"><bnode>%s</bnode></binding>"
+                   % (v, str(val)))
+        elif val.language:
+            yield ("    <binding name=\"%s\"><literal xml:lang=\"%s\">"
+                   "%s</literal></binding>" % (v, val.language, str(val)))
+        elif val.datatype:
+            yield("     <binding name=\"%s\"><literal datatype=\"%s\">"
+                  "%s</literal></binding>" % (v, val.datatype, str(val)))
+        else:
+            yield("     <binding name=\"%s\"><literal>%s</literal></binding>"
+                  % (v, str(val)))
+
+
+def srtsx_body(result, vars):
+    for r in result.fetchall():
+        yield """    <result>
+%s
+    </result>""" % ("\n".join(srtsx_body2(r, vars)))
+
+
+def sql_results_to_sparql_xml(results, vars):
+    return """<?xml version="1.0"?>
+<sparql xmlns="http://www.w3.org/2005/sparql-results#">
+  <head>
+%s
+  </head>
+  <results>
+%s
+  </results>
+</sparql>""" % ("\n".join(srtsx_head(vars)),
+                "\n".join(srtsx_body(results, vars)))
+
+
+def srtsj_head(vars):
+    for v in vars:
+        yield "\"%s\"" % v
+
+
+def srtsj_body2(r, vars):
+    for v in vars:
+        val = from_n3(r[vars.index(v)])
+        if not val:
+            yield ""
+        if isinstance(val, URIRef):
+            yield ("      \"%s\": { \"type\": \"uri\", \"value\": \"%s\" }"
+                   % (v, str(val)))
+        elif isinstance(val, BNode):
+            yield ("      \"%s\": { \"type\": \"bnode\", \"value\": \"%s\" }"
+                   % (v, str(val)))
+        elif val.language:
+            yield ("      \"%s\": { \"type\": \"literal\", \"xml:lang\": "
+                   "\"%s\", \"value\": \"%s\" }" % (v, val.language, str(val)))
+        elif val.datatype:
+            yield ("      \"%s\": { \"type\": \"literal\", \"datatype\": "
+                   "\"%s\", \"value\": \"%s\" }" % (v, val.datatype,
+                                                    str(val)))
+        else:
+            yield ("      \"%s\": { \"type\": \"literal\", \"value\": \"%s\" }"
+                   % (v, str(val)))
+
+
+def srtsj_body(result, vars):
+    return """    {
+%s
+    }""" % (",\n".join("x".join(srtsj_body2(r, vars))
+                       for r in result.fetchall()))
+
+
+def sql_results_to_sparql_json(results, vars):
+    return """{
+  "head": { "vars": [ %s ] },
+  "results": {
+    "bindings": [
+%s
+    ]
+  }
+}""" % (", ".join(srtsj_head(vars)),
+        srtsj_body(results, vars))
+
+
 class QueryBuilder:
     def __init__(self, select):
         self.select = select
@@ -355,7 +468,7 @@ class QueryBuilder:
         else:
             lim = ""
 
-        if self.select.limit >= 0:
+        if self.select.offset >= 0:
             off = " OFFSET %d" % (self.select.offset)
         else:
             off = ""

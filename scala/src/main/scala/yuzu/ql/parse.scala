@@ -107,16 +107,16 @@ object YuzuQLSyntax extends JavaTokenParsers {
   def solutionModifier = groupByClause.? ~ orderClause.? ~ limitOffsetClause.? ^^ {
     case z ~ x ~ y => (z, x.getOrElse(Nil), y.getOrElse((-1, -1))) }
 
-  def query = prefixes ~ select ~ countVarList ~ where.? ~ whereClause ~ 
+  def query(prefix : PrefixLookup) = prefixes ~ select ~ countVarList ~ where.? ~ whereClause ~ 
     solutionModifier ^^ {
     case p ~ s ~ cv ~ _ ~ w ~ o => 
       val (gb, by, (l, of)) = o
       val (c, v) = cv
       if(gb != None && c != None && gb.get != v) 
         throw new IllegalArgumentException("Group by was not select variables") 
-      SelectQuery(s, c, v, w, by, l, of).resolve(p) }
+      SelectQuery(s, c, v, w, by, l, of).resolve(prefix ++ p) }
 
-  def parse(s : String) = parseAll(query, s) match {
+  def parse(s : String, prefix : PrefixLookup) = parseAll(query(prefix), s) match {
     case Success(query, _) => 
       query
     case failure : NoSuccess =>

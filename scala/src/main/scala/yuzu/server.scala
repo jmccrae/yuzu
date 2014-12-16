@@ -104,7 +104,7 @@ object RDFServer {
       renderHTML(YZ_NOT_IMPLEMENTED, message, false))
   }
   
-  def mimeToResultType(mime : String) = mime match {
+  def mimeToResultType(mime : String, deflt : ResultType) = mime match {
     case "text/html" => Some(html)
     case "application/rdf+xml" => Some(rdfxml)
     case "text/turtle" => Some(turtle)
@@ -115,6 +115,10 @@ object RDFServer {
     case "application/ld+json" => Some(jsonld)
     case "application/sparql-results+xml" => Some(sparql)
     case "application/sparql-results+json" => Some(sparqljson)
+    case "application/json" if deflt==sparqljson => Some(sparqljson)
+    case "application/json" => Some(jsonld)
+    case "application/javascript" if deflt==sparqljson => Some(sparqljson)
+    case "application/javascript" => Some(jsonld)
     case _ => None
   }
  

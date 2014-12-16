@@ -2,12 +2,14 @@ package com.github.jmccrae.yuzu
 
 import com.github.jmccrae.sqlutils._
 import com.github.jmccrae.yuzu.YuzuSettings._
-import com.github.jmccrae.yuzu.ql.{QueryBuilder, YuzuQLSyntax}
+import com.github.jmccrae.yuzu.YuzuUserText._
+import com.github.jmccrae.yuzu.ql.{PrefixCCLookup, QueryBuilder, YuzuQLSyntax}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.hp.hpl.jena.graph.{Node, NodeFactory, Triple}
 import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import com.hp.hpl.jena.rdf.model.{AnonId, Model, ModelFactory}
 import com.hp.hpl.jena.sparql.core.Quad
+import com.hp.hpl.jena.vocabulary._
 import java.net.URI
 import java.sql.DriverManager
 import org.apache.jena.atlas.web.TypedInputStream
@@ -88,6 +90,7 @@ class TripleBackend(db : String) extends Backend {
                                               pid integer not null,
                                               oid integer not null,
                                               page text,
+                                              head boolean,
                                               foreign key (sid) references ids,
                                               foreign key (pid) references ids,
                                               foreign key (oid) references ids)""".execute
@@ -98,7 +101,7 @@ class TripleBackend(db : String) extends Backend {
     sql"""CREATE VIEW triples AS SELECT page, sid, pid, oid,
               subj.n3 AS subject, subj.label AS subj_label,
               prop.n3 AS property, prop.label AS prop_label,
-              obj.n3 AS object, obj.label AS obj_label
+              obj.n3 AS object, obj.label AS obj_label, head
               FROM tripids 
               JOIN ids AS subj ON tripids.sid=subj.id
               JOIN ids AS prop ON tripids.pid=prop.id
@@ -127,8 +130,8 @@ class TripleBackend(db : String) extends Backend {
       createTables 
 
       // Queries
-      val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?)""".
-        insert4[Int, Int, Int, String]
+      val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
+        insert5[Int, Int, Int, String, Boolean]
       val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
         insert3[Int, Int, String]
       val updateLabel = sql"""UPDATE ids SET label=? WHERE id=?""".
@@ -150,7 +153,7 @@ class TripleBackend(db : String) extends Backend {
               val pid = cache.get(toN3(prop))
               val oid = cache.get(toN3(obj))
 
-              insertTriples(sid, pid, oid, page)
+              insertTriples(sid, pid, oid, page, subj.getURI().contains("#"))
 
               if(FACETS.exists(_("uri") == prop.getURI()) || obj.isLiteral()) {
                 insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
@@ -179,7 +182,7 @@ class TripleBackend(db : String) extends Backend {
             val pid = cache.get(toN3(prop))
             val oid = cache.get(toN3(obj))
 
-            insertTriples(sid, pid, oid, "<BLANK>") }
+            insertTriples(sid, pid, oid, "<BLANK>", false) }
 
           if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
             val page = node2page(obj)
@@ -187,7 +190,7 @@ class TripleBackend(db : String) extends Backend {
             val pid = cache.get(toN3(prop))
             val oid = cache.get(toN3(obj))
 
-            insertTriples(sid, pid, oid, page) }
+            insertTriples(sid, pid, oid, page, false) }
         }}
       RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES)
       
@@ -257,14 +260,16 @@ class TripleBackend(db : String) extends Backend {
             case Some(o) => 
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND object=$o AND page!="<BLANK>"
+                    AND head=0
                     LIMIT $limit2 OFFSET $offset""".as2[String, String]
             case None =>
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND page!="<BLANK>"
+                    AND head=0
                     LIMIT $limit2 OFFSET $offset""".as2[String, String] }
         case None =>
           sql"""SELECT DISTINCT page, subj_label FROM triples
-                WHERE page!="<BLANK>"
+                WHERE page!="<BLANK>" AND head=0
                 LIMIT $limit2 OFFSET $offset""".as2[String, String] }
       val results2 = results.toVector
       (results2.size > limit,
@@ -317,12 +322,34 @@ class TripleBackend(db : String) extends Backend {
     sql"""SELECT count(*) FROM tripids""".as1[Int].head }
 
 
+  private def buildPrefixMapping = {
+    val lookup = new PrefixCCLookup()
+    lookup.set(PREFIX1_QN, PREFIX1_URI)
+    lookup.set(PREFIX2_QN, PREFIX2_URI)
+    lookup.set(PREFIX3_QN, PREFIX3_URI)
+    lookup.set(PREFIX4_QN, PREFIX4_URI)
+    lookup.set(PREFIX5_QN, PREFIX5_URI)
+    lookup.set(PREFIX6_QN, PREFIX6_URI)
+    lookup.set(PREFIX7_QN, PREFIX7_URI)
+    lookup.set(PREFIX8_QN, PREFIX8_URI)
+    lookup.set(PREFIX9_QN, PREFIX9_URI)
+    lookup.set("rdf", RDF.getURI())
+    lookup.set("rdfs", RDFS.getURI())
+    lookup.set("owl", OWL.getURI())
+    lookup.set("dc", DC_11.getURI())
+    lookup.set("dct", DCTerms.getURI())
+    lookup.set("xsd", XSD.getURI())
+    lookup }
+
   /** Answer a SPARQL or YuzuQL query */
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) = {
 
     try {
-      val select = YuzuQLSyntax.parse(query)
+      val select = YuzuQLSyntax.parse(query, buildPrefixMapping)
+      if(select.limit < 0 || (select.limit >= YUZUQL_LIMIT && 
+                              YUZUQL_LIMIT >= 0)) {
+        ErrorResult(YZ_QUERY_LIMIT_EXCEEDED format YUZUQL_LIMIT) }
       val builder = new QueryBuilder(select)
       val sqlQuery = builder.build
       val vars = builder.vars
@@ -359,5 +386,5 @@ class TripleBackend(db : String) extends Backend {
           }
         }
         case None =>
-          ErrorResult("Query not valid in YuzuQL:" + x.getMessage()) } } }
+          ErrorResult("Query not valid in YuzuQL: " + x.getMessage()) } } }
 }

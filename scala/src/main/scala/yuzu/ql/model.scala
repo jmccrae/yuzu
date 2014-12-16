@@ -1,47 +1,45 @@
 package com.github.jmccrae.yuzu.ql
 
 sealed trait CanBeObject {
-  def resolve(prefixes : Map[String, FullURI]) : CanBeObject
+  def resolve(prefixes : PrefixLookup) : CanBeObject
 }
 
 sealed trait CanBeSubject {
-  def resolve(prefixes : Map[String, FullURI]) : CanBeSubject
+  def resolve(prefixes : PrefixLookup) : CanBeSubject
 }
 
 sealed trait Uri extends CanBeObject with CanBeSubject {
-  def resolve(prefixes : Map[String, FullURI]) : Uri
+  def resolve(prefixes : PrefixLookup) : Uri
 }
 
 case class FullURI(uri : String) extends Uri {
-  def resolve(prefixes : Map[String, FullURI]) = this
+  def resolve(prefixes : PrefixLookup) = this
   override def toString = uri
 }
 
 case class PrefixedName(prefix : String, suffix : String) extends Uri {
-  def resolve(prefixes : Map[String, FullURI]) = {
-    FullURI(prefixes.getOrElse(prefix, 
-        throw new IllegalArgumentException("Undeclared prefix " + prefix)
-      ).uri.dropRight(1) + suffix + ">") }
+  def resolve(prefixes : PrefixLookup) = 
+    FullURI("<" + prefixes.get(prefix) + suffix + ">")
 }
 
 case class Var(name : String) extends CanBeObject with CanBeSubject {
-  def resolve(prefixes : Map[String, FullURI]) = this
+  def resolve(prefixes : PrefixLookup) = this
 }
 
 case class PlainLiteral(literal : String) extends CanBeObject {
-  def resolve(prefixes : Map[String, FullURI]) = this
+  def resolve(prefixes : PrefixLookup) = this
 
   override def toString = literal
 }
 
 case class LangLiteral(literal : String, lang : String) extends CanBeObject {
-  def resolve(prefixes : Map[String, FullURI]) = this
+  def resolve(prefixes : PrefixLookup) = this
 
   override def toString = literal + "@" + lang
 }
 
 case class TypedLiteral(literal : String, `type` : Uri) extends CanBeObject {
-  def resolve(prefixes : Map[String, FullURI]) = {
+  def resolve(prefixes : PrefixLookup) = {
     TypedLiteral(literal,
       `type`.resolve(prefixes)) }
 
@@ -52,7 +50,7 @@ case class TypedLiteral(literal : String, `type` : Uri) extends CanBeObject {
 case class BNC(pos : List[PropObjDisjunction]) extends CanBeObject {
   import QueryBuilder._
 
-  def resolve(prefixes : Map[String, FullURI]) = {
+  def resolve(prefixes : PrefixLookup) = {
     BNC(pos.map(_.resolve(prefixes))) }
 
   def toSql(_table : Table, qb : QueryBuilder) : Condition = {
@@ -67,13 +65,13 @@ case class BNC(pos : List[PropObjDisjunction]) extends CanBeObject {
 }
 
 case class ObjList(objs : Seq[CanBeObject]) {
-  def resolve(prefixes : Map[String, FullURI]) = {
+  def resolve(prefixes : PrefixLookup) = {
     ObjList(objs.map(_.resolve(prefixes))) }
 }
 
 case class PropObj(prop : Uri, objs : ObjList) {
   import QueryBuilder._
-  def resolve(prefixes : Map[String, FullURI]) = {
+  def resolve(prefixes : PrefixLookup) = {
     PropObj(prop.resolve(prefixes), objs.resolve(prefixes)) }
 
   def toSql(_table : Table, qb : QueryBuilder,
@@ -109,7 +107,7 @@ case class PropObj(prop : Uri, objs : ObjList) {
 }
 
 case class PropObjDisjunction(elements : Seq[PropObj], optional : Boolean) {
-  def resolve(prefixes : Map[String, FullURI]) = {
+  def resolve(prefixes : PrefixLookup) = {
     PropObjDisjunction(elements.map(_.resolve(prefixes)), optional) }
 
   def toSql(_table : QueryBuilder.Table, qb : QueryBuilder, 
@@ -121,7 +119,7 @@ case class PropObjDisjunction(elements : Seq[PropObj], optional : Boolean) {
 }
 
 case class Triple(subj : CanBeSubject, pos : List[PropObjDisjunction]) {
-  def resolve(prefixes : Map[String, FullURI]) = 
+  def resolve(prefixes : PrefixLookup) = 
     Triple(
       subj.resolve(prefixes),
       pos.map(_.resolve(prefixes)))
@@ -151,11 +149,41 @@ case class SelectQuery(distinct : Boolean, countVar : Option[Var],
   varList : List[Var], body : Triple, orderVars : List[Order], 
   limit : Int, offset : Int) {
 
-  def resolve(prefixes : Map[String, FullURI]) : SelectQuery = {
+  def resolve(prefixes : PrefixLookup) : SelectQuery = {
     SelectQuery(distinct, countVar, varList, body.resolve(prefixes), 
       orderVars, limit, offset)
   }
 }
+
+trait PrefixLookup {
+  def get(prefix : String) : String
+  def set(prefix : String, full : String) : Unit
+  def ++(prefixes : Map[String, FullURI]) = {
+    for((prefix, full) <- prefixes) {
+      set(prefix, full.uri.drop(1).dropRight(1)) }
+    this }
+}
+
+class PrefixCCLookup(known : (String, String)*) extends PrefixLookup {
+  private val theMap = collection.mutable.Map[String, String]()
+
+  def get(prefix : String) = theMap.get(prefix) match {
+    case Some(full) =>
+      full
+    case None =>
+      try {
+        val full = io.Source.fromURL("http://prefix.cc/%s.file.txt" 
+          format prefix).getLines().next.split("\t")(1)
+        theMap.put(prefix, full)
+        full }
+      catch {
+        case x : java.io.IOException => 
+          System.err.println("Could not read from prefix.cc: " + x.getMessage())
+          throw new IllegalArgumentException("Undeclared prefix: " + prefix) }}
+
+  def set(prefix : String, full : String) { theMap.put(prefix, full) }
+}
+
 
 object QueryBuilder {
   sealed trait Condition {

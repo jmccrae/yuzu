@@ -57,7 +57,8 @@ class RDFServer:
             [('html', 'text/html'), ('pretty-xml', 'application/rdf+xml'),
              ('turtle', 'text/turtle'), ('nt', 'text/plain'),
              ('json-ld', 'application/ld+json'),
-             ('sparql', 'application/sparql-results+xml')])
+             ('sparql', 'application/sparql-results+xml'),
+             ('sparql-json', 'application/sparql-results+json')])
         self.backend = RDFBackend(db)
 
     @staticmethod
@@ -135,6 +136,14 @@ class RDFServer:
                 return "json-ld"
             elif accept == "application/sparql-results+xml":
                 return "sparql"
+            elif accept == "application/sparql-results+json":
+                return "sparql-json"
+            elif (accept == "application/json" or
+                  accept == "application/javascript"):
+                if default == "sparql-json":
+                    return "sparql-json"
+                else:
+                    return "json-ld"
         best_q = -1
         best_mime = default
         for accept in accepts:
@@ -170,6 +179,9 @@ class RDFServer:
                             if mime == "application/sparql-results+xml":
                                 best_q = q
                                 best_mime = "sparql"
+                            if mime == "application/sparql-results+json":
+                                best_q = q
+                                best_mime = "sparql-json"
         return best_mime
 
     def sparql_query(self, query, mime_type, default_graph_uri,
@@ -246,7 +258,8 @@ class RDFServer:
         elif 'HTTP_ACCEPT' in environ:
             if (SPARQL_PATH and
                     (uri == SPARQL_PATH or uri == (SPARQL_PATH+"/"))):
-                mime = self.best_mime_type(environ['HTTP_ACCEPT'], "sparql")
+                mime = self.best_mime_type(environ['HTTP_ACCEPT'],
+                                           "sparql-json")
             else:
                 mime = self.best_mime_type(environ['HTTP_ACCEPT'], "html")
         else:

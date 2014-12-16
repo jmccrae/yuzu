@@ -47,8 +47,11 @@ ODRL = "http://www.w3.org/ns/odrl/2/"
 PROV = "http://www.w3.org/ns/prov#"
 VOID = "http://rdfs.org/ns/void#"
 
+# The maximum number of results to return from a YuzuQL query (or -1 for no
+# limit)
+YUZUQL_LIMIT = 1000
 # If using an external SPARQL endpoint, the address of this
-# or None if you wish to use built-in (very slow) endpoint
+# or None if you wish to use only YuzuQL
 SPARQL_ENDPOINT = None
 # Path to the license (set to None to disable)
 LICENSE_PATH = "/license.html"

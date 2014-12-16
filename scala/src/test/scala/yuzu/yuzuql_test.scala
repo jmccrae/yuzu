@@ -5,14 +5,14 @@ import org.scalatest._
 class TestYuzuQL extends FunSuite with Matchers {
 
     def check_good(q : String, sql : String) = {
-        val select = YuzuQLSyntax.parse(q)
+        val select = YuzuQLSyntax.parse(q, new PrefixCCLookup())
         val qb = new QueryBuilder(select)
         val sql2 = qb.build
         sql2 should be (sql) }
 
     def check_bad(q : String) = {
       a[IllegalArgumentException] should be thrownBy {
-        YuzuQLSyntax.parse(q) }}
+        YuzuQLSyntax.parse(q, new PrefixCCLookup()) }}
 
     test("simple") {
         check_good("select * { ?s <foo> $o }",
@@ -281,6 +281,19 @@ class TestYuzuQL extends FunSuite with Matchers {
         check_good("select (count(*) as ?count) where { ?s <foo> ?o }",
                    "SELECT COUNT(*) FROM triples AS table0 " +
                    "WHERE table0.property=\"<foo>\"") }
+
+    test("count_mode3") {
+        check_good("select (count(*) as ?count) ?o where { ?s <foo> ?o }" +
+                   "group by ?o",
+                   "SELECT COUNT(*), table0.object FROM triples AS table0 " +
+                   "WHERE table0.property=\"<foo>\" GROUP BY table0.object") }
+
+    test("prefix_lookup") {
+        check_good("select ?s where { ?s rdfs:label ?o }",
+                   "SELECT table0.subject " +
+                   "FROM triples AS table0 " +
+                   "WHERE table0.property=\"<http://www.w3.org/2000/01/"+
+                   "rdf-schema#label>\"") }
 
     // Non-SPARQL extensions
 

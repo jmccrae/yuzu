@@ -2,6 +2,9 @@ from rdflib import BNode, Graph, ConjunctiveGraph, OWL
 from rdflib.util import from_n3
 from rdflib.term import Literal, URIRef
 from rdflib.store import Store
+from yuzu.ql.parse import YuzuQLSyntax
+from yuzu.ql.model import QueryBuilder, sql_results_to_sparql_json
+from yuzu.ql.model import sql_results_to_sparql_xml, FullURI
 import sqlite3
 import sys
 import getopt
@@ -15,8 +18,17 @@ else:
 
 from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
-                           LINKED_SETS, MIN_LINKS)
-from yuzu.user_text import YZ_BAD_MIME, YZ_BAD_REQUEST
+                           LINKED_SETS, MIN_LINKS, YUZUQL_LIMIT,
+                           PREFIX1_URI, PREFIX1_QN,
+                           PREFIX2_URI, PREFIX2_QN,
+                           PREFIX3_URI, PREFIX3_QN,
+                           PREFIX4_URI, PREFIX4_QN,
+                           PREFIX5_URI, PREFIX5_QN,
+                           PREFIX6_URI, PREFIX6_QN,
+                           PREFIX7_URI, PREFIX7_QN,
+                           PREFIX8_URI, PREFIX8_QN,
+                           PREFIX9_URI, PREFIX9_QN)
+from yuzu.user_text import YZ_BAD_MIME, YZ_BAD_REQUEST, YZ_QUERY_LIMIT_EXCEEDED
 
 __author__ = 'John P. McCrae'
 
@@ -57,31 +69,22 @@ class SPARQLExecutor(multiprocessing.Process):
 
 
 class LoadCache:
-    def __init__(self, _cursor, _cache, _column):
+    def __init__(self, cursor):
         self.values = {}
         self.added = []
-        self.cursor = _cursor
-        self.cache = _cache
-        self.column = _column
+        self.cursor = cursor
 
     def get(self, key):
         if key in self.values:
             return self.values[key]
         else:
-            self.cursor.execute(
-                "select %s from %ss where %s=?" % (self.cache, self.cache,
-                                                   self.column),
-                (key,))
+            self.cursor.execute("select id from ids where n3=?", (key,))
             row = self.cursor.fetchone()
             if not row:
                 self.cursor.execute(
-                    "insert into %ss (%s) values (?)" % (self.cache,
-                                                         self.column),
-                    (key,))
+                    "insert into ids (n3) values (?)", (key,))
                 self.cursor.execute(
-                    "select %s from %ss where %s=?" % (self.cache, self.cache,
-                                                       self.column),
-                    (key,))
+                    "select id from ids where n3=?", (key,))
                 row = self.cursor.fetchone()
 
             if len(self.added) >= 1000:
@@ -141,15 +144,12 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         cursor.execute(
-            """select fragment, property, object, inverse from triples where
-            subject=?""", (unicode_escape(id),))
+            """select subject, property, object from triples where
+            page=?""", (unicode_escape(id),))
         rows = cursor.fetchall()
         if rows:
-            for f, p, o, i in rows:
-                if i:
-                    g.add((from_n3(o), from_n3(p), self.name(id, f)))
-                else:
-                    g.add((self.name(id, f), from_n3(p), from_n3(o)))
+            for s, p, o in rows:
+                g.add((from_n3(s), from_n3(p), from_n3(o)))
                 if o.startswith("_:"):
                     self.lookup_blanks(g, o, conn)
             conn.close()
@@ -165,12 +165,12 @@ class RDFBackend(Store):
         @param conn The database connection
         """
         cursor = conn.cursor()
-        cursor.execute("""select property, object from triples where
-        subject=\"<BLANK>\" and fragment=?""", (bn[2:],))
+        cursor.execute("""select subject, property, object from triples where
+        page="<BLANK>" """, (bn[2:],))
         rows = cursor.fetchall()
         if rows:
-            for p, o in rows:
-                g.add((from_n3(bn), from_n3(p), from_n3(o)))
+            for s, p, o in rows:
+                g.add((from_n3(s), from_n3(p), from_n3(o)))
             if o.startswith("_:"):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
@@ -186,106 +186,20 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("""select distinct subject, label from
-            free_text join pids on free_text.pid = pids.pid
-            join sids on free_text.sid = sids.sid
-            where property=? and object match ? limit ?""",
+            cursor.execute("""select distinct sids.n3, sids.label from
+            free_text join ids as pids on free_text.pid = pids.id
+            join ids as sids on free_text.sid = sids.id
+            where pids.n3=? and object match ? limit ?""",
                            ("<%s>" % prop, query, limit))
         else:
-            cursor.execute("""select distinct subject, label from
-            free_text join sids on free_text.sid = sids.sid
+            cursor.execute("""select distinct sids.n3, sids.label from
+            free_text join ids as sids on free_text.sid = sids.id
             where object match ? limit ?""",
                            (query, limit))
         rows = cursor.fetchall()
         conn.close()
-        return [{'link': CONTEXT + "/" + uri, 'label': label}
-                for uri, label in rows]
-
-    def listInternal(self, id, frag, p, o, offset):
-        """This function allows SPARQL queries directly on the database.
-        See rdflib's Store
-        """
-        conn = sqlite3.connect(self.db)
-        cursor = conn.cursor()
-        if not id:
-            if not p:
-                if not o:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where inverse=0""")
-                else:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where object=? and inverse=0""",
-                                   (o.n3(),))
-            else:
-                if not o:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where property=? and inverse=0""",
-                                   (p.n3(),))
-                else:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where property=? and inverse=0 and
-                    object=?""", (p.n3(), o.n3()))
-        else:
-            if not p:
-                if not o:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where subject=? and fragment=? and
-                    inverse=0""", (id, frag))
-                else:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where subject=? and fragment=? and
-                    object=? and inverse=0""", (id, frag, o.n3()))
-            else:
-                if not o:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where subject=? and fragment=? and
-                    property=? and inverse=0""", (id, frag, p.n3()))
-                else:
-                    cursor.execute("""select subject, fragment, property,
-                    object from triples where subject=? and fragment=? and
-                    property=? and object=? and inverse=0""",
-                                   (id, frag, p.n3(), o.n3()))
-        return cursor
-
-    def triples(self, triple, context=None):
-        s, p, o = triple
-        if s:
-            s2 = self.unname(str(s))
-            if s2:
-                id, frag = s2
-            else:
-                return []
-        else:
-            id, frag = None, None
-
-        cursor = self.listInternal(id, frag, p, o, 0)
-        return [((self.name(s3, f), from_n3(p2), from_n3(o2)), None)
-                for s3, f, p2, o2 in cursor.fetchall()]
-
-    def list(self, subj, prop, obj, offset, limit):
-        if subj:
-            s2 = self.unname(subj)
-            if s2:
-                id, frag = s2
-            else:
-                return (False, [])
-        else:
-            id, frag = None, None
-        cursor = self.listInternal(id, frag, prop, obj, offset)
-        triples = []
-        row = cursor.fetchone()
-        while len(triples) < limit and row:
-            i, f, p, o = row
-            s = self.name(i, f)
-            triples.append((s, p, o))
-            row = cursor.fetchone()
-        return cursor.fetchone() is not None, triples
-
-    def get_label(self, conn, s):
-        cursor = conn.cursor()
-        cursor.execute("select label from sids where subject=?", (s,))
-        l, = cursor.fetchone()
-        return l
+        return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
+                 'label': label} for uri, label in rows]
 
     def list_resources(self, offset, limit, prop=None, obj=None):
         """
@@ -299,23 +213,23 @@ class RDFBackend(Store):
         cursor = conn.cursor()
         if prop:
             if obj:
-                cursor.execute("""select distinct subject from triples where
-                property=? and object=? and inverse=0 limit ? offset ?""",
+                cursor.execute("""select distinct page, subj_label
+                from triples where property=? and object=? and head=0
+                limit ? offset ?""",
                                (prop, obj, limit + 1, offset))
             else:
-                cursor.execute("""select distinct subject from triples where
-                property=? and inverse=0 limit ? offset ?""",
+                cursor.execute("""select distinct page, subj_label from
+                triples where property=? and head=0 limit ? offset ?""",
                                (prop, limit + 1, offset))
         else:
-            cursor.execute("""select distinct subject from triples where
-            inverse=0 limit ? offset ?""", (limit + 1, offset))
+            cursor.execute("""select distinct page, subj_label from
+            triples where head=0 limit ? offset ?""", (limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         refs = []
         while n < limit and row:
-            uri, = row
+            uri, label = row
             if uri != "<BLANK>":
-                label = self.get_label(conn, uri)
                 if label:
                     refs.append({'link': CONTEXT + "/" + uri, 'label': label})
                 else:
@@ -338,14 +252,15 @@ class RDFBackend(Store):
         cursor = conn.cursor()
         if not offset:
             offset = 0
-        cursor.execute("""select distinct object, count from freq_ids join
-oids on freq_ids.oid = oids.oid join pids on freq_ids.pid = pids.pid where
-property=? limit ? offset ?""", (prop, limit + 1, offset))
+        cursor.execute("""SELECT DISTINCT object, obj_label, count(*)
+                          FROM triples WHERE property=?
+                          GROUP BY oid ORDER BY count(*) DESC
+                          LIMIT ? OFFSET ?""", (prop, limit + 1, offset))
         row = cursor.fetchone()
         n = 0
         results = []
         while n < limit and row:
-            obj, count = row
+            obj, label, count = row
             n3 = from_n3(obj)
             if type(n3) == Literal:
                 results.append({'link': obj, 'label': n3.value,
@@ -354,7 +269,6 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
                 u = self.unname(str(n3))
                 if u:
                     s, _ = u
-                    label = self.get_label(conn, s)
                     if label:
                         results.append({'link': obj, 'label': label,
                                         'count': count})
@@ -377,24 +291,72 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
         @param start_response The response object
         @param timeout The timeout (in seconds) on the query
         """
-        if SPARQL_ENDPOINT:
-            graph = Graph('SPARQLStore')
-            graph.open(SPARQL_ENDPOINT)
-        else:
-            graph = Graph(self)
         try:
-            parent, child = multiprocessing.Pipe()
-            executor = SPARQLExecutor(q, mime_type, default_graph_uri,
-                                      child, graph)
-            executor.start()
-            executor.join(timeout)
-            timed_out = executor.is_alive()
-            if timed_out:
-                executor.terminate()
-            result_type, result = parent.recv()
-            return timed_out, result_type, result
-        finally:
-            graph.close()
+            syntax = YuzuQLSyntax()
+            select = syntax.parse(q, {
+                PREFIX1_QN: FullURI("<%s>" % PREFIX1_URI),
+                PREFIX2_QN: FullURI("<%s>" % PREFIX2_URI),
+                PREFIX3_QN: FullURI("<%s>" % PREFIX3_URI),
+                PREFIX4_QN: FullURI("<%s>" % PREFIX4_URI),
+                PREFIX5_QN: FullURI("<%s>" % PREFIX5_URI),
+                PREFIX6_QN: FullURI("<%s>" % PREFIX6_URI),
+                PREFIX7_QN: FullURI("<%s>" % PREFIX7_URI),
+                PREFIX8_QN: FullURI("<%s>" % PREFIX8_URI),
+                PREFIX9_QN: FullURI("<%s>" % PREFIX9_URI),
+                "rdf": FullURI("<http://www.w3.org/1999/02/22-"
+                               "rdf-syntax-ns#>"),
+                "rdfs": FullURI("<http://www.w3.org/2000/01/rdf-schema#>"),
+                "owl": FullURI("<http://www.w3.org/2002/07/owl#>"),
+                "dc": FullURI("<http://purl.org/dc/elements/1.1./>"),
+                "dct": FullURI("<http://purl.org/dc/terms>"),
+                "xsd": FullURI("<http://www.w3.org/2001/XMLSchema#>")})
+            if select.limit < 0 or (select.limit >= YUZUQL_LIMIT and
+                                    YUZUQL_LIMIT >= 0):
+                return False, 'error', YZ_QUERY_LIMIT_EXCEEDED % YUZUQL_LIMIT
+            qb = QueryBuilder(select)
+            sql_query = qb.build()
+            print(sql_query)
+            conn = sqlite3.connect(self.db)
+            cursor = conn.cursor()
+            cursor.execute(sql_query)
+            vars = qb.vars()
+            if mime_type == "sparql-json":
+                results = sql_results_to_sparql_json(cursor, vars)
+            else:
+                results = sql_results_to_sparql_xml(cursor, vars)
+            conn.close()
+            return False, 'sparql', results
+        except Exception as e:
+            if SPARQL_ENDPOINT:
+                graph = Graph('SPARQLStore')
+                try:
+                    graph.open(SPARQL_ENDPOINT)
+                    try:
+                        if default_graph_uri:
+                            qres = graph.query(q, initNs=default_graph_uri)
+                        else:
+                            qres = graph.query(q)
+                    except Exception as e:
+                        traceback.print_exc()
+                        print(e)
+                        return False, 'error', YZ_BAD_REQUEST
+                    if qres.type == "CONSTRUCT" or qres.type == "DESCRIBE":
+                        if mime_type == "html" or mime_type == "json-ld":
+                            mime_type == "pretty-xml"
+                            return (False, mime_type,
+                                    qres.serialize(format=mime_type))
+                    elif (self.mime_type == 'sparql' or
+                          self.mime_type == 'sparql-json' or
+                          self.mime_type == 'html'):
+                        return False, 'sparql', qres.serialize()
+                    else:
+                        return False, 'error', YZ_BAD_MIME
+                finally:
+                    graph.close()
+            else:
+                traceback.print_exc()
+                print(e)
+                return False, 'error', ""
 
     @staticmethod
     def split_uri(subj):
@@ -410,6 +372,39 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
             id = id[:id.rindex(".")]
         return id, frag
 
+    @staticmethod
+    def create_tables(cursor):
+        cursor.execute("""CREATE TABLE IF NOT EXISTS ids
+                          (id integer primary key,
+                           n3 text not null,
+                           label text, unique(n3))""")
+        cursor.execute("""CREATE INDEX n3s on ids (n3)""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS tripids
+                          (sid integer not null,
+                           pid integer not null,
+                           oid integer not null,
+                           page text,
+                           head boolean,
+                           foreign key (sid) references ids,
+                           foreign key (pid) references ids,
+                           foreign key (oid) references ids)""")
+        cursor.execute("""CREATE INDEX subjects ON tripids(sid)""")
+        cursor.execute("""CREATE INDEX properties ON tripids(pid)""")
+        cursor.execute("""CREATE INDEX objects ON tripids(oid)""")
+        cursor.execute("""CREATE INDEX pages ON tripids(page)""")
+        cursor.execute("""CREATE VIEW triples AS SELECT page, sid, pid, oid,
+                  subj.n3 AS subject, subj.label AS subj_label,
+                  prop.n3 AS property, prop.label AS prop_label,
+                  obj.n3 AS object, obj.label AS obj_label, head
+                  FROM tripids
+                  JOIN ids AS subj ON tripids.sid=subj.id
+                  JOIN ids AS prop ON tripids.pid=prop.id
+                  JOIN ids AS obj ON tripids.oid=obj.id""")
+        cursor.execute("""CREATE VIRTUAL TABLE free_text
+                          USING fts4(sid integer, pid integer,
+                                     object TEXT NOT NULL)""")
+        cursor.execute("""CREATE TABLE links (count integer, target text)""")
+
     def load(self, input_stream):
         """
         Load the resource from an input stream (of NTriples formatted files)
@@ -417,46 +412,9 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
         """
         conn = sqlite3.connect(self.db)
         cursor = conn.cursor()
-        cursor.execute(
-            """create table if not exists sids (sid integer primary key,
-                subject text not null, label text, unique(subject))""")
-        cursor.execute(
-            """create index if not exists sid_idx on sids (subject)""")
-        cursor.execute(
-            """create table if not exists pids (pid integer primary key,
-                property text not null, unique(property))""")
-        cursor.execute(
-            """create index if not exists pid_idx on pids (property)""")
-        cursor.execute(
-            """create table if not exists oids (oid integer primary key,
-                object text not null, unique(object))""")
-        cursor.execute(
-            """create index if not exists sid_idx on oids (object)""")
-        cursor.execute(
-            """create table if not exists triple_ids (sid integer not null,
-          fragment varchar(65535), pid integer not null, oid integer not null,
-          inverse integer, foreign key (sid)
-          references sids, foreign key (pid) references pids,
-          foreign key (oid) references oids)""")
-        cursor.execute("""create index if not exists k_triples_subject ON
-            triple_ids ( sid )""")
-        cursor.execute("""create index if not exists k_triples_fragment ON
-            triple_ids ( fragment )""")
-        cursor.execute("""create index if not exists k_triples_property ON
-            triple_ids ( pid )""")
-        cursor.execute("""create index if not exists k_triples_object ON
-            triple_ids ( oid )""")
-        cursor.execute("insert into sids (subject) values ('<BLANK>')")
-        cursor.execute("""create view triples as select subject, fragment,
-          property, object, label, inverse from triple_ids join sids on
-          triple_ids.sid = sids.sid join pids on triple_ids.pid = pids.pid
-          join oids on triple_ids.oid = oids.oid""")
-        cursor.execute("""create virtual table if not exists free_text using
-            fts4 ( sid integer, pid integer, object TEXT NOT NULL )""")
+        self.create_tables(cursor)
 
-        sid_cache = LoadCache(cursor, "sid", "subject")
-        pid_cache = LoadCache(cursor, "pid", "property")
-        oid_cache = LoadCache(cursor, "oid", "object")
+        cache = LoadCache(cursor)
 
         link_counts = {}
         lines_read = 0
@@ -467,32 +425,27 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
                 sys.stderr.flush()
             l = unicode_escape(line.decode('utf-8'))
             e = l.split(" ")
-            subj = e[0][1:-1]
+            subj_n3 = e[0]
+            subj = subj_n3[1:-1]
+            prop = e[1]
+            obj = " ".join(e[2:-1])
+
             if subj.startswith(BASE_NAME):
                 id, frag = self.split_uri(subj)
-                prop = e[1]
-                obj = " ".join(e[2:-1])
-
-                cursor.execute("insert into triple_ids values (?, ?, ?, ?, 0)",
-                               (sid_cache.get(id), frag, pid_cache.get(prop),
-                                oid_cache.get(obj)))
+                cursor.execute("insert into tripids values (?, ?, ?, ?, ?)",
+                               (cache.get(subj_n3), cache.get(prop),
+                                cache.get(obj), id, bool(frag)))
                 if (len([f for f in FACETS if f["uri"] == prop[1:-1]]) > 0 or
                         obj.startswith('"')):
                     cursor.execute("insert into free_text values (?, ?, ?)",
-                                   (sid_cache.get(id), pid_cache.get(prop),
+                                   (cache.get(subj_n3), cache.get(prop),
                                     obj))
-                if obj.startswith("<" + BASE_NAME):
-                    id, frag = self.split_uri(obj[1:-1])
-                    cursor.execute(
-                        "insert into triple_ids values (?, ?, ?, ?, 1)",
-                        (sid_cache.get(id), frag, pid_cache.get(prop),
-                         oid_cache.get("<"+subj+">")))
                 if prop in LABELS and frag == "":
                     label = obj[obj.index('"')+1:obj.rindex('"')]
                     if label:
                         cursor.execute(
-                            "update sids set label=? where sid=?",
-                            (label, sid_cache.get(id)))
+                            "update ids set label=? where id=?",
+                            (label, cache.get(subj_n3)))
 
                 if obj.startswith("<"):
                     obj_uri = obj[1:-1]
@@ -515,27 +468,20 @@ property=? limit ? offset ?""", (prop, limit + 1, offset))
                         else:
                             link_counts[target] = 1
 
-            elif e[0].startswith("_:"):
-                id, frag = "<BLANK>", e[0][2:]
-                prop = e[1]
-                obj = " ".join(e[2:-1])
-                cursor.execute("insert into triple_ids values (1, ?, ?, ?, 0)",
-                               (id, frag, pid_cache.get(prop),
-                                oid_cache.get(obj)))
+            elif subj_n3.startswith("_:"):
+                cursor.execute("insert into tripids values (?, ?, ?, ?, 1)",
+                               (cache.get(subj_n3), cache.get(prop),
+                                cache.get(obj), "<BLANK>"))
+            if obj.startswith("<" + BASE_NAME):
+                id, frag = self.split_uri(obj[1:-1])
+                cursor.execute("insert into tripids values (?, ?, ?, ?, 1)",
+                               (cache.get(subj_n3), cache.get(prop),
+                                cache.get(obj), id))
 
-        cursor.execute("""create table if not exists links (count integer,
-target text)""")
         for target, count in link_counts.items():
             if count >= MIN_LINKS:
                 cursor.execute(
                     """insert into links values (?, ?)""", (count, target))
-        cursor.execute("""create table if not exists freq_ids (pid integer,
-oid integer, count integer)""")
-        for facet in FACETS:
-            cursor.execute("""insert into freq_ids (pid, oid, count) select
-triple_ids.pid, oid, count(*) from triple_ids join pids on triple_ids.pid =
-pids.pid where property=? group by oid order by count(*) desc""",
-                           ("<" + facet["uri"] + ">",))
         if lines_read > 100000:
             sys.stderr.write("\n")
 
@@ -549,7 +495,7 @@ pids.pid where property=? group by oid order by count(*) desc""",
         except AttributeError:
             conn = sqlite3.connect(self.db)
             cursor = conn.cursor()
-            cursor.execute("select count(*) from triple_ids")
+            cursor.execute("select count(*) from tripids")
             count, = cursor.fetchone()
             self._triple_count = count
             cursor.close()

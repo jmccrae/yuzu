@@ -17,4 +17,5 @@ object YuzuUserText {
   val YZ_INDEX="Index"
   val YZ_TIME_OUT="The query could not be processed in time"
   val YZ_METADATA="About this resource"
+  val YZ_QUERY_LIMIT_EXCEEDED="No query limit or limit too high (%d is this server's limit)" 
 }
