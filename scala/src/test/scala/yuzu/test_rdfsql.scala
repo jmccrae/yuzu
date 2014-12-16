@@ -80,12 +80,15 @@ class RDFSQLUtilsTest extends WordSpec with Matchers with MockFactory {
           expects(1, 10)
         (ps.setString _).
           expects(2, "foo")
-        (ps.execute _).
+        (ps.addBatch _).
+          expects()
+        (ps.executeBatch _).
           expects().
-          returning(true)
+          returning(Array(1))
         withSession(conn) { implicit session =>
           val stat = sql"""insert into table values (?, ?)""".insert2[Int, String]
-          stat(10, "foo") }}}
+          stat(10, "foo")
+          stat.execute }}}
 
   }
 }
