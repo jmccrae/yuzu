@@ -6,8 +6,8 @@
         <div class="form-group">
             <label for="query" class="col-lg-2 control-label">Query</label>
             <div class="col-lg-10">
-                <textarea rows="25" style="width:100%;" id="query" name="query">SELECT * WHERE {
-  ?s a <http://www.w3.org/2004/02/skos/core#Concept>
+                <textarea rows="25" style="width:100%;" id="query" name="query">SELECT ?s ?label WHERE {
+  ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label
 } LIMIT 100</textarea>
             </div>
         </div>
@@ -19,4 +19,6 @@
     </fieldset>
 </form>
                 
+<p>Note this endpoint only supports a subset of SPARQL defined 
+<a href="https://github.com/jmccrae/yuzu/blob/master/YuzuQL.md">here</p>
     

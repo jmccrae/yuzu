@@ -48,8 +48,11 @@ object YuzuSettings {
   val ODRL = "http://www.w3.org/ns/odrl/2/"
   val PROV = "http://www.w3.org/ns/prov#"
 
+  // The maximum number of results to return from a YuzuQL query (or -1 for no
+  // limit)
+  val YUZUQL_LIMIT = 1000
   // If using an external SPARQL endpoint, the address of this
-  // or None if you wish to use built-in (very slow) endpoint
+  // or None if you wish to use only YuzuQL
   val SPARQL_ENDPOINT : Option[String] = None
   // Path to the license (set to null to disable)
   val LICENSE_PATH = "/license.html"

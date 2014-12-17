@@ -25,6 +25,7 @@ import scala.math.max
 sealed class ResultType(val mime : String, val jena : Option[RDFFormat])
 
 object sparql extends ResultType("application/sparql-results+xml", None)
+object sparqljson extends ResultType("application/sparql-results+json", None)
 object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PRETTY))
 object html extends ResultType("text/html", None)
 object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE))
@@ -103,16 +104,20 @@ object RDFServer {
       renderHTML(YZ_NOT_IMPLEMENTED, message, false))
   }
   
-  def mimeToResultType(mime : String) = mime match {
+  def mimeToResultType(mime : String, deflt : ResultType) = mime match {
     case "text/html" => Some(html)
     case "application/rdf+xml" => Some(rdfxml)
     case "text/turtle" => Some(turtle)
     case "application/x-turtle" => Some(turtle)
     case "application/n-triples" => Some(nt)
     case "text/plain" => Some(nt)
-    case "application/json" => Some(jsonld)
     case "application/ld+json" => Some(jsonld)
     case "application/sparql-results+xml" => Some(sparql)
+    case "application/sparql-results+json" => Some(sparqljson)
+    case "application/json" if deflt==sparqljson => Some(sparqljson)
+    case "application/json" => Some(jsonld)
+    case "application/javascript" if deflt==sparqljson => Some(sparqljson)
+    case "application/javascript" => Some(jsonld)
     case _ => None
   }
  
@@ -120,7 +125,7 @@ object RDFServer {
   def bestMimeType(acceptString : String, deflt : ResultType) : ResultType = {
     val accepts = acceptString.split("\\s*,\\s*")
     for(accept <- accepts) {
-      mimeToResultType(accept) match {
+      mimeToResultType(accept, deflt) match {
         case Some(t) => return t
         case None => // noop
      }
@@ -129,7 +134,7 @@ object RDFServer {
       accept => if(accept.contains(";")) {
         try {
           val e = accept.split("\\s*;\\s*")
-          val mime = mimeToResultType(e.head)
+          val mime = mimeToResultType(e.head, deflt)
           val extensions = e.tail
           for(extension <- extensions if extension.startsWith("q=") && mime != None) yield {
             (extension.drop(2).toDouble, mime.get)
@@ -154,8 +159,8 @@ object RDFServer {
   def _slurp(src : io.Source) = src.getLines.mkString("\n")
   implicit def responsePimp(resp : HttpServletResponse) = new {
     def respond(contentType : String, status : Int, args : (String,String)*)(foo : java.io.PrintWriter => Unit) = {
-      resp.addHeader("Content-type", contentType)
       resp.setCharacterEncoding("utf-8")
+      resp.addHeader("Content-type", contentType)
       for((a,b) <- args) {
         resp.addHeader(a,b)
       }
@@ -163,7 +168,6 @@ object RDFServer {
       val out = resp.getWriter()
       foo(out)
       out.flush()
-      out.close()
     }
     def binary(contentType : String, file : URL) {
       resp.addHeader("Content-type", contentType)
@@ -178,12 +182,11 @@ object RDFServer {
         out.write(buf, 0, read)
       }
       out.flush()
-      out.close()
     }
   }
 }
 
-class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet {
+class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServlet {
   import RDFServer._
  
   implicit class URLPimps(url : URL) {
@@ -251,9 +254,19 @@ class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet
       } else {
         val (content, mime) = result match {
           case r : TableResult =>
-            (ResultSetFormatter.asXMLString(r.result), sparql)
+            if(mimeType == sparql) {
+              (r.toXML, sparql)
+            } else {
+              (r.toJSON, sparqljson)
+            }
           case BooleanResult(r) =>
-            (ResultSetFormatter.asXMLString(r), sparql)
+            if(mimeType == sparql) {
+              (ResultSetFormatter.asXMLString(r), sparql)
+            } else {
+              val baos = new java.io.ByteArrayOutputStream()
+              ResultSetFormatter.outputAsJSON(baos, r)
+              (baos.toString(), sparqljson)
+            }
           case ModelResult(model) =>
             val out = new java.io.StringWriter()
             val mime = if(mimeType == sparql) {
@@ -329,13 +342,13 @@ class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet
       jsonld
     } else if(req.getHeader("Accept") != null) {
       if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
-        bestMimeType(req.getHeader("Accept"), sparql)
+        bestMimeType(req.getHeader("Accept"), sparqljson)
       } else {
         bestMimeType(req.getHeader("Accept"), html)
       }
     } else {
       if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
-        sparql
+        sparqljson
       } else {
         html
       }
@@ -362,7 +375,7 @@ class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet
         if(qsParsed.containsKey("query")) {
           val query = qsParsed.get("query")(0)
           val prop = if(qsParsed.containsKey("property") && qsParsed.get("property")(0) != "") {
-            Some(qsParsed.get("property")(0))
+            Some("<" + qsParsed.get("property")(0) + ">")
           } else {
             None
           }
@@ -467,7 +480,7 @@ class RDFServer(backend : Backend = new RDFBackend(DB_FILE)) extends HttpServlet
               out.toString()
             }
           }
-          resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
+          resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.getBytes("utf-8").length.toString) {
             out => out.print(content)
           }
         }

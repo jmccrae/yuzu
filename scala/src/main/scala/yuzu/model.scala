@@ -2,6 +2,7 @@ package com.github.jmccrae.yuzu
 
 import com.hp.hpl.jena.rdf.model.{Literal, Model, RDFNode, Resource}
 import com.hp.hpl.jena.datatypes.RDFDatatype
+import com.hp.hpl.jena.graph.Node
 import com.hp.hpl.jena.vocabulary._
 import java.util.{List=>JList}
 import scala.collection.JavaConversions._
@@ -18,7 +19,20 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
-  def fragment = new java.net.URI(uri).getFragment()
+  def superCleanURI(_uri : String) = {
+    // This is slow if we have to make a lot of changes
+    // A stringbuffer would the be quicker, but I assume
+    // that we will virtually never have really bad characters in a 
+    // URL
+    var uri = _uri
+    var i = 0
+    while(i < uri.length) {
+      if(uri.charAt(i) <= ' ' || uri.charAt(i) == '\u00a0') {
+        uri = uri.substring(0,i) + uri.substring(i + 1) }
+      i += 1 }
+    uri }
+
+  def fragment = new java.net.URI(superCleanURI(uri)).getFragment()
 }
 
 class QueryElement(main : Element,
@@ -51,9 +65,21 @@ trait URIDisplayer {
           }
       }
     case l : Literal =>
-      l.getValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
-        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\")
+      UnicodeEscape.unescape(l.getValue().toString().
+        replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
+        replaceAll("\\\\","\\\\"))
   }
+  def apply(node : Node) = 
+    if(node.isURI()) {
+      uriToStr(node.getURI()) }
+    else if(node.isLiteral()) {
+      UnicodeEscape.unescape(node.getLiteralValue().toString().
+        replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
+        replaceAll("\\\\","\\\\")) }
+    else {
+      "" }
   def apply(dt : RDFDatatype) = uriToStr(dt.getURI())
 
 }
