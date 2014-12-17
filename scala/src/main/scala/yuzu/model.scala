@@ -25,9 +25,11 @@ case class Element(val display : String,
     // that we will virtually never have really bad characters in a 
     // URL
     var uri = _uri
-    for(i <- 0 until uri.length) {
+    var i = 0
+    while(i < uri.length) {
       if(uri.charAt(i) <= ' ' || uri.charAt(i) == '\u00a0') {
-        uri = uri.substring(0,i) + uri.substring(i + 1) }}
+        uri = uri.substring(0,i) + uri.substring(i + 1) }
+      i += 1 }
     uri }
 
   def fragment = new java.net.URI(superCleanURI(uri)).getFragment()
