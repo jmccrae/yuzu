@@ -211,8 +211,11 @@ class TripleBackend(db : String) extends Backend {
 
               insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
 
-              if(FACETS.exists(_("uri") == prop.getURI()) || obj.isLiteral()) {
-                insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
+              if(FACETS.exists(_("uri") == prop.getURI())) {
+                if(obj.isLiteral()) {
+                  insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
+                else {
+                  insertFreeText(sid, pid, obj.toString) }}
               
               if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#')) {
                 updateLabel(obj.getLiteralLexicalForm(), sid) }
