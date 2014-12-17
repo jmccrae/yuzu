@@ -19,7 +19,18 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
-  def fragment = new java.net.URI(uri).getFragment()
+  def superCleanURI(_uri : String) = {
+    // This is slow if we have to make a lot of changes
+    // A stringbuffer would the be quicker, but I assume
+    // that we will virtually never have really bad characters in a 
+    // URL
+    var uri = _uri
+    for(i <- 0 until uri.length) {
+      if(uri.charAt(i) <= ' ' || uri.charAt(i) == '\u00a0') {
+        uri = uri.substring(0,i) + uri.substring(i + 1) }}
+    uri }
+
+  def fragment = new java.net.URI(superCleanURI(uri)).getFragment()
 }
 
 class QueryElement(main : Element,
