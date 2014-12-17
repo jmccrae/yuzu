@@ -179,7 +179,8 @@ class TripleBackend(db : String) extends Backend {
           n2 += 1
           if(n2 % 100000 == 0) {
             System.err.print(".") 
-            System.err.flush()  }}}
+            System.err.flush()
+            insertKey.execute }}}
 
       val loader = new StreamRDFBase {
         override def quad(q : Quad) = triple(q.asTriple())
@@ -242,7 +243,9 @@ class TripleBackend(db : String) extends Backend {
           n += 1
           if(n % 100000 == 0) {
             System.err.print(".") 
-            System.err.flush() }
+            System.err.flush() 
+            insertTriples.execute
+            updateLabel.execute }
         }}
 
       System.err.print("Preloading")
