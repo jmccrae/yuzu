@@ -159,8 +159,8 @@ object RDFServer {
   def _slurp(src : io.Source) = src.getLines.mkString("\n")
   implicit def responsePimp(resp : HttpServletResponse) = new {
     def respond(contentType : String, status : Int, args : (String,String)*)(foo : java.io.PrintWriter => Unit) = {
-      resp.addHeader("Content-type", contentType)
       resp.setCharacterEncoding("utf-8")
+      resp.addHeader("Content-type", contentType)
       for((a,b) <- args) {
         resp.addHeader(a,b)
       }
@@ -168,7 +168,6 @@ object RDFServer {
       val out = resp.getWriter()
       foo(out)
       out.flush()
-      out.close()
     }
     def binary(contentType : String, file : URL) {
       resp.addHeader("Content-type", contentType)
@@ -183,7 +182,6 @@ object RDFServer {
         out.write(buf, 0, read)
       }
       out.flush()
-      out.close()
     }
   }
 }
@@ -482,7 +480,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
               out.toString()
             }
           }
-          resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
+          resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.getBytes("utf-8").length.toString) {
             out => out.print(content)
           }
         }
