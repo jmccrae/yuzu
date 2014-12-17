@@ -217,7 +217,7 @@ class TripleBackend(db : String) extends Backend {
                 else {
                   insertFreeText(sid, pid, obj.toString) }}
               
-              if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#')) {
+              if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
                 updateLabel(obj.getLiteralLexicalForm(), sid) }
 
               if(obj.isURI()) {
@@ -278,7 +278,7 @@ class TripleBackend(db : String) extends Backend {
       System.err.print("Caching")
 
       var n4 = 0
-      for((id, n3) <- sql"""SELECT id, n3 FROM ids""".as2[Int, String]) {
+      for((id, n3) <- sql"""SELECT id, n3 FROM ids""".as2[Int, String].take(1000000)) {
         idCache.put(n3, id) 
         n4 += 1
         if(n4 % 100000 == 0) {
