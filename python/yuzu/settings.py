@@ -6,7 +6,7 @@ import re
 # The location where this server is to be deployed to
 # Only URIs in the dump that start with this address will be published
 # Should end with a trailing /
-BASE_NAME = "http://localhost:8080/"
+BASE_NAME = "http://linghub.lider-project.eu/"
 # The prefix that this servlet will be deployed, e.g.
 # if the servlet is at http://www.example.org/yuzu/ the context
 # is /yuzu/
@@ -14,9 +14,9 @@ CONTEXT = ""
 # The data download will be at BASE_NAME + DUMP_URI
 DUMP_URI = "/example.nt.gz"
 # The local path to the data
-DUMP_FILE = "../example.nt.gz"
+DUMP_FILE = "../linghub.nt.gz"
 # Where the SQLite database should appear
-DB_FILE = "example.db"
+DB_FILE = "linghub.db"
 # The name of the server
 DISPLAY_NAME = "Example"
 # The extra namespaces to be abbreviated in HTML and RDF/XML
