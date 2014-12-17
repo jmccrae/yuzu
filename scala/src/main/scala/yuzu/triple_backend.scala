@@ -139,6 +139,19 @@ class TripleBackend(db : String) extends Backend {
   else { n }
 
 
+  def readNTriplesIgnoreErrors(handler : StreamRDF, inputStream : java.io.InputStream) {
+    for(line <- io.Source.fromInputStream(inputStream).getLines()) {
+      val elems = line.split(" ")
+      try {
+        handler.triple(new Triple(
+          fromN3(elems(0)),
+          fromN3(elems(1)),
+          fromN3(elems.slice(2, elems.size - 1).mkString(" ")))) }
+      catch {
+        case x : Exception =>
+          x.printStackTrace() }}}
+
+
   /** 
    * Load the database from a stream
    * @param inputStream An N-Triple Input Stream
@@ -250,7 +263,10 @@ class TripleBackend(db : String) extends Backend {
 
       System.err.print("Preloading")
 
-      RDFDataMgr.parse(preLoader, new TypedInputStream(inputStream), Lang.NTRIPLES)
+      if(ignoreErrors) {
+        readNTriplesIgnoreErrors(preLoader, inputStream) }
+      else {
+        RDFDataMgr.parse(preLoader, new TypedInputStream(inputStream), Lang.NTRIPLES) }
       insertKey.execute
       c.commit()
 
@@ -270,7 +286,10 @@ class TripleBackend(db : String) extends Backend {
 
       System.err.print("Loading")
 
-      RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES)
+      if(ignoreErrors) {
+        readNTriplesIgnoreErrors(loader, inputStream) }
+      else {
+        RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES) }
       
       insertTriples.execute
       insertFreeText.execute
