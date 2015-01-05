@@ -9,6 +9,7 @@ import com.hp.hpl.jena.query.{QueryExecutionFactory, QueryFactory}
 import com.hp.hpl.jena.rdf.model.{AnonId, Model, ModelFactory}
 import com.hp.hpl.jena.sparql.core.Quad
 import com.hp.hpl.jena.vocabulary._
+import java.io.File
 import java.net.URI
 import java.sql.DriverManager
 import org.apache.jena.atlas.web.TypedInputStream
@@ -139,7 +140,8 @@ class TripleBackend(db : String) extends Backend {
   else { n }
 
 
-  def readNTriplesIgnoreErrors(handler : StreamRDF, inputStream : java.io.InputStream) {
+  def readNTriples(handler : StreamRDF, inputStream : java.io.InputStream,
+      ignoreErrors : Boolean) {
     for(line <- io.Source.fromInputStream(inputStream).getLines()) {
       val elems = line.split(" ")
       try {
@@ -149,8 +151,165 @@ class TripleBackend(db : String) extends Backend {
           fromN3(elems.slice(2, elems.size - 1).mkString(" ")))) }
       catch {
         case x : Exception =>
-          x.printStackTrace() }}}
+          if(ignoreErrors) {
+            x.printStackTrace() }
+          else {
+            throw x }}}}
 
+  def dumpMap(map : Map[Node, Int])(implicit session : Session) {
+    val keys = map.keys.toSeq.sortBy(map(_))
+    val insertKey = sql"""INSERT OR IGNORE INTO ids (n3) VALUES (?)""".
+        insert1[String]
+    for(key <- keys) {
+      insertKey(toN3(key)) }
+    insertKey.execute }
+
+  def fromN3orInt(s : String) = if(s.startsWith("<") || s.startsWith("_") || 
+    s.startsWith("\"")) {
+      Left(fromN3(s)) }
+    else {
+      Right(fromIntN3(s)) }
+
+  def fromIntN3(s : String) = {
+    val (d, n3) = s.splitAt(s.indexOf("="))
+    (d.toInt, fromN3(n3.drop(1))) }
+
+  def loadByTmp(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
+    val c = conn
+    c.setAutoCommit(false)
+    withSession(c) { implicit session =>
+      createTables
+      
+      var stream = inputStream
+      var skip = 0
+      var offset = 1
+      var outs = Seq[File]()
+      var eof = true
+      val max = 1000000
+
+      do {
+        var read = 0
+        val outFile = File.createTempFile("yuzu", ".nt")
+        outFile.deleteOnExit()
+        outs :+= outFile
+        val out = new java.io.PrintWriter(outFile)
+        val known = collection.mutable.Map[Node, Int]()
+        for(line <- io.Source.fromInputStream(stream).getLines()) {
+          if(read < skip) {
+            read += 1 
+            out.println(line) }
+          else {
+            val elems = line.split(" ")
+            val subj = fromN3orInt(elems(0))
+            val prop = fromN3orInt(elems(1))
+            val obj = fromN3orInt(elems.slice(2, elems.size - 1).mkString(" "))
+
+            for(e <- Seq(subj, prop, obj)) {
+              e match {
+                case Left(n) => known.get(n) match {
+                  case Some(i) => out.print("%d=%s" format(i, toN3(n)))
+                  case None => if(known.size < max) {
+                      val v = offset + known.size
+                      known.put(n, v)
+                      out.print("%d=%s" format(v, toN3(n))) }
+                    else {
+                      if(eof) {
+                        skip = read }
+    
+                      eof = false
+                      out.print(toN3(n)) }}
+                case Right((v, n)) => out.print("%d=%s" format(v, toN3(n))) }
+              out.print(" ") }
+            out.println(". ") }}
+
+        out.flush()
+        out.close()
+      
+        stream = new java.io.FileInputStream(outFile)
+
+        offset += known.size
+        dumpMap(known.toMap)
+        c.commit()
+      } while(!eof) 
+
+      val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
+        insert5[Int, Int, Int, String, Boolean]
+      val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
+        insert3[Int, Int, String]
+      val updateLabel = sql"""UPDATE ids SET label=? WHERE id=?""".
+        insert2[String, Int]
+      var linkCounts = collection.mutable.Map[String, Int]()
+      var n = 0
+  
+      for(line <- io.Source.fromFile(outs.head).getLines) {
+        val elems = line.split(" ")
+        val (sid, subj) = fromIntN3(elems(0))
+        val (pid, prop) = fromIntN3(elems(1))
+        val (oid, obj) = fromIntN3(elems.slice(2, elems.size - 1).mkString(" "))
+        if(subj.isURI()) {
+          if(subj.getURI().startsWith(BASE_NAME)) {
+            val page = node2page(subj)
+
+            insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
+
+            if(FACETS.exists(_("uri") == prop.getURI())) {
+              if(obj.isLiteral()) {
+                insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
+              else {
+                insertFreeText(sid, pid, obj.toString) }}
+            
+            if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
+              updateLabel(obj.getLiteralLexicalForm(), sid) }
+
+            if(obj.isURI()) {
+              try {
+                val objUri = URI.create(obj.getURI())
+                if(!(NOT_LINKED :+ BASE_NAME).exists(obj.getURI().startsWith(_)) &&
+                    obj.getURI().startsWith("http")) {
+                  val target = LINKED_SETS.find(obj.getURI().startsWith(_)) match {
+                    case Some(l) => l
+                    case None => new URI(
+                      objUri.getScheme(),
+                      objUri.getUserInfo(),
+                      objUri.getHost(),
+                      objUri.getPort(),
+                      "/", null, null).toString }
+                  if(linkCounts.contains(target)) {
+                    linkCounts(target) += 1 } 
+                  else {
+                    linkCounts(target) = 1 }}}
+              catch {
+                case x : Exception => // oh well 
+              }}}}
+              
+        else {
+          insertTriples(sid, pid, oid, "<BLANK>", false) }
+
+        if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
+          val page = node2page(obj)
+
+          insertTriples(sid, pid, oid, page, false) }
+        
+        n += 1
+        if(n % 100000 == 0) {
+          System.err.print(".") 
+          System.err.flush() 
+          insertTriples.execute
+          insertFreeText.execute
+          updateLabel.execute }}
+
+    insertTriples.execute
+    insertFreeText.execute
+    updateLabel.execute
+    c.commit()
+
+    System.err.println("")
+    
+    val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
+    linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
+    insertLinkCount.execute
+
+    c.commit() } }
 
   /** 
    * Load the database from a stream
@@ -261,13 +420,14 @@ class TripleBackend(db : String) extends Backend {
             System.err.print(".") 
             System.err.flush() 
             insertTriples.execute
+            insertFreeText.execute
             updateLabel.execute }
         }}
 
       System.err.print("Preloading")
 
       if(ignoreErrors) {
-        readNTriplesIgnoreErrors(preLoader, inputStream) }
+        readNTriples(preLoader, inputStream, ignoreErrors) }
       else {
         RDFDataMgr.parse(preLoader, new TypedInputStream(inputStream), Lang.NTRIPLES) }
       insertKey.execute
@@ -290,7 +450,7 @@ class TripleBackend(db : String) extends Backend {
       System.err.print("Loading")
 
       if(ignoreErrors) {
-        readNTriplesIgnoreErrors(loader, inputStream) }
+        readNTriples(loader, inputStream, ignoreErrors) }
       else {
         RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES) }
       
