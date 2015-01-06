@@ -188,6 +188,7 @@ class TripleBackend(db : String) extends Backend {
       val max = 1000000
 
       do {
+        eof = true
         var read = 0
         val outFile = File.createTempFile("yuzu", ".nt")
         outFile.deleteOnExit()
@@ -214,6 +215,7 @@ class TripleBackend(db : String) extends Backend {
                       out.print("%d=%s" format(v, toN3(n))) }
                     else {
                       if(eof) {
+                        System.err.println("Preprocessed to %d" format (read))
                         skip = read }
     
                       eof = false
