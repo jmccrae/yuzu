@@ -10,7 +10,7 @@ object DataID {
 
   def get : Model = {
     val model = ModelFactory.createDefaultModel()
-    val backend = new RDFBackend(DB_FILE)
+    val backend = new TripleBackend(DB_FILE)
 
     val dataid = model.createResource(BASE_NAME + METADATA_PATH)
 
@@ -33,7 +33,7 @@ object DataID {
       case Some(SearchResult(link, _)) =>
         dataid.addProperty(
           model.createProperty(VOID + "exampleResource"),
-          model.createResource(link))
+          model.createResource(BASE_NAME.dropRight(1) + link))
       case None =>
     }
 

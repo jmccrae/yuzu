@@ -19,3 +19,4 @@ YZ_NO_DATA='No data is yet loaded in the system'
 YZ_INDEX='Index'
 YZ_TIME_OUT="The query could not be processed in time"
 YZ_METADATA="About this resource"
+YZ_QUERY_LIMIT_EXCEEDED="No query limit or limit too high (%d is this server's limit)" 

@@ -25,6 +25,7 @@ import scala.math.max
 sealed class ResultType(val mime : String, val jena : Option[RDFFormat])
 
 object sparql extends ResultType("application/sparql-results+xml", None)
+object sparqljson extends ResultType("application/sparql-results+json", None)
 object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PRETTY))
 object html extends ResultType("text/html", None)
 object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE))
@@ -85,10 +86,10 @@ object mustache {
 
 object RDFServer {
 
-  def renderHTML(title : String, text : String)(implicit resolve : PathResolver) = {
+  def renderHTML(title : String, text : String, isTest : Boolean)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.mustache"))
     template.substitute("title"-> title, "app_title" -> DISPLAY_NAME, 
-                        "content" -> text)
+      "content" -> text, "is_test" -> isTest)
   }
 
   def send302(resp : HttpServletResponse, location : String) { resp.sendRedirect(location) }
@@ -100,19 +101,23 @@ object RDFServer {
   }
   def send501(resp : HttpServletResponse, message : String = YZ_JSON_LD_NOT_INSTALLED)(implicit resolve : PathResolver) {
     resp.sendError(SC_NOT_IMPLEMENTED,
-      renderHTML(YZ_NOT_IMPLEMENTED, message))
+      renderHTML(YZ_NOT_IMPLEMENTED, message, false))
   }
   
-  def mimeToResultType(mime : String) = mime match {
+  def mimeToResultType(mime : String, deflt : ResultType) = mime match {
     case "text/html" => Some(html)
     case "application/rdf+xml" => Some(rdfxml)
     case "text/turtle" => Some(turtle)
     case "application/x-turtle" => Some(turtle)
     case "application/n-triples" => Some(nt)
     case "text/plain" => Some(nt)
-    case "application/json" => Some(jsonld)
     case "application/ld+json" => Some(jsonld)
     case "application/sparql-results+xml" => Some(sparql)
+    case "application/sparql-results+json" => Some(sparqljson)
+    case "application/json" if deflt==sparqljson => Some(sparqljson)
+    case "application/json" => Some(jsonld)
+    case "application/javascript" if deflt==sparqljson => Some(sparqljson)
+    case "application/javascript" => Some(jsonld)
     case _ => None
   }
  
@@ -120,7 +125,7 @@ object RDFServer {
   def bestMimeType(acceptString : String, deflt : ResultType) : ResultType = {
     val accepts = acceptString.split("\\s*,\\s*")
     for(accept <- accepts) {
-      mimeToResultType(accept) match {
+      mimeToResultType(accept, deflt) match {
         case Some(t) => return t
         case None => // noop
      }
@@ -129,7 +134,7 @@ object RDFServer {
       accept => if(accept.contains(";")) {
         try {
           val e = accept.split("\\s*;\\s*")
-          val mime = mimeToResultType(e.head)
+          val mime = mimeToResultType(e.head, deflt)
           val extensions = e.tail
           for(extension <- extensions if extension.startsWith("q=") && mime != None) yield {
             (extension.drop(2).toDouble, mime.get)
@@ -154,8 +159,8 @@ object RDFServer {
   def _slurp(src : io.Source) = src.getLines.mkString("\n")
   implicit def responsePimp(resp : HttpServletResponse) = new {
     def respond(contentType : String, status : Int, args : (String,String)*)(foo : java.io.PrintWriter => Unit) = {
-      resp.addHeader("Content-type", contentType)
       resp.setCharacterEncoding("utf-8")
+      resp.addHeader("Content-type", contentType)
       for((a,b) <- args) {
         resp.addHeader(a,b)
       }
@@ -163,7 +168,6 @@ object RDFServer {
       val out = resp.getWriter()
       foo(out)
       out.flush()
-      out.close()
     }
     def binary(contentType : String, file : URL) {
       resp.addHeader("Content-type", contentType)
@@ -178,12 +182,11 @@ object RDFServer {
         out.write(buf, 0, read)
       }
       out.flush()
-      out.close()
     }
   }
 }
 
-class RDFServer extends HttpServlet {
+class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServlet {
   import RDFServer._
  
   implicit class URLPimps(url : URL) {
@@ -219,8 +222,6 @@ class RDFServer extends HttpServlet {
     }
   }
 
-  lazy val db : String = DB_FILE
-  lazy val backend : Backend = new RDFBackend(db)
   private val resourceURIRegex = "^/(.*?)(|\\.nt|\\.html|\\.rdf|\\.ttl|\\.json)$".r
 
   def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
@@ -248,14 +249,24 @@ class RDFServer extends HttpServlet {
             throw new RuntimeException(msg, t)
         }
         resp.respond("text/html", SC_OK) {
-          out => out.println(renderHTML("SPARQL Results", content))
+          out => out.println(renderHTML("SPARQL Results", content, false))
         }
       } else {
         val (content, mime) = result match {
           case r : TableResult =>
-            (ResultSetFormatter.asXMLString(r.result), sparql)
+            if(mimeType == sparql) {
+              (r.toXML, sparql)
+            } else {
+              (r.toJSON, sparqljson)
+            }
           case BooleanResult(r) =>
-            (ResultSetFormatter.asXMLString(r), sparql)
+            if(mimeType == sparql) {
+              (ResultSetFormatter.asXMLString(r), sparql)
+            } else {
+              val baos = new java.io.ByteArrayOutputStream()
+              ResultSetFormatter.outputAsJSON(baos, r)
+              (baos.toString(), sparqljson)
+            }
           case ModelResult(model) =>
             val out = new java.io.StringWriter()
             val mime = if(mimeType == sparql) {
@@ -302,7 +313,7 @@ class RDFServer extends HttpServlet {
   def rdfxmlToHtml(model : Model, query : Option[String], title : String = "") : String = query match {
     case Some(q) =>
       val elem = QueryElement.fromModel(model, q)
-      return renderHTML(title, mustache.rdf2html.generate(elem))
+      return renderHTML(title, mustache.rdf2html.generate(elem), false)
     case None =>
       throw new UnsupportedOperationException("TODO")
   }
@@ -318,6 +329,7 @@ class RDFServer extends HttpServlet {
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
     val uri = req.getPathInfo()
+    val isTest = req.getRequestURL().toString() == (BASE_NAME + uri)
     var mime = if(uri.matches(".*\\.html")) {
       html
     } else if(uri.matches(".*\\.rdf")) {
@@ -330,13 +342,13 @@ class RDFServer extends HttpServlet {
       jsonld
     } else if(req.getHeader("Accept") != null) {
       if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
-        bestMimeType(req.getHeader("Accept"), sparql)
+        bestMimeType(req.getHeader("Accept"), sparqljson)
       } else {
         bestMimeType(req.getHeader("Accept"), html)
       }
     } else {
       if(SPARQL_PATH != null && (uri == SPARQL_PATH || uri == (SPARQL_PATH + "/"))) {
-        sparql
+        sparqljson
       } else {
         html
       }
@@ -346,16 +358,16 @@ class RDFServer extends HttpServlet {
       if(!new File(DB_FILE).exists && !new File(DB_FILE + ".mv.db").exists) {
         resp.respond("text/html", SC_OK) {
           _.println(renderHTML(DISPLAY_NAME,
-            mustache(resolve("html/onboarding.html")).substitute()))
+            mustache(resolve("html/onboarding.html")).substitute(), isTest))
         }
       } else {
        resp.respond("text/html",SC_OK) {
-          out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS)))
+          out => out.print(renderHTML(DISPLAY_NAME, mustache(resolve("html/index.html")).substitute("property_facets" -> FACETS), isTest))
         }
       }
     } else if(LICENSE_PATH != null && uri == LICENSE_PATH) {
       resp.respond("text/html",SC_OK) {
-        out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/license.html"))))
+        out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/license.html")), isTest))
       }
     } else if(SEARCH_PATH != null && (uri == SEARCH_PATH || uri == (SEARCH_PATH + "/"))) {
       if(req.getQueryString() != null) {
@@ -363,7 +375,7 @@ class RDFServer extends HttpServlet {
         if(qsParsed.containsKey("query")) {
           val query = qsParsed.get("query")(0)
           val prop = if(qsParsed.containsKey("property") && qsParsed.get("property")(0) != "") {
-            Some(qsParsed.get("property")(0))
+            Some("<" + qsParsed.get("property")(0) + ">")
           } else {
             None
           }
@@ -388,12 +400,12 @@ class RDFServer extends HttpServlet {
             Option(qs.get("default-graph-uri")).map(_(0)), resp)
         } else {
           resp.respond("text/html", SC_OK) {
-            out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html"))))
+            out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html")), isTest))
           }
         }
       } else {
         resp.respond("text/html", SC_OK) {
-          out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html"))))
+          out => out.print(renderHTML(DISPLAY_NAME, slurp(resolve("html/sparql.html")), isTest))
         }
       }
     } else if(LIST_PATH != null && (uri == LIST_PATH || uri == (LIST_PATH + "/"))) {
@@ -426,7 +438,10 @@ class RDFServer extends HttpServlet {
         case _ => None
       }
       listResources(resp, offset, property, obj, objOffset)
-    } else if(METADATA_PATH != null && uri == ("/" + METADATA_PATH)) {
+    } else if(METADATA_PATH != null && (
+        uri == ("/" + METADATA_PATH) || uri == ("/" + METADATA_PATH + ".rdf") ||
+        uri == ("/" + METADATA_PATH + ".ttl") || uri == ("/" + METADATA_PATH + ".json") ||
+        uri == ("/" + METADATA_PATH + ".nt"))) {
       val model = DataID.get
       val content = if(mime == html) {
         rdfxmlToHtml(model, Some(BASE_NAME + METADATA_PATH), YZ_METADATA)
@@ -442,7 +457,7 @@ class RDFServer extends HttpServlet {
     } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute()))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
@@ -465,7 +480,7 @@ class RDFServer extends HttpServlet {
               out.toString()
             }
           }
-          resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
+          resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.getBytes("utf-8").length.toString) {
             out => out.print(content)
           }
         }
@@ -489,8 +504,8 @@ class RDFServer extends HttpServlet {
     val hasNext = if(hasMore) { "" } else { "disabled" }
     val next = offset + limit
     val pages = "%d - %d" format(offset + 1, offset + results.size)
-    val facets = FACETS.map { facet =>
-      val uri_enc = java.net.URLEncoder.encode(facet("uri"), "UTF-8")
+    val facets = FACETS.filter(_.getOrElse("list", true) == true).map { facet =>
+      val uri_enc = java.net.URLEncoder.encode(facet("uri").toString, "UTF-8")
       if(property != None && ("<" + facet("uri") + ">") == property.get) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
         facet ++ Map("uri_enc" -> uri_enc, 
@@ -515,7 +530,7 @@ class RDFServer extends HttpServlet {
           "prev" -> prev.toString,
           "has_next" -> hasNext,
           "next" -> next.toString,
-          "pages" -> pages)))
+          "pages" -> pages), false))
     }
   }
 
@@ -526,7 +541,7 @@ class RDFServer extends HttpServlet {
       "results" -> results
     )
     resp.respond("text/html", SC_OK) {
-      out => out.println(renderHTML(DISPLAY_NAME, page))
+      out => out.println(renderHTML(DISPLAY_NAME, page, false))
     }
   }
 

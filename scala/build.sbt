@@ -11,6 +11,7 @@ libraryDependencies ++= Seq(
   "javax.servlet" % "javax.servlet-api" % "3.0.1" % "provided",
   "org.xerial" % "sqlite-jdbc" % "3.8.7",
   "org.scalatest" %% "scalatest" % "2.1.7" % "test",
+  "org.scalamock" %% "scalamock-scalatest-support" % "3.2.1" % "test",
   "gnu.getopt" % "java-getopt" % "1.0.13",
   "com.github.spullara.mustache.java" % "compiler" % "0.8.17",
   "org.mockito" % "mockito-all" % "1.9.0" % "test",

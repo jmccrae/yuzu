@@ -40,6 +40,7 @@ class ServerTest(unittest.TestCase):
                       + " btn-default disabled\\\'>&lt;&lt;</a>", content)
         self.assertIn("<a href=\\\'/list/?offset=20\\\' class=\\\'btn"
                       + " btn-default disabled\\\'>&gt;&gt;</a>", content)
+        self.assertNotIn(">data/example2<", content)
         conn.close()
 
     def test_list_by_value(self):
@@ -169,7 +170,7 @@ class ServerTest(unittest.TestCase):
         conn = self.do_get("/search/?property=&query=English")
         content = str(conn.getresponse().read())
         self.assertIn("href=\"/data/example2\"", content)
-        self.assertNotIn("No Results!", content)
+        self.assertNotIn("No Results", content)
         conn.close()
 
     def test_search2(self):
@@ -181,7 +182,13 @@ class ServerTest(unittest.TestCase):
     def test_search_fail(self):
         conn = self.do_get("/search/?property=&query=gobbledegook")
         content = str(conn.getresponse().read())
-        self.assertIn("No Results!", content)
+        self.assertIn("No Results", content)
+        conn.close()
+
+    def test_search_fail2(self):
+        conn = self.do_get("/search/?query=")
+        content = str(conn.getresponse().read())
+        self.assertIn("No Results", content)
         conn.close()
 
     def test_search_prop(self):
@@ -240,27 +247,40 @@ class ServerTest(unittest.TestCase):
         self.assertIn("data/example", content)
         conn.close()
 
-    def test_sparql_ask(self):
-        conn = HTTPConnection(self.address, self.port)
-        conn.request("GET",
-                     "/sparql/?query=ASK+{+<http%3A%2F%2Flocalhost%3A8080%2Fda"
-                     + "ta%2Fexample>+%3Fp+%3Fo+}",
-                     headers={'Accept': 'text/html'})
-        content = str(conn.getresponse().read())
-        self.assertIn("<h3>True</h3>", content)
-        conn.close()
+#    def test_sparql_ask(self):
+#        conn = HTTPConnection(self.address, self.port)
+#        conn.request("GET",
+#                     "/sparql/?query=ASK+{+<http%3A%2F%2Flocalhost%3A8080%2Fda"
+#                     + "ta%2Fexample>+%3Fp+%3Fo+}",
+#                     headers={'Accept': 'text/html'})
+#        content = str(conn.getresponse().read())
+#        self.assertIn("<h3>True</h3>", content)
+#        conn.close()
 
     def test_sparql_query2(self):
         conn = HTTPConnection(self.address, self.port)
         conn.request("GET",
-                     "/sparql/?query=SELECT+*+WHERE+{+<http%3A%2F%2Flocalhost%"
-                     + "3A8080%2Fdata%2Fexample>+%3Fp+%3Fo+}",
+                     "/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org"
+                     "%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+WHERE+{%0D"
+                     "%0A++%3Chttp%3A%2F%2Flocalhost%3A8080%2Fdata%2Fexample%3"
+                     "E+rdfs%3Alabel+%3Fo+|+rdfs%3AseeAlso+%3Fo%0D%0A}+LIMIT+"
+                     "100",
                      headers={'Accept': 'text/html'})
         content = str(conn.getresponse().read())
         self.assertIn("en.gif", content)
         self.assertIn("href=\"http://dbpedia.org", content)
         self.assertIn("English", content)
-        self.assertIn("See Also", content)
+        conn.close()
+
+    def test_yuzuql(self):
+        conn = HTTPConnection(self.address, self.port)
+        conn.request("GET",
+                     "/sparql/?query=SELECT+%3Fs+WHERE+{%0D%0A++%3Fs+"
+                     "rdfs%3Alabel+\"Beispiel\"%40de%0D%0A}+LIMIT+1",
+                     headers={'Accept': ''})
+        content = str(conn.getresponse().read())
+        self.assertIn("\"value\": \"http://localhost:8080/data/example\"",
+                      content)
         conn.close()
 
     def test_onboarding_not_avail(self):
@@ -274,11 +294,36 @@ class ServerTest(unittest.TestCase):
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
         self.assertIn("Example Resource", content)
-        self.assertIn("href=\"/data/example\"", content)
+        self.assertIn("href=\"http://localhost:8080/data/example\"", content)
         self.assertIn(">http://localhost:8080/</a>", content)
         self.assertIn("Link Set", content)
         self.assertIn("Instance of", content)
         self.assertIn("Distribution", content)
+        conn.close()
+
+    def test_dataid_rdf(self):
+        conn = self.do_get("/dataid.rdf")
+        content = str(conn.getresponse().read())
+        self.assertIn("<rdf", content)
+        conn.close()
+
+    def test_backlinks(self):
+        conn = self.do_get("/data/example2")
+        content = str(conn.getresponse().read())
+        self.assertIn("Is <a", content)
+        self.assertIn("href=\"http://localhost:8080/data/example\"", content)
+        conn.close()
+
+    def test_unicode(self):
+        conn = self.do_get("/list")
+        content = conn.getresponse().read().decode('utf-8')
+        self.assertIn(u"bosättningsstopp", content)
+        conn.close()
+
+        conn = self.do_get("/data/saldo/bos%C3%A4ttningsstopp..nn.1")
+        content = conn.getresponse().read().decode('utf-8')
+        self.assertIn(u"☺", content)
+        self.assertIn(u"✓", content)
         conn.close()
 
 

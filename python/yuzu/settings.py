@@ -47,8 +47,11 @@ ODRL = "http://www.w3.org/ns/odrl/2/"
 PROV = "http://www.w3.org/ns/prov#"
 VOID = "http://rdfs.org/ns/void#"
 
+# The maximum number of results to return from a YuzuQL query (or -1 for no
+# limit)
+YUZUQL_LIMIT = 1000
 # If using an external SPARQL endpoint, the address of this
-# or None if you wish to use built-in (very slow) endpoint
+# or None if you wish to use only YuzuQL
 SPARQL_ENDPOINT = None
 # Path to the license (set to None to disable)
 LICENSE_PATH = "/license.html"
@@ -86,6 +89,8 @@ LABELS = [
 LINKED_SETS = ["http://dbpedia.org/"]
 NOT_LINKED = ["http://www.w3.org/", "http://purl.org/dc/",
               "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/"]
+# The minimum number of links to another dataset to be included in metadata
+MIN_LINKS = 1
 
 # Metadata
 
@@ -198,31 +203,31 @@ class PrettyDisplayer:
             return self.magic_string("%s" % uri[len(BASE_NAME):])
         elif uri.startswith(PREFIX1_URI):
             return self.magic_string(
-                "%s" % (PREFIX1_QN, uri[len(PREFIX1_URI):]))
+                "%s" % (uri[len(PREFIX1_URI):]))
         elif uri.startswith(PREFIX2_URI):
             return self.magic_string(
-                "%s" % (PREFIX2_QN, uri[len(PREFIX2_URI):]))
+                "%s" % (uri[len(PREFIX2_URI):]))
         elif uri.startswith(PREFIX3_URI):
             return self.magic_string(
-                "%s" % (PREFIX3_QN, uri[len(PREFIX3_URI):]))
+                "%s" % (uri[len(PREFIX3_URI):]))
         elif uri.startswith(PREFIX4_URI):
             return self.magic_string(
-                "%s" % (PREFIX4_QN, uri[len(PREFIX4_URI):]))
+                "%s" % (uri[len(PREFIX4_URI):]))
         elif uri.startswith(PREFIX5_URI):
             return self.magic_string(
-                "%s" % (PREFIX5_QN, uri[len(PREFIX5_URI):]))
+                "%s" % (uri[len(PREFIX5_URI):]))
         elif uri.startswith(PREFIX6_URI):
             return self.magic_string(
-                "%s" % (PREFIX6_QN, uri[len(PREFIX6_URI):]))
+                "%s" % (uri[len(PREFIX6_URI):]))
         elif uri.startswith(PREFIX7_URI):
             return self.magic_string(
-                "%s" % (PREFIX7_QN, uri[len(PREFIX7_URI):]))
+                "%s" % (uri[len(PREFIX7_URI):]))
         elif uri.startswith(PREFIX8_URI):
             return self.magic_string(
-                "%s" % (PREFIX8_QN, uri[len(PREFIX8_URI):]))
+                "%s" % (uri[len(PREFIX8_URI):]))
         elif uri.startswith(PREFIX9_URI):
             return self.magic_string(
-                "%s" % (PREFIX9_QN, uri[len(PREFIX9_URI):]))
+                "%s" % (uri[len(PREFIX9_URI):]))
         elif uri.startswith(str(RDF)):
             return self.magic_string(uri[len(str(RDF)):])
         elif uri.startswith(str(RDFS)):

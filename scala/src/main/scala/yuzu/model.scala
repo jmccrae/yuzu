@@ -2,6 +2,7 @@ package com.github.jmccrae.yuzu
 
 import com.hp.hpl.jena.rdf.model.{Literal, Model, RDFNode, Resource}
 import com.hp.hpl.jena.datatypes.RDFDatatype
+import com.hp.hpl.jena.graph.Node
 import com.hp.hpl.jena.vocabulary._
 import java.util.{List=>JList}
 import scala.collection.JavaConversions._
@@ -10,7 +11,7 @@ case class Element(val display : String,
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
   val triples : JList[TripleFrag] = null, val datatype : Element = null,
-  val bnode : Boolean = false) {
+  val bnode : Boolean = false, val inverses : JList[TripleFrag] = null) {
     override def toString = display + Option(triples).map({ ts => 
       " [" + (ts.map({ t =>
         t.prop.display + " " + t.obj.mkString(",")
@@ -18,7 +19,20 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
-  def fragment = new java.net.URI(uri).getFragment()
+  def superCleanURI(_uri : String) = {
+    // This is slow if we have to make a lot of changes
+    // A stringbuffer would the be quicker, but I assume
+    // that we will virtually never have really bad characters in a 
+    // URL
+    var uri = _uri
+    var i = 0
+    while(i < uri.length) {
+      if(uri.charAt(i) <= ' ' || uri.charAt(i) == '\u00a0') {
+        uri = uri.substring(0,i) + uri.substring(i + 1) }
+      i += 1 }
+    uri }
+
+  def fragment = new java.net.URI(superCleanURI(uri)).getFragment()
 }
 
 class QueryElement(main : Element,
@@ -51,9 +65,21 @@ trait URIDisplayer {
           }
       }
     case l : Literal =>
-      l.getValue().toString().replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
-        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").replaceAll("\\\\","\\\\")
+      UnicodeEscape.unescape(l.getValue().toString().
+        replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
+        replaceAll("\\\\","\\\\"))
   }
+  def apply(node : Node) = 
+    if(node.isURI()) {
+      uriToStr(node.getURI()) }
+    else if(node.isLiteral()) {
+      UnicodeEscape.unescape(node.getLiteralValue().toString().
+        replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
+        replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
+        replaceAll("\\\\","\\\\")) }
+    else {
+      "" }
   def apply(dt : RDFDatatype) = uriToStr(dt.getURI())
 
 }
@@ -188,6 +214,20 @@ object QueryElement {
     }
   }
 
+  def inverseTripleFrags(model : Model, elem : Resource, query : String) = {
+    ((model.listStatements(null, null, elem).toSeq.filter { stat =>
+      val uriStr = stat.getSubject().getURI()
+      uriStr != null && ((uriStr.contains('#') && 
+        uriStr.substring(0, uriStr.indexOf('#')) != query) || 
+        (!uriStr.contains('#') && uriStr != query))
+    } groupBy { stat =>
+      stat.getPredicate()
+    }).toList.map {
+      case (p, ss) =>
+        new TripleFrag(fromNode(p, Nil), ss.map(s => fromNode(s.getSubject(), Nil)))
+    } sortBy(_.prop.display)).toList
+  }
+
   def fromModel(model : Model, query : String) : Element = {
     val elem = model.createResource(query)
     val classOf = elem.getProperty(RDF.`type`) match {
@@ -207,7 +247,8 @@ object QueryElement {
     Element(label,
       uri=elem.getURI(),
       triples=tripleFrags(elem, Nil, classOf),
-      classOf=fromNode(classOf))
+      classOf=fromNode(classOf),
+      inverses=inverseTripleFrags(model, elem, query))
   }
 
   def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {

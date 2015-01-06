@@ -5,24 +5,20 @@ from yuzu.settings import DISPLAYER, CONTEXT
 
 def from_model(graph, query):
     elem = URIRef(query)
-    class_of_value = graph.objects(elem, RDF.type)
-    try:
-        class_of_value = class_of_value.next()
-    except AttributeError:
-        class_of_value = None
-    except StopIteration:
-        class_of_value = None
-    if class_of_value:
-        class_of = from_node(graph, class_of_value, [])
-    else:
-        class_of = None
+    class_of = None
+    class_of_objects = graph.objects(elem, RDF.type)
+    if class_of_objects:
+        for class_of_value in graph.objects(elem, RDF.type):
+            class_of = from_node(graph, class_of_value, [])
+            break
     model = {
         'display': DISPLAYER.apply(elem),
         'uri': query,
-        'triples': list(triple_frags(elem, graph, [], class_of_value)),
+        'triples': list(triple_frags(elem, graph, [], class_of)),
         'has_triples': len(list(graph.predicate_objects(elem))) > 0,
         'classOf': class_of,
-        'context': CONTEXT
+        'context': CONTEXT,
+        'inverses': list(inverse_triple_frags(elem, graph, query))
     }
     return model
 
@@ -74,14 +70,33 @@ def triple_frags(elem, graph, stack, classOf):
             }
 
 
+def inverse_triple_frags(elem, graph, query):
+    triples = [(from_node(graph, p, []),
+                from_node(graph, s, []))
+               for s, p in graph.subject_predicates(elem)
+               if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
+                   ('#' not in str(s) and str(s) != query))]
+    sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
+    grouped = groupby(sortt)
+    for p, objs in grouped:
+        yield {
+            "prop": p,
+            "obj": triple_elems(objs)
+        }
+
+
 def from_node(graph, node, stack):
     if type(node) == URIRef:
+        fragment = None
+        if '#' in str(node):
+            fragment = str(node)[str(node).index('#') + 1:]
         return {
             'display': DISPLAYER.apply(node),
             'uri': str(node),
             'triples': list(triple_frags(node, graph, stack, None)),
             'has_triples': len(list(graph.predicate_objects(node))) > 0,
-            'context': CONTEXT
+            'context': CONTEXT,
+            'fragment': fragment
         }
     elif type(node) == BNode:
         return {
