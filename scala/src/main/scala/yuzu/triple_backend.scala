@@ -188,16 +188,16 @@ class TripleBackend(db : String) extends Backend {
       var stream = inputStream
       var skip = 0
       var offset = 1
-      var outs = Seq[File]()
+      var oldOutFile : Option[File] = None
+      var outFile : File = null
       var eof = true
       val max = 1000000
 
       do {
         eof = true
         var read = 0
-        val outFile = File.createTempFile("yuzu", ".nt")
+        outFile = File.createTempFile("yuzu", ".nt")
         outFile.deleteOnExit()
-        outs :+= outFile
         val out = new java.io.PrintWriter(outFile)
         val known = collection.mutable.Map[Node, Int]()
         for(line <- io.Source.fromInputStream(stream).getLines()) {
@@ -232,7 +232,11 @@ class TripleBackend(db : String) extends Backend {
         out.flush()
         out.close()
       
+        oldOutFile.foreach(_.delete())
+
         stream = new java.io.FileInputStream(outFile)
+
+        oldOutFile = Some(outFile)
 
         offset += known.size
         dumpMap(known.toMap)
@@ -249,7 +253,7 @@ class TripleBackend(db : String) extends Backend {
       var linkCounts = collection.mutable.Map[String, Int]()
       var n = 0
   
-      for(line <- io.Source.fromFile(outs.head).getLines) {
+      for(line <- io.Source.fromFile(outFile).getLines) {
         val elems = line.split(" ")
         val (sid, subj) = fromIntN3(elems(0))
         val (pid, prop) = fromIntN3(elems(1))
