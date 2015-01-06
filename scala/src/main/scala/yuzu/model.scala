@@ -65,7 +65,7 @@ trait URIDisplayer {
           }
       }
     case l : Literal =>
-      UnicodeEscape.unescape(l.getValue().toString().
+      UnicodeEscape.unescape(l.getLexicalForm().
         replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
         replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
         replaceAll("\\\\","\\\\"))
@@ -74,7 +74,7 @@ trait URIDisplayer {
     if(node.isURI()) {
       uriToStr(node.getURI()) }
     else if(node.isLiteral()) {
-      UnicodeEscape.unescape(node.getLiteralValue().toString().
+      UnicodeEscape.unescape(node.getLiteralLexicalForm().
         replaceAll("\\\\n","\n").replaceAll("\\\\t","\t").
         replaceAll("\\\\r","\r").replaceAll("\\\\\"","\"").
         replaceAll("\\\\","\\\\")) }
@@ -239,7 +239,7 @@ object QueryElement {
       }).headOption.map({ stat =>
         val node = stat.getObject()
         if(node.isLiteral()) {
-          node.asLiteral().getValue().toString()
+          node.asLiteral().getLexicalForm()
         } else {
           node.toString()
         }

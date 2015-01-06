@@ -69,15 +69,15 @@ class TripleBackend(db : String) extends Backend {
     "_:%s" format node.getBlankNodeId().toString() }
   else if(node.getLiteralLanguage() != "") {
     "\"%s\"@%s" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\""), 
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\""), 
       node.getLiteralLanguage()) }
   else if(node.getLiteralDatatypeURI() != null) {
     "\"%s\"^^<%s>" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\""), 
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\""), 
       node.getLiteralDatatypeURI()) }
   else {
     "\"%s\"" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\"")) }
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\"")) }
 
   /** To make many of the queries easier */
   implicit object GetNode extends GetResult[Node] {
@@ -318,7 +318,8 @@ class TripleBackend(db : String) extends Backend {
     System.err.println("")
     
     val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
-    linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
+    linkCounts.foreach { case (target, count) => if(count >= MIN_LINKS) { 
+      insertLinkCount(count, target) }}
     insertLinkCount.execute
 
     c.commit() } }

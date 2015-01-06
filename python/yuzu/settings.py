@@ -70,7 +70,8 @@ METADATA_PATH = "dataid"
 FACETS = [
     {
         "uri": "http://www.w3.org/2000/01/rdf-schema#label",
-        "label": "Label"
+        "label": "Label",
+        "list": True
     }
 ]
 # Properties to use as labels
