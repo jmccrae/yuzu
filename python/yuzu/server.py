@@ -460,22 +460,23 @@ class RDFServer:
         pages = "%d - %d" % (offset + 1, offset + len(results) + 1)
         facets = []
         for facet in FACETS:
-            facet['uri_enc'] = quote_plus(facet['uri'])
-            if ("<%s>" % facet['uri']) != prop:
-                facets.append(facet)
-            else:
-                facet = copy(facet)
-                mv, val_results = self.backend.list_values(obj_offset, 20,
-                                                           prop)
-                facet['values'] = [{
-                    'prop_uri': facet['uri_enc'],
-                    'value_enc': quote_plus(v['link']),
-                    'value': v['label'][:100],
-                    'count': v['count'],
-                    'offset': obj_offset} for v in val_results]
-                if mv:
-                    facet['more_values'] = obj_offset + 20
-                facets.append(facet)
+            if "list" not in facet or facet["list"] is True:
+                facet['uri_enc'] = quote_plus(facet['uri'])
+                if ("<%s>" % facet['uri']) != prop:
+                    facets.append(facet)
+                else:
+                    facet = copy(facet)
+                    mv, val_results = self.backend.list_values(obj_offset, 20,
+                                                               prop)
+                    facet['values'] = [{
+                        'prop_uri': facet['uri_enc'],
+                        'value_enc': quote_plus(v['link']),
+                        'value': v['label'][:100],
+                        'count': v['count'],
+                        'offset': obj_offset} for v in val_results]
+                    if mv:
+                        facet['more_values'] = obj_offset + 20
+                    facets.append(facet)
 
         start_response(
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])

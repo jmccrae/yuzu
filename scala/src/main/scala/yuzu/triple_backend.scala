@@ -318,7 +318,8 @@ class TripleBackend(db : String) extends Backend {
     System.err.println("")
     
     val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
-    linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
+    linkCounts.foreach { case (target, count) => if(count >= MIN_LINKS) { 
+      insertLinkCount(count, target) }}
     insertLinkCount.execute
 
     c.commit() } }
