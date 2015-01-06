@@ -170,9 +170,14 @@ class TripleBackend(db : String) extends Backend {
     else {
       Right(fromIntN3(s)) }
 
-  def fromIntN3(s : String) = {
-    val (d, n3) = s.splitAt(s.indexOf("="))
-    (d.toInt, fromN3(n3.drop(1))) }
+  def fromIntN3(s : String) = 
+    try {
+      val (d, n3) = s.splitAt(s.indexOf("="))
+      (d.toInt, fromN3(n3.drop(1))) }
+    catch {
+      case x : Exception => {
+        System.err.println(s)
+        throw x }}
 
   def loadByTmp(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
     val c = conn
@@ -196,8 +201,8 @@ class TripleBackend(db : String) extends Backend {
         val out = new java.io.PrintWriter(outFile)
         val known = collection.mutable.Map[Node, Int]()
         for(line <- io.Source.fromInputStream(stream).getLines()) {
+          read += 1 
           if(read < skip) {
-            read += 1 
             out.println(line) }
           else {
             val elems = line.split(" ")
@@ -233,6 +238,7 @@ class TripleBackend(db : String) extends Backend {
         dumpMap(known.toMap)
         c.commit()
       } while(!eof) 
+      System.err.println("Preprocesing done")
 
       val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
         insert5[Int, Int, Int, String, Boolean]
