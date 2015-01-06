@@ -504,8 +504,8 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     val hasNext = if(hasMore) { "" } else { "disabled" }
     val next = offset + limit
     val pages = "%d - %d" format(offset + 1, offset + results.size)
-    val facets = FACETS.map { facet =>
-      val uri_enc = java.net.URLEncoder.encode(facet("uri"), "UTF-8")
+    val facets = FACETS.filter(_.getOrElse("list", true) == true).map { facet =>
+      val uri_enc = java.net.URLEncoder.encode(facet("uri").toString, "UTF-8")
       if(property != None && ("<" + facet("uri") + ">") == property.get) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
         facet ++ Map("uri_enc" -> uri_enc, 

@@ -69,17 +69,17 @@ object YuzuSettings {
 
   // Properties to use as facets
   val FACETS = Seq(
-    Map("uri" -> "http://purl.org/dc/elements/1.1/title", "label" -> "Title"),
+    Map("uri" -> "http://purl.org/dc/elements/1.1/title", "label" -> "Title", "list" -> false),
     Map("uri" -> "http://purl.org/dc/elements/1.1/language", "label" -> "Language"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/rights", "label" -> "Rights"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/type", "label" -> "Type"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Data Issued"),
+    //Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Data Issued"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/creator", "label" -> "Creator"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/source", "label" -> "Source"),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/description", "label" -> "Description"),
-    Map("uri" -> "http://www.w3.org/ns/dcat#downloadURL", "label" -> "Download URL"),
-    Map("uri" -> "http://www.w3.org/ns/dcat#accessURL", "label" -> "Access URL"),
-    Map("uri" -> "http://www.w3.org/ns/dcat#contactPoint", "label" -> "Contact Point")
+    Map("uri" -> "http://purl.org/dc/elements/1.1/description", "label" -> "Description", "list" -> false),
+    //Map("uri" -> "http://www.w3.org/ns/dcat#downloadURL", "label" -> "Download URL"),
+    Map("uri" -> "http://www.w3.org/ns/dcat#accessURL", "label" -> "Access URL", "list" -> false),
+    Map("uri" -> "http://www.w3.org/ns/dcat#contactPoint", "label" -> "Contact Point", "list" -> false)
   )
   // Properties to use as labels
   val LABELS = Set(
