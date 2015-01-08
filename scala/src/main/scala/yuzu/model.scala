@@ -87,7 +87,11 @@ trait URIDisplayer {
 object DefaultDisplayer extends URIDisplayer {
   import YuzuSettings._
   def uriToStr(uri : String) = {
-    if(uri.startsWith(BASE_NAME)) {
+    if(uri == "http://lemon-model.net/lemon#canonicalForm") {
+      "Form"
+    } else if(uri == "http://lemon-model.net/lemon#sense") {
+      "Terminological Concept"
+    } else if(uri.startsWith(BASE_NAME)) {
       "%s" format (uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       "%s:%s" format (PREFIX1_QN, uri.drop(PREFIX1_URI.size))
@@ -146,7 +150,11 @@ object PrettyDisplayer extends URIDisplayer {
   }
 
   def uriToStr(uri : String) = {
-    if(uri.startsWith(BASE_NAME)) {
+    if(uri == "http://lemon-model.net/lemon#canonicalForm") {
+      "Form"
+    } else if(uri == "http://lemon-model.net/lemon#sense") {
+      "Terminological Concept"
+    } else if(uri.startsWith(BASE_NAME)) {
       magicString(uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       magicString(uri.drop(PREFIX1_URI.size))
