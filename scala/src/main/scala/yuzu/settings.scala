@@ -69,7 +69,7 @@ object YuzuSettings {
 
   // Properties to use as facets
   val FACETS = Seq(
-    Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label")
+    Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label", "list" -> true)
   )
   // Properties to use as labels
   val LABELS = Set(

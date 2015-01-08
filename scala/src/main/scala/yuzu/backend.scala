@@ -80,7 +80,7 @@ case class TableResult(result : ResultSet) extends SPARQLResult {
             target.put("display", DISPLAYER.uriToStr(o.getURI()))
           } else if(o.isLiteral()) {
             val l = o
-            target.put("value", l.getLiteralValue().toString())
+            target.put("value", l.getLiteralLexicalForm())
             if(l.getLiteralLanguage() != null) {
               target.put("lang", l.getLiteralLanguage())
             }

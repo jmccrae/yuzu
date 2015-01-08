@@ -69,15 +69,15 @@ class TripleBackend(db : String) extends Backend {
     "_:%s" format node.getBlankNodeId().toString() }
   else if(node.getLiteralLanguage() != "") {
     "\"%s\"@%s" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\""), 
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\""), 
       node.getLiteralLanguage()) }
   else if(node.getLiteralDatatypeURI() != null) {
     "\"%s\"^^<%s>" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\""), 
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\""), 
       node.getLiteralDatatypeURI()) }
   else {
     "\"%s\"" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\"")) }
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\"")) }
 
   /** To make many of the queries easier */
   implicit object GetNode extends GetResult[Node] {
@@ -170,9 +170,14 @@ class TripleBackend(db : String) extends Backend {
     else {
       Right(fromIntN3(s)) }
 
-  def fromIntN3(s : String) = {
-    val (d, n3) = s.splitAt(s.indexOf("="))
-    (d.toInt, fromN3(n3.drop(1))) }
+  def fromIntN3(s : String) = 
+    try {
+      val (d, n3) = s.splitAt(s.indexOf("="))
+      (d.toInt, fromN3(n3.drop(1))) }
+    catch {
+      case x : Exception => {
+        System.err.println(s)
+        throw x }}
 
   def loadByTmp(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
     val c = conn
@@ -183,21 +188,21 @@ class TripleBackend(db : String) extends Backend {
       var stream = inputStream
       var skip = 0
       var offset = 1
-      var outs = Seq[File]()
+      var oldOutFile : Option[File] = None
+      var outFile : File = null
       var eof = true
       val max = 1000000
 
       do {
         eof = true
         var read = 0
-        val outFile = File.createTempFile("yuzu", ".nt")
+        outFile = File.createTempFile("yuzu", ".nt")
         outFile.deleteOnExit()
-        outs :+= outFile
         val out = new java.io.PrintWriter(outFile)
         val known = collection.mutable.Map[Node, Int]()
         for(line <- io.Source.fromInputStream(stream).getLines()) {
+          read += 1 
           if(read < skip) {
-            read += 1 
             out.println(line) }
           else {
             val elems = line.split(" ")
@@ -227,12 +232,17 @@ class TripleBackend(db : String) extends Backend {
         out.flush()
         out.close()
       
+        oldOutFile.foreach(_.delete())
+
         stream = new java.io.FileInputStream(outFile)
+
+        oldOutFile = Some(outFile)
 
         offset += known.size
         dumpMap(known.toMap)
         c.commit()
       } while(!eof) 
+      System.err.println("Preprocesing done")
 
       val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
         insert5[Int, Int, Int, String, Boolean]
@@ -243,7 +253,7 @@ class TripleBackend(db : String) extends Backend {
       var linkCounts = collection.mutable.Map[String, Int]()
       var n = 0
   
-      for(line <- io.Source.fromFile(outs.head).getLines) {
+      for(line <- io.Source.fromFile(outFile).getLines) {
         val elems = line.split(" ")
         val (sid, subj) = fromIntN3(elems(0))
         val (pid, prop) = fromIntN3(elems(1))
@@ -308,7 +318,8 @@ class TripleBackend(db : String) extends Backend {
     System.err.println("")
     
     val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
-    linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
+    linkCounts.foreach { case (target, count) => if(count >= MIN_LINKS) { 
+      insertLinkCount(count, target) }}
     insertLinkCount.execute
 
     c.commit() } }

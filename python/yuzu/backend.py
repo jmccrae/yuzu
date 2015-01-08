@@ -13,8 +13,9 @@ import multiprocessing
 import traceback
 if sys.version_info[0] < 3:
     from urlparse import urlparse
+    from urllib import unquote
 else:
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, unquote
 
 from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
@@ -405,6 +406,14 @@ class RDFBackend(Store):
                                      object TEXT NOT NULL)""")
         cursor.execute("""CREATE TABLE links (count integer, target text)""")
 
+    @staticmethod
+    def fix_uri(uri):
+        if uri.startswith("<"):
+            return ("<" + unquote(uri[1:-1]).replace(" ", "+")
+                    .replace("\u00a0", "%C2%A0") + ">")
+        else:
+            return uri
+
     def load(self, input_stream):
         """
         Load the resource from an input stream (of NTriples formatted files)
@@ -425,10 +434,10 @@ class RDFBackend(Store):
                 sys.stderr.flush()
             l = unicode_escape(line.decode('utf-8'))
             e = l.split(" ")
-            subj_n3 = e[0]
+            subj_n3 = self.fix_uri(e[0])
             subj = subj_n3[1:-1]
-            prop = e[1]
-            obj = " ".join(e[2:-1])
+            prop = self.fix_uri(e[1])
+            obj = self.fix_uri(" ".join(e[2:-1]))
 
             if subj.startswith(BASE_NAME):
                 id, frag = self.split_uri(subj)
