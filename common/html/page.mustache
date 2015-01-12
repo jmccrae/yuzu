@@ -66,6 +66,14 @@
             visibility: hidden;
         }
     </style>
+    <script>
+    function flagFallBack(tag) {
+        if(tag.src !== '{{context}}/assets/flag/und.gif') {
+            tag.src='{{context}}/assets/flag/und.gif';
+            tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
+        }
+    }
+    </script>
     <link rel="shortcut icon" href="{{context}}/favicon.ico" />
 </head>
 <body style="padding-top:100px;">
