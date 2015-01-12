@@ -21,7 +21,7 @@
                     <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
                      {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
                     {{#lang}}
-                        <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif"/></span>
+                        <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="this.src='{{context}}/assets/flag/und.gif';this.parentNode.appendChild(document.createTextNode('{{lang}}'));"/></span>
                     {{/lang}}
                     {{#datatype}}
                         <span class="pull-right rdf_datatype"><a href="{{uri}}">{{display}}</a></span>

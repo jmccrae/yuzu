@@ -59,7 +59,8 @@
                 {{#classOf}}<h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
             {{/elem}}
         <span property="{{#prop}}{{uri}}{{/prop}}" resource="{{#elem}}{{uri}}{{/elem}}"></span>
-        <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}" id="{{#elem}}{{fragment}}{{/elem}}">
+        <a class="anchor" id="{{#elem}}{{fragment}}{{/elem}}"></a>
+        <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}">
                 {{#elem}}
                     {{#triples}}
                         {{> triple}}

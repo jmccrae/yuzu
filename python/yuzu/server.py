@@ -215,7 +215,7 @@ class RDFServer:
             else:
                 start_response('200 OK', [('Content-type',
                                            self.mime_types[result_type])])
-                return [result]
+                return [result.encode('utf-8')]
 
     def add_namespaces(self, graph):
         graph.namespace_manager.bind("ontology", BASE_NAME+"ontology#")
