@@ -49,22 +49,9 @@ object UnicodeEscape {
 
 }
 
-/**
- * Standard 3-column SQL implementation of a triple store, with foreign keys
- * for N3 form of the triple
- */
-class TripleBackend(db : String) extends Backend {
-  import UnicodeEscape._
-  try {
-    Class.forName("org.sqlite.JDBC") }
-  catch {
-    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x) }
-
-  /** Create a connection */
-  private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
-
+object N3 {
   /** Convert an N3 string to a node */
-  private def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
+  def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
     NodeFactory.createURI(java.net.URLDecoder.decode(n3.drop(1).dropRight(1), "UTF-8")) }
   else if(n3.startsWith("_:")) {
     NodeFactory.createAnon(AnonId.create(n3.drop(2))) }
@@ -80,7 +67,7 @@ class TripleBackend(db : String) extends Backend {
     throw new IllegalArgumentException("Not N3: %s" format n3) }
 
   /** Convert a node to an N3 String */
-  private def toN3(node : Node) : String = if(node.isURI()) {
+  def toN3(node : Node) : String = if(node.isURI()) {
     "<%s>" format node.getURI() }
   else if(node.isBlank()) {
     "_:%s" format node.getBlankNodeId().toString() }
@@ -95,6 +82,23 @@ class TripleBackend(db : String) extends Backend {
   else {
     "\"%s\"" format (
       node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\"")) }
+}
+
+/**
+ * Standard 3-column SQL implementation of a triple store, with foreign keys
+ * for N3 form of the triple
+ */
+class TripleBackend(db : String) extends Backend {
+  import UnicodeEscape._
+  import N3._
+
+  try {
+    Class.forName("org.sqlite.JDBC") }
+  catch {
+    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x) }
+
+  /** Create a connection */
+  private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
 
   /** To make many of the queries easier */
   implicit object GetNode extends GetResult[Node] {
@@ -225,11 +229,11 @@ class TripleBackend(db : String) extends Backend {
             for(e <- Seq(subj, prop, obj)) {
               e match {
                 case Left(n) => known.get(n) match {
-                  case Some(i) => out.print("%d=%s" format(i, toN3(n)))
+                  case Some(i) => out.print("%d=%s" format(i, toN3(fixURI(n))))
                   case None => if(known.size < max) {
                       val v = offset + known.size
                       known.put(n, v)
-                      out.print("%d=%s" format(v, toN3(n))) }
+                      out.print("%d=%s" format(v, toN3(fixURI(n)))) }
                     else {
                       if(eof) {
                         System.err.println("Preprocessed to %d" format (read))
@@ -237,7 +241,7 @@ class TripleBackend(db : String) extends Backend {
     
                       eof = false
                       out.print(toN3(n)) }}
-                case Right((v, n)) => out.print("%d=%s" format(v, toN3(n))) }
+                case Right((v, n)) => out.print("%d=%s" format(v, toN3(fixURI(n)))) }
               out.print(" ") }
             out.println(". ") }}
 
