@@ -31,6 +31,22 @@ object UnicodeEscape {
         System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
       i += 1 }
     sb.toString }
+
+  private def doubleEncode(s : String) = {
+    // Double encode already encoded special characters to avoid 
+    // creating invalid URIs
+    val p = java.util.regex.Pattern.compile("(%24|%26|%2B|%2C|%2F|%3A|%3B|%3D|%3F|%40|%22|%3C|%3E|%23|%25|%7B|%7D|%7C|%5C|%5E|%7E|%5B|%5D|%60)")
+    val m = p.matcher(s)
+    val sb = new StringBuffer()
+    while(m.find()) {
+      m.appendReplacement(sb, "%25" + m.group(1).drop(1)) }
+    m.appendTail(sb)
+    sb.toString }
+
+  def fixURI(n : Node) = if(n.isURI()) {
+    NodeFactory.createURI(java.net.URLDecoder.decode(doubleEncode(n.getURI()), "UTF-8").replaceAll(" ", "+").replaceAll("\u00a0", "%C2%A0")) }
+  else { n }
+
 }
 
 /**
@@ -38,6 +54,7 @@ object UnicodeEscape {
  * for N3 form of the triple
  */
 class TripleBackend(db : String) extends Backend {
+  import UnicodeEscape._
   try {
     Class.forName("org.sqlite.JDBC") }
   catch {
@@ -134,22 +151,6 @@ class TripleBackend(db : String) extends Backend {
     java.net.URLDecoder.decode(if(uri.contains('#')) {
       uri.take(uri.indexOf('#')).drop(BASE_NAME.size) }
     else { uri.drop(BASE_NAME.size) }, "UTF-8")
-
-  private def doubleEncode(s : String) = {
-    // Double encode already encoded special characters to avoid 
-    // creating invalid URIs
-    val p = java.util.regex.Pattern.compile("(%24|%26|%2B|%2C|%2F|%3A|%3B|%3D|%3F|%40|%22|%3C|%3E|%23|%25|%7B|%7D|%7C|%5C|%5E|%7E|%5B|%5D|%60)")
-    val m = p.matcher(s)
-    val sb = new StringBuffer()
-    while(m.find()) {
-      m.appendReplacement(sb, "%25" + m.group(1).drop(1)) }
-    m.appendTail(sb)
-    sb.toString }
-
-  def fixURI(n : Node) = if(n.isURI()) {
-    NodeFactory.createURI(java.net.URLDecoder.decode(doubleEncode(n.getURI()), "UTF-8").replaceAll(" ", "+").replaceAll("\u00a0", "%C2%A0")) }
-  else { n }
-
 
   def readNTriples(handler : StreamRDF, inputStream : java.io.InputStream,
       ignoreErrors : Boolean) {
