@@ -1,3 +1,10 @@
+<script>
+    function flagFallBack(tag) {
+        if(tag.src !== '{{context}}/assets/flag/und.gif') {
+            tag.src='{{context}}/assets/flag/und.gif';
+            tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
+        }
+    }
 <tr>
     <td class="rdf_prop">
         {{#prop}}
@@ -21,7 +28,7 @@
                     <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
                      {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
                     {{#lang}}
-                        <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="this.src='{{context}}/assets/flag/und.gif';this.parentNode.appendChild(document.createTextNode('{{lang}}'));"/></span>
+                        <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
                     {{/lang}}
                     {{#datatype}}
                         <span class="pull-right rdf_datatype"><a href="{{uri}}">{{display}}</a></span>
