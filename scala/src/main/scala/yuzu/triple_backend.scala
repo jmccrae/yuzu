@@ -52,7 +52,7 @@ object UnicodeEscape {
 object N3 {
   /** Convert an N3 string to a node */
   def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
-    NodeFactory.createURI(java.net.URLDecoder.decode(n3.drop(1).dropRight(1), "UTF-8")) }
+    NodeFactory.createURI(n3.drop(1).dropRight(1)) }
   else if(n3.startsWith("_:")) {
     NodeFactory.createAnon(AnonId.create(n3.drop(2))) }
   else if(n3.startsWith("\"") && n3.contains("^^")) {
