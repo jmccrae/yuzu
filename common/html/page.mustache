@@ -68,8 +68,7 @@
     </style>
     <script>
     function flagFallBack(tag) {
-        alert(tag.src)
-        if(tag.src !== '{{context}}/assets/flag/und.gif') {
+        if(tag.src.indexOf("und.gif", tag.src.length - 7) !== -1) {
             tag.src='{{context}}/assets/flag/und.gif';
             tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
         }
