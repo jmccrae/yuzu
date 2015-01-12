@@ -12,6 +12,7 @@ import com.hp.hpl.jena.vocabulary._
 import java.io.File
 import java.net.URI
 import java.sql.DriverManager
+import java.util.regex.Pattern
 import org.apache.jena.atlas.web.TypedInputStream
 import org.apache.jena.riot.system.{StreamRDF, StreamRDFBase}
 import org.apache.jena.riot.{Lang, RDFDataMgr}
@@ -32,20 +33,52 @@ object UnicodeEscape {
       i += 1 }
     sb.toString }
 
-  private def doubleEncode(s : String) = {
-    // Double encode already encoded special characters to avoid 
-    // creating invalid URIs
-    val p = java.util.regex.Pattern.compile("(%24|%26|%2B|%2C|%2F|%3A|%3B|%3D|%3F|%40|%22|%3C|%3E|%23|%25|%7B|%7D|%7C|%5C|%5E|%7E|%5B|%5D|%60)")
+
+  private def encodeDangerous(s : String) = {
+    val p = Pattern.compile("([\"<>{}\\[\\]|\\\\\\p{IsWhite_Space}])")
     val m = p.matcher(s)
     val sb = new StringBuffer()
     while(m.find()) {
-      m.appendReplacement(sb, "%25" + m.group(1).drop(1)) }
+      m.appendReplacement(sb, java.net.URLEncoder.encode(m.group(1), "UTF-8"))
+    }
+    m.appendTail(sb)
+    sb }
+
+  private def doubleEncode(s : CharSequence) = {
+    // Double encode already encoded special characters to avoid 
+    // creating invalid URIs
+    val p = Pattern.compile(
+      "(%23|%2F|%3B|%3F|%22|%3C|%3E|%7B|%7D|%5C|%5E|%5B|%5D|" +
+       "%C2%A0|%E1%9A%80|%E1%A0%8E|%E2%80%8[0-9AB]|" +
+       "%E2%80%AF|%E2%81%9F|%E3%80%80|%EF%BB%BF)", Pattern.CASE_INSENSITIVE)
+    val m = p.matcher(s)
+    val sb = new StringBuffer()
+    while(m.find()) {
+      m.appendReplacement(sb, m.group(1).replaceAll("%", "%25")) }
     m.appendTail(sb)
     sb.toString }
 
+  /**
+   * Make a URI safe in that it avoids all of the most unsafe characters.
+   * The following character are unsafe and should always be 
+   * encoded
+   *   " < > { } | \ ^ [ ] 
+   *   Anything matching \p{IsWhite_Space}
+   * The following should never be decoded to avoid ambiguity
+   *   %23 (#) %2F (/) %3B (;) %3F (?) */
+  def safeURI(uri : String) =
+    java.net.URLDecoder.decode(
+      doubleEncode(
+        encodeDangerous(uri)), "UTF-8").replaceAll(" ", "+")
+
   def fixURI(n : Node) = if(n.isURI()) {
-    NodeFactory.createURI(java.net.URLDecoder.decode(doubleEncode(n.getURI()), "UTF-8").replaceAll(" ", "+").replaceAll("\u00a0", "%C2%A0")) }
+    NodeFactory.createURI(safeURI(n.getURI())) }
   else { n }
+
+  /**
+   * Make a path safe by encoding all dangerous characters
+   */
+  def safePath(s : String) = encodeDangerous(s).toString()
 
 }
 
@@ -152,9 +185,9 @@ class TripleBackend(db : String) extends Backend {
   def node2page(n : Node) = uri2page(n.getURI())
 
   def uri2page(uri : String) =
-    java.net.URLDecoder.decode(if(uri.contains('#')) {
+    if(uri.contains('#')) {
       uri.take(uri.indexOf('#')).drop(BASE_NAME.size) }
-    else { uri.drop(BASE_NAME.size) }, "UTF-8")
+    else { uri.drop(BASE_NAME.size) }
 
   def readNTriples(handler : StreamRDF, inputStream : java.io.InputStream,
       ignoreErrors : Boolean) {
