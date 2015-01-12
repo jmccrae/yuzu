@@ -551,7 +551,8 @@ class TripleBackend(db : String) extends Backend {
   def lookup(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
     var found = false
-    sql"""SELECT subject, property, object FROM triples WHERE page=$page""".
+    val page2 = safePath(page)
+    sql"""SELECT subject, property, object FROM triples WHERE page=$page2""".
       as3[String, String, String].
       foreach { 
         case (s, p, o) =>
