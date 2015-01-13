@@ -343,7 +343,7 @@ def srtsx_body2(r, vars):
 
 
 def srtsx_body(result, vars):
-    for r in result.fetchall():
+    for r in result:
         yield """    <result>
 %s
     </result>""" % ("\n".join(srtsx_body2(r, vars)))
@@ -394,7 +394,7 @@ def srtsj_body(result, vars):
     return """    {
 %s
     }""" % (",\n".join("x".join(srtsj_body2(r, vars))
-                       for r in result.fetchall()))
+                       for r in result))
 
 
 def sql_results_to_sparql_json(results, vars):
