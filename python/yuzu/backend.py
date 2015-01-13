@@ -309,7 +309,7 @@ class RDFBackend(Store):
                                    "rdf-syntax-ns#>"),
                     "rdfs": FullURI("<http://www.w3.org/2000/01/rdf-schema#>"),
                     "owl": FullURI("<http://www.w3.org/2002/07/owl#>"),
-                    "dc": FullURI("<http://purl.org/dc/elements/1.1./>"),
+                    "dc": FullURI("<http://purl.org/dc/elements/1.1/>"),
                     "dct": FullURI("<http://purl.org/dc/terms>"),
                     "xsd": FullURI("<http://www.w3.org/2001/XMLSchema#>")})
             except YuzuQLError as e:
