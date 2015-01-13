@@ -259,6 +259,7 @@ class QueryBuilder(select : SelectQuery) {
   private var var2col = collection.mutable.Map[Var, (Table, String)]()
   private var tables = collection.mutable.Seq[Table](new Table())
   private var joins = collection.mutable.Seq[Join]()
+  private var _vars = Seq[String]()
 
   private def left(optional : Boolean) = {
     if(optional) {
@@ -294,9 +295,11 @@ class QueryBuilder(select : SelectQuery) {
   def build = {
     val conditions = _conditions
     val vs = if(select.varList == Nil) {
+      _vars = var2col.map(_._1.name).toSeq
       var2col.values map {
         case (t, c) => "%s.%s" format (nameTable(t), c) }
     } else {
+      _vars = select.varList.map(_.name).toSeq
       select.varList map {
         case v => "%s.%s" format (nameTable(var2col(v)._1), 
                                   var2col(v)._2) }}
@@ -304,8 +307,10 @@ class QueryBuilder(select : SelectQuery) {
     val (groupBy, cols) = if(select.countVar == None) {
         ("", vs.toSeq.mkString(", "))
       } else if(select.varList == Nil) { 
+        _vars = Seq("count(*)")
         ("", "COUNT(*)") }
       else {
+        _vars +:= "count(*)"
         (" GROUP BY " + vs.toSeq.sorted.mkString(", "),
          "COUNT(*), " +  vs.toSeq.sorted.mkString(", "))
       }
@@ -343,6 +348,5 @@ class QueryBuilder(select : SelectQuery) {
 
   def vars : Seq[String] = {
     val conditions = _conditions
-    var2col.keys.map(_.name).toSeq
-  }
+    _vars }
 }

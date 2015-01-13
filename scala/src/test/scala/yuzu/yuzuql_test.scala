@@ -336,4 +336,14 @@ class TestYuzuQL extends FunSuite with Matchers {
 
     test("optional_harmony") {
         check_bad("select ?s { ?s <foo> \"x\" | <bar> ?s }") }
-}
+
+    test("count2") {
+        check_good("""SELECT (count(*) as ?count) ?rights WHERE {
+  ?s dc:rights ?rights
+} LIMIT 100""",
+                   "SELECT COUNT(*), table0.object " +
+                   "FROM triples AS table0 " +
+                   "WHERE table0.property=\"<http://purl.org/dc/elements/1.1/rights>\" " +
+                   "GROUP BY table0.object " + 
+                   "LIMIT 100" ) }
+    }
