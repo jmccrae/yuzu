@@ -48,7 +48,7 @@ object UnicodeEscape {
     // Double encode already encoded special characters to avoid 
     // creating invalid URIs
     val p = Pattern.compile(
-      "(%23|%2F|%3B|%3F|%22|%3C|%3E|%7B|%7D|%5C|%5E|%5B|%5D|" +
+      "(%23|%25|%2F|%3B|%3F|%2B|%22|%3C|%3E|%7B|%7D|%5C|%5E|%5B|%5D|" +
        "%C2%A0|%E1%9A%80|%E1%A0%8E|%E2%80%8[0-9AB]|" +
        "%E2%80%AF|%E2%81%9F|%E3%80%80|%EF%BB%BF)", Pattern.CASE_INSENSITIVE)
     val m = p.matcher(s)
@@ -65,7 +65,7 @@ object UnicodeEscape {
    *   " < > { } | \ ^ [ ] 
    *   Anything matching \p{IsWhite_Space}
    * The following should never be decoded to avoid ambiguity
-   *   %23 (#) %2F (/) %3B (;) %3F (?) */
+   *   %23 (#) %2F (/) %3B (;) %3F (?) %2B (+)  %25 (%) */
   def safeURI(uri : String) =
     java.net.URLDecoder.decode(
       doubleEncode(
@@ -134,9 +134,14 @@ class TripleBackend(db : String) extends Backend {
   private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
 
   /** To make many of the queries easier */
-  implicit object GetNode extends GetResult[Node] {
+  object GetNode extends GetResult[Node] {
     def apply(rs : java.sql.ResultSet, index : Int) = {
       fromN3(rs.getString(index)) }
+  }
+
+  object GetIntAsNode extends GetResult[Node] {
+    def apply(rs : java.sql.ResultSet, index : Int) = {
+      NodeFactory.createLiteral(rs.getInt(index).toString, NodeFactory.getType(XSD.integer.getURI())) }
   }
 
   /** The ID cache */
@@ -700,7 +705,10 @@ class TripleBackend(db : String) extends Backend {
       withSession(conn) { implicit session => 
         val results = SQLQuery(sqlQuery).as { rs =>
           (for((v, idx) <- vars.zipWithIndex) yield {
-            v -> GetNode(rs, idx + 1) }).toMap }
+            if(v == "count(*)") {
+              v -> GetIntAsNode(rs, idx + 1) }
+            else { 
+              v -> GetNode(rs, idx + 1) }}).toMap }
         TableResult(ResultSet(vars, results.toVector)) }}
     catch {
       case x : IllegalArgumentException =>
