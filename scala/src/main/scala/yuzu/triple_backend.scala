@@ -12,6 +12,7 @@ import com.hp.hpl.jena.vocabulary._
 import java.io.File
 import java.net.URI
 import java.sql.DriverManager
+import java.util.regex.Pattern
 import org.apache.jena.atlas.web.TypedInputStream
 import org.apache.jena.riot.system.{StreamRDF, StreamRDFBase}
 import org.apache.jena.riot.{Lang, RDFDataMgr}
@@ -31,24 +32,60 @@ object UnicodeEscape {
         System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
       i += 1 }
     sb.toString }
+
+
+  private def encodeDangerous(s : String) = {
+    val p = Pattern.compile("([\"<>{}\\[\\]|\\\\\\p{IsWhite_Space}])")
+    val m = p.matcher(s)
+    val sb = new StringBuffer()
+    while(m.find()) {
+      m.appendReplacement(sb, java.net.URLEncoder.encode(m.group(1), "UTF-8"))
+    }
+    m.appendTail(sb)
+    sb }
+
+  private def doubleEncode(s : CharSequence) = {
+    // Double encode already encoded special characters to avoid 
+    // creating invalid URIs
+    val p = Pattern.compile(
+      "(%23|%2F|%3B|%3F|%22|%3C|%3E|%7B|%7D|%5C|%5E|%5B|%5D|" +
+       "%C2%A0|%E1%9A%80|%E1%A0%8E|%E2%80%8[0-9AB]|" +
+       "%E2%80%AF|%E2%81%9F|%E3%80%80|%EF%BB%BF)", Pattern.CASE_INSENSITIVE)
+    val m = p.matcher(s)
+    val sb = new StringBuffer()
+    while(m.find()) {
+      m.appendReplacement(sb, m.group(1).replaceAll("%", "%25")) }
+    m.appendTail(sb)
+    sb.toString }
+
+  /**
+   * Make a URI safe in that it avoids all of the most unsafe characters.
+   * The following character are unsafe and should always be 
+   * encoded
+   *   " < > { } | \ ^ [ ] 
+   *   Anything matching \p{IsWhite_Space}
+   * The following should never be decoded to avoid ambiguity
+   *   %23 (#) %2F (/) %3B (;) %3F (?) */
+  def safeURI(uri : String) =
+    java.net.URLDecoder.decode(
+      doubleEncode(
+        encodeDangerous(uri)), "UTF-8").replaceAll(" ", "+")
+
+  def fixURI(n : Node) = if(n.isURI()) {
+    NodeFactory.createURI(safeURI(n.getURI())) }
+  else { n }
+
+  /**
+   * Make a path safe by encoding all dangerous characters
+   */
+  def safePath(s : String) = encodeDangerous(s).toString()
+
 }
 
-/**
- * Standard 3-column SQL implementation of a triple store, with foreign keys
- * for N3 form of the triple
- */
-class TripleBackend(db : String) extends Backend {
-  try {
-    Class.forName("org.sqlite.JDBC") }
-  catch {
-    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x) }
-
-  /** Create a connection */
-  private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
-
+object N3 {
   /** Convert an N3 string to a node */
-  private def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
-    NodeFactory.createURI(java.net.URLDecoder.decode(n3.drop(1).dropRight(1), "UTF-8")) }
+  def fromN3(n3 : String) = if(n3.startsWith("<") && n3.endsWith(">")) {
+    NodeFactory.createURI(n3.drop(1).dropRight(1)) }
   else if(n3.startsWith("_:")) {
     NodeFactory.createAnon(AnonId.create(n3.drop(2))) }
   else if(n3.startsWith("\"") && n3.contains("^^")) {
@@ -63,21 +100,38 @@ class TripleBackend(db : String) extends Backend {
     throw new IllegalArgumentException("Not N3: %s" format n3) }
 
   /** Convert a node to an N3 String */
-  private def toN3(node : Node) : String = if(node.isURI()) {
+  def toN3(node : Node) : String = if(node.isURI()) {
     "<%s>" format node.getURI() }
   else if(node.isBlank()) {
     "_:%s" format node.getBlankNodeId().toString() }
   else if(node.getLiteralLanguage() != "") {
     "\"%s\"@%s" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\""), 
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\""), 
       node.getLiteralLanguage()) }
   else if(node.getLiteralDatatypeURI() != null) {
     "\"%s\"^^<%s>" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\""), 
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\""), 
       node.getLiteralDatatypeURI()) }
   else {
     "\"%s\"" format (
-      node.getLiteralValue().toString().replaceAll("\"","\\\\\"")) }
+      node.getLiteralLexicalForm().toString().replaceAll("\"","\\\\\"")) }
+}
+
+/**
+ * Standard 3-column SQL implementation of a triple store, with foreign keys
+ * for N3 form of the triple
+ */
+class TripleBackend(db : String) extends Backend {
+  import UnicodeEscape._
+  import N3._
+
+  try {
+    Class.forName("org.sqlite.JDBC") }
+  catch {
+    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x) }
+
+  /** Create a connection */
+  private def conn = DriverManager.getConnection("jdbc:sqlite:" + db)
 
   /** To make many of the queries easier */
   implicit object GetNode extends GetResult[Node] {
@@ -131,14 +185,9 @@ class TripleBackend(db : String) extends Backend {
   def node2page(n : Node) = uri2page(n.getURI())
 
   def uri2page(uri : String) =
-    java.net.URLDecoder.decode(if(uri.contains('#')) {
+    if(uri.contains('#')) {
       uri.take(uri.indexOf('#')).drop(BASE_NAME.size) }
-    else { uri.drop(BASE_NAME.size) }, "UTF-8")
-
-  def fixURI(n : Node) = if(n.isURI()) {
-    NodeFactory.createURI(java.net.URLDecoder.decode(n.getURI(), "UTF-8").replaceAll(" ", "+").replaceAll("\u00a0", "%C2%A0")) }
-  else { n }
-
+    else { uri.drop(BASE_NAME.size) }
 
   def readNTriples(handler : StreamRDF, inputStream : java.io.InputStream,
       ignoreErrors : Boolean) {
@@ -201,33 +250,41 @@ class TripleBackend(db : String) extends Backend {
         val out = new java.io.PrintWriter(outFile)
         val known = collection.mutable.Map[Node, Int]()
         for(line <- io.Source.fromInputStream(stream).getLines()) {
-          read += 1 
-          if(read < skip) {
-            out.println(line) }
-          else {
-            val elems = line.split(" ")
-            val subj = fromN3orInt(elems(0))
-            val prop = fromN3orInt(elems(1))
-            val obj = fromN3orInt(elems.slice(2, elems.size - 1).mkString(" "))
+          try {
+            read += 1 
+            if(read < skip) {
+              out.println(line) }
+            else {
+              val elems = line.split(" ")
+              val subj = fromN3orInt(elems(0))
+              val prop = fromN3orInt(elems(1))
+              val obj = fromN3orInt(elems.slice(2, elems.size - 1).mkString(" "))
 
-            for(e <- Seq(subj, prop, obj)) {
-              e match {
-                case Left(n) => known.get(n) match {
-                  case Some(i) => out.print("%d=%s" format(i, toN3(n)))
-                  case None => if(known.size < max) {
-                      val v = offset + known.size
-                      known.put(n, v)
-                      out.print("%d=%s" format(v, toN3(n))) }
-                    else {
-                      if(eof) {
-                        System.err.println("Preprocessed to %d" format (read))
-                        skip = read }
-    
-                      eof = false
-                      out.print(toN3(n)) }}
-                case Right((v, n)) => out.print("%d=%s" format(v, toN3(n))) }
-              out.print(" ") }
-            out.println(". ") }}
+              for(e <- Seq(subj, prop, obj)) {
+                e match {
+                  case Left(n) => known.get(n) match {
+                    case Some(i) => out.print("%d=%s" format(i, toN3(fixURI(n))))
+                    case None => if(known.size < max) {
+                        val v = offset + known.size
+                        known.put(n, v)
+                        out.print("%d=%s" format(v, toN3(fixURI(n)))) }
+                      else {
+                        if(eof) {
+                          System.err.println("Preprocessed to %d" format (read))
+                          skip = read }
+      
+                        eof = false
+                        out.print(toN3(n)) }}
+                  case Right((v, n)) => out.print("%d=%s" format(v, toN3(fixURI(n)))) }
+                out.print(" ") }
+              out.println(". ") }}
+            catch {
+              case x : Exception =>
+                if(ignoreErrors) {
+                  x.printStackTrace() }
+                else {
+                  throw x }}}
+                  
 
         out.flush()
         out.close()
@@ -254,61 +311,69 @@ class TripleBackend(db : String) extends Backend {
       var n = 0
   
       for(line <- io.Source.fromFile(outFile).getLines) {
-        val elems = line.split(" ")
-        val (sid, subj) = fromIntN3(elems(0))
-        val (pid, prop) = fromIntN3(elems(1))
-        val (oid, obj) = fromIntN3(elems.slice(2, elems.size - 1).mkString(" "))
-        if(subj.isURI()) {
-          if(subj.getURI().startsWith(BASE_NAME)) {
-            val page = node2page(subj)
+        try {
+          val elems = line.split(" ")
+          val (sid, subj) = fromIntN3(elems(0))
+          val (pid, prop) = fromIntN3(elems(1))
+          val (oid, obj) = fromIntN3(elems.slice(2, elems.size - 1).mkString(" "))
+          if(subj.isURI()) {
+            if(subj.getURI().startsWith(BASE_NAME)) {
+              val page = node2page(subj)
 
-            insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
+              insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
 
-            if(FACETS.exists(_("uri") == prop.getURI())) {
-              if(obj.isLiteral()) {
-                insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
-              else {
-                insertFreeText(sid, pid, obj.toString) }}
-            
-            if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
-              updateLabel(obj.getLiteralLexicalForm(), sid) }
-
-            if(obj.isURI()) {
-              try {
-                val objUri = URI.create(obj.getURI())
-                if(!(NOT_LINKED :+ BASE_NAME).exists(obj.getURI().startsWith(_)) &&
-                    obj.getURI().startsWith("http")) {
-                  val target = LINKED_SETS.find(obj.getURI().startsWith(_)) match {
-                    case Some(l) => l
-                    case None => new URI(
-                      objUri.getScheme(),
-                      objUri.getUserInfo(),
-                      objUri.getHost(),
-                      objUri.getPort(),
-                      "/", null, null).toString }
-                  if(linkCounts.contains(target)) {
-                    linkCounts(target) += 1 } 
-                  else {
-                    linkCounts(target) = 1 }}}
-              catch {
-                case x : Exception => // oh well 
-              }}}}
+              if(FACETS.exists(_("uri") == prop.getURI())) {
+                if(obj.isLiteral()) {
+                  insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
+                else {
+                  insertFreeText(sid, pid, obj.toString) }}
               
-        else {
-          insertTriples(sid, pid, oid, "<BLANK>", false) }
+              if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
+                updateLabel(obj.getLiteralLexicalForm(), sid) }
 
-        if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
-          val page = node2page(obj)
+              if(obj.isURI()) {
+                try {
+                  val objUri = URI.create(obj.getURI())
+                  if(!(NOT_LINKED :+ BASE_NAME).exists(obj.getURI().startsWith(_)) &&
+                      obj.getURI().startsWith("http")) {
+                    val target = LINKED_SETS.find(obj.getURI().startsWith(_)) match {
+                      case Some(l) => l
+                      case None => new URI(
+                        objUri.getScheme(),
+                        objUri.getUserInfo(),
+                        objUri.getHost(),
+                        objUri.getPort(),
+                        "/", null, null).toString }
+                    if(linkCounts.contains(target)) {
+                      linkCounts(target) += 1 } 
+                    else {
+                      linkCounts(target) = 1 }}}
+                catch {
+                  case x : Exception => // oh well 
+                }}}}
+                
+          else {
+            insertTriples(sid, pid, oid, "<BLANK>", false) }
 
-          insertTriples(sid, pid, oid, page, false) }
-        
-        n += 1
-        if(n % 100000 == 0) {
-          System.err.print(".") 
-          System.err.flush() 
-          insertTriples.execute
-          insertFreeText.execute
-          updateLabel.execute }}
+          if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
+            val page = node2page(obj)
+
+            insertTriples(sid, pid, oid, page, false) }
+          
+          n += 1
+          if(n % 100000 == 0) {
+            System.err.print(".") 
+            System.err.flush() 
+            insertTriples.execute
+            insertFreeText.execute
+            updateLabel.execute }}
+        catch {
+          case x : Exception =>
+            if(ignoreErrors) {
+              x.printStackTrace() }
+            else {
+              throw x }}}
+
 
     insertTriples.execute
     insertFreeText.execute
@@ -318,7 +383,8 @@ class TripleBackend(db : String) extends Backend {
     System.err.println("")
     
     val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
-    linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
+    linkCounts.foreach { case (target, count) => if(count >= MIN_LINKS) { 
+      insertLinkCount(count, target) }}
     insertLinkCount.execute
 
     c.commit() } }

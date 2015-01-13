@@ -186,5 +186,11 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
   }
 }""") }
 
+  "fix_url" should "fixURL" in {
+    val uri = "http://tbx2rdf.lider-project.eu/data/iate/LexicalEntry-Agen%3Fie+de+aprovizionare"
+    UnicodeEscape.fixURI(NodeFactory.createURI(uri)) should be (NodeFactory.createURI(uri)) 
+    N3.toN3(NodeFactory.createURI(uri)) should be ("<" + uri + ">")
+  }
+
 
 }

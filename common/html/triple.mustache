@@ -1,3 +1,4 @@
+
 <tr>
     <td class="rdf_prop">
         {{#prop}}
@@ -21,7 +22,7 @@
                     <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
                      {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
                     {{#lang}}
-                        <span class="pull-right"><img src="/assets/flag/{{lang}}.gif"/></span>
+                        <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
                     {{/lang}}
                     {{#datatype}}
                         <span class="pull-right rdf_datatype"><a href="{{uri}}">{{display}}</a></span>

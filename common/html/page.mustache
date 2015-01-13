@@ -59,7 +59,21 @@
             font-style: italic;
             color: #333;
         }
+        a.anchor {
+            display: block; 
+            position: relative; 
+            top: -150px; 
+            visibility: hidden;
+        }
     </style>
+    <script>
+    function flagFallBack(tag) {
+        if(tag.src.indexOf("und.gif", tag.src.length - 7) === -1) {
+            tag.src='{{context}}/assets/flag/und.gif';
+            tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
+        }
+    }
+    </script>
     <link rel="shortcut icon" href="{{context}}/favicon.ico" />
 </head>
 <body style="padding-top:60px;">
