@@ -324,9 +324,9 @@ class RDFBackend(Store):
             cursor.execute(sql_query)
             vars = qb.vars()
             if mime_type == "sparql-json":
-                results = sql_results_to_sparql_json(cursor, vars)
+                results = sql_results_to_sparql_json(cursor.fetchall(), vars)
             else:
-                results = sql_results_to_sparql_xml(cursor, vars)
+                results = sql_results_to_sparql_xml(cursor.fetchall(), vars)
             conn.close()
             return False, 'sparql', results
         except Exception as e:
