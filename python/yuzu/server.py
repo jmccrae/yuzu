@@ -195,7 +195,7 @@ class RDFServer:
         else:
             # This doesn't take into account describe queries!!!
             if result_type == "error":
-                return self.send400(start_response)
+                return self.send400(start_response, result)
             if mime_type == "html":
                 start_response('200 OK', [('Content-type',
                                            'text/html; charset=utf-8')])
