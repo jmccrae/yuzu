@@ -39,7 +39,7 @@ class PrefixedName:
                 prefixes[self.prefix] = FullURI("<%s>" % full)
                 return FullURI("<%s%s>" % (full, self.suffix))
             except HTTPError:
-                raise ("Prefix not found: %s" % self.prefix)
+                raise YuzuQLError("Prefix not found: %s" % self.prefix)
 
     def vars(self):
         return []
@@ -186,7 +186,8 @@ class PropObjDisjunction:
         self.optional = optional
         for i in range(1, len(elements)):
             if set(elements[i-1].vars()) != set(elements[i].vars()):
-                raise "Variables are not harmonious across a disjunct"
+                raise YuzuQLError(
+                    "Variables are not harmonious across a disjunct")
 
     def resolve(self, prefixes):
         return PropObjDisjunction([e.resolve(prefixes) for e in self.elements],
@@ -514,3 +515,11 @@ class QueryBuilder:
     def vars(self):
         self.conditions()
         return [v.name for v in self.var2col]
+
+
+class YuzuQLError(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)

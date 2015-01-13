@@ -4,7 +4,7 @@ from rdflib.term import Literal, URIRef
 from rdflib.store import Store
 from yuzu.ql.parse import YuzuQLSyntax
 from yuzu.ql.model import QueryBuilder, sql_results_to_sparql_json
-from yuzu.ql.model import sql_results_to_sparql_xml, FullURI
+from yuzu.ql.model import sql_results_to_sparql_xml, FullURI, YuzuQLError
 import sqlite3
 import sys
 import getopt
@@ -315,7 +315,10 @@ class RDFBackend(Store):
                                     YUZUQL_LIMIT >= 0):
                 return False, 'error', YZ_QUERY_LIMIT_EXCEEDED % YUZUQL_LIMIT
             qb = QueryBuilder(select)
-            sql_query = qb.build()
+            try:
+                sql_query = qb.build()
+            except YuzuQLError as e:
+                return False, 'error', e.value
             print(sql_query)
             conn = sqlite3.connect(self.db)
             cursor = conn.cursor()

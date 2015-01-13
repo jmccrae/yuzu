@@ -346,4 +346,39 @@ class TestYuzuQL extends FunSuite with Matchers {
                    "WHERE table0.property=\"<http://purl.org/dc/elements/1.1/rights>\" " +
                    "GROUP BY table0.object " + 
                    "LIMIT 100" ) }
+
+    test("slow query #14") {
+      check_good("""PREFIX metashare: <http://purl.org/ms-lod/MetaShare.ttl#> 
+SELECT DISTINCT * WHERE {
+  ?s metashare:lexicalConceptualResourceTextInfo [
+    metashare:languageInfo [
+    dc:language "English", "German"
+  ] ;
+    metashare:lingualityInfo [
+      metashare:multilingualityType metashare:parallel
+    ]
+  ]
+} LIMIT 100""",
+                "SELECT DISTINCT table0.subject " +
+                "FROM triples AS table0 " +
+                "JOIN triples AS table1 " +
+                "ON table0.oid=table1.sid " +
+                "JOIN triples AS table2 " +
+                "ON table1.oid=table2.sid " +
+                "JOIN triples AS table3 " +
+                "ON table2.sid=table3.sid " +
+                "JOIN triples AS table4 " +
+                "ON table1.sid=table4.sid " +
+                "JOIN triples AS table5 " +
+                "ON table4.oid=table5.sid " +
+                "WHERE table0.property=\"<http://purl.org/ms-lod/MetaShare.ttl#lexicalConceptualResourceTextInfo>\" " +
+                "AND table1.property=\"<http://purl.org/ms-lod/MetaShare.ttl#languageInfo>\" " +
+                "AND table2.property=\"<http://purl.org/dc/elements/1.1/language>\" " +
+                "AND table2.object=\"\"\"English\"\"\" " +
+                "AND table3.property=\"<http://purl.org/dc/elements/1.1/language>\" " +
+                "AND table3.object=\"\"\"German\"\"\" " +
+                "AND table4.property=\"<http://purl.org/ms-lod/MetaShare.ttl#lingualityInfo>\" " +
+                "AND table5.property=\"<http://purl.org/ms-lod/MetaShare.ttl#multilingualityType>\" " +
+                "AND table5.object=\"<http://purl.org/ms-lod/MetaShare.ttl#parallel>\" " +
+                "LIMIT 100") }
     }
