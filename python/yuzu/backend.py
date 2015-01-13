@@ -294,32 +294,31 @@ class RDFBackend(Store):
         """
         try:
             syntax = YuzuQLSyntax()
-            select = syntax.parse(q, {
-                PREFIX1_QN: FullURI("<%s>" % PREFIX1_URI),
-                PREFIX2_QN: FullURI("<%s>" % PREFIX2_URI),
-                PREFIX3_QN: FullURI("<%s>" % PREFIX3_URI),
-                PREFIX4_QN: FullURI("<%s>" % PREFIX4_URI),
-                PREFIX5_QN: FullURI("<%s>" % PREFIX5_URI),
-                PREFIX6_QN: FullURI("<%s>" % PREFIX6_URI),
-                PREFIX7_QN: FullURI("<%s>" % PREFIX7_URI),
-                PREFIX8_QN: FullURI("<%s>" % PREFIX8_URI),
-                PREFIX9_QN: FullURI("<%s>" % PREFIX9_URI),
-                "rdf": FullURI("<http://www.w3.org/1999/02/22-"
-                               "rdf-syntax-ns#>"),
-                "rdfs": FullURI("<http://www.w3.org/2000/01/rdf-schema#>"),
-                "owl": FullURI("<http://www.w3.org/2002/07/owl#>"),
-                "dc": FullURI("<http://purl.org/dc/elements/1.1./>"),
-                "dct": FullURI("<http://purl.org/dc/terms>"),
-                "xsd": FullURI("<http://www.w3.org/2001/XMLSchema#>")})
+            try:
+                select = syntax.parse(q, {
+                    PREFIX1_QN: FullURI("<%s>" % PREFIX1_URI),
+                    PREFIX2_QN: FullURI("<%s>" % PREFIX2_URI),
+                    PREFIX3_QN: FullURI("<%s>" % PREFIX3_URI),
+                    PREFIX4_QN: FullURI("<%s>" % PREFIX4_URI),
+                    PREFIX5_QN: FullURI("<%s>" % PREFIX5_URI),
+                    PREFIX6_QN: FullURI("<%s>" % PREFIX6_URI),
+                    PREFIX7_QN: FullURI("<%s>" % PREFIX7_URI),
+                    PREFIX8_QN: FullURI("<%s>" % PREFIX8_URI),
+                    PREFIX9_QN: FullURI("<%s>" % PREFIX9_URI),
+                    "rdf": FullURI("<http://www.w3.org/1999/02/22-"
+                                   "rdf-syntax-ns#>"),
+                    "rdfs": FullURI("<http://www.w3.org/2000/01/rdf-schema#>"),
+                    "owl": FullURI("<http://www.w3.org/2002/07/owl#>"),
+                    "dc": FullURI("<http://purl.org/dc/elements/1.1./>"),
+                    "dct": FullURI("<http://purl.org/dc/terms>"),
+                    "xsd": FullURI("<http://www.w3.org/2001/XMLSchema#>")})
+            except YuzuQLError as e:
+                return False, 'error', e.value
             if select.limit < 0 or (select.limit >= YUZUQL_LIMIT and
                                     YUZUQL_LIMIT >= 0):
                 return False, 'error', YZ_QUERY_LIMIT_EXCEEDED % YUZUQL_LIMIT
             qb = QueryBuilder(select)
-            try:
-                sql_query = qb.build()
-            except YuzuQLError as e:
-                return False, 'error', e.value
-            print(sql_query)
+            sql_query = qb.build()
             conn = sqlite3.connect(self.db)
             cursor = conn.cursor()
             cursor.execute(sql_query)
