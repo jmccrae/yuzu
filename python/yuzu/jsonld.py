@@ -42,9 +42,9 @@ def split_uri(value):
                     (str(OWL), "owl"),
                     (str(DC), "dc"),
                     (str(DCTERMS), "dct")]:
-        if value.startswith(uri):
+        if value.startswith(uri) and uri != "http://www.example.com/":
             return qn, value[len(uri):]
-    return "", uri
+    return "", value
 
 
 def extract_jsonld_context(graph, query):
@@ -65,6 +65,8 @@ def extract_jsonld_context(graph, query):
         "owl": str(OWL),
         "dc": str(DC),
         "dct": str(DCTERMS)}
+    context = {k: v for k, v in context.items()
+               if v != "http://www.example.com/"}
     props = {}
     for p in set(graph.predicates()):
         p_str = str(p)
@@ -81,7 +83,10 @@ def extract_jsonld_context(graph, query):
         while sn in context:
             sn = "%s%d" % (short_name, i)
             i += 1
-        context[sn] = prop_type(p, graph)
+        if p == RDF.type:
+            sn = "@type"
+        else:
+            context[sn] = prop_type(p, graph)
         props[p_str] = sn
     return context, props
 
@@ -90,7 +95,8 @@ def add_props(obj, value, context, graph, query, prop2sn, drb, stack):
     if value not in stack:
         for p in set(graph.predicates(value)):
             objs = sorted(list(graph.objects(value, p)))
-            is_obj = isinstance(context[prop2sn[str(p)]], dict)
+            is_obj = (p == RDF.type or
+                      isinstance(context[prop2sn[str(p)]], dict))
             if len(objs) == 1:
                 graph.remove((value, p, objs[0]))
                 obj[prop2sn[str(p)]] = jsonld_value(objs[0], context, graph,

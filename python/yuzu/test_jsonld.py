@@ -13,6 +13,7 @@ from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
 class JsonLDTest(unittest.TestCase):
 
     def ctxt(self, ct):
+        self.maxDiff = None
         m = {
             "@base": BASE_NAME,
             PREFIX1_QN: PREFIX1_URI,
@@ -30,6 +31,8 @@ class JsonLDTest(unittest.TestCase):
             "owl": str(OWL),
             "dc": str(DC),
             "dct": str(DCTERMS)}
+        m = {k: v for k, v in m.items()
+             if v != "http://www.example.com/"}
         for k in ct:
             m[k] = ct[k]
         return m
@@ -83,7 +86,7 @@ class JsonLDTest(unittest.TestCase):
             }),
             "@id": "foo",
             "list": {
-                "first": "ex1:value",
+                "first": "http://www.example.com/value",
                 "rest": "rdf:nil"
             }
         }, obj)
@@ -110,7 +113,7 @@ class JsonLDTest(unittest.TestCase):
             "@id": "foo",
             "prop": "foo",
             "@reverse": {
-                "backLink": {"@id": "ex1:bar"}
+                "backLink": {"@id": "http://www.example.com/bar"}
             }
         }, obj)
 
@@ -148,12 +151,13 @@ class JsonLDTest(unittest.TestCase):
             }),
             "@id": "foo",
             "mp": [
-                {"@id": "ex1:bar"},
+                {"@id": "http://www.example.com/bar"},
                 {"@value": "foo", "@language": "en"}
             ],
-            "op": ["foo#baz", "ex1:bar"],
+            "op": ["foo#baz", "http://www.example.com/bar"],
             "dp": [
-                {"@value": "bar", "@type": "ex1:type"}, "baz"
+                {"@value": "bar", "@type": "http://www.example.com/type"},
+                "baz"
             ]
         }, obj)
 
@@ -217,6 +221,19 @@ class JsonLDTest(unittest.TestCase):
                 }
             ]
         }, obj)
+
+    def test_type(self):
+        g = Graph()
+        g.add((URIRef("http://localhost:8080/foo"),
+               URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+               URIRef("http://www.example.com/Bar")))
+        obj = jsonld_from_model(g, "http://localhost:8080/foo")
+        print("type")
+        print(obj)
+        self.assertDictEqual({
+            "@context": self.ctxt({}),
+            "@id": "foo",
+            "@type": "http://www.example.com/Bar"}, obj)
 
 
 if __name__ == '__main__':

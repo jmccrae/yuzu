@@ -66,6 +66,7 @@ object JsonLDPrettySerializer {
     def contains(key : String) = value.contains(key)
     def apply(key : String) = value(key)
     def remove(key : String) = value.remove(key)
+    def keys = value.keys
     override def equals(o : Any) = o match {
       case null => 
         false
@@ -138,7 +139,7 @@ object JsonLDPrettySerializer {
                     (OWL.getURI(), "owl"),
                     (DC_11.getURI(), "dc"),
                     (DCTerms.getURI(), "dct"))) {
-      if(value.startsWith(uri)) {
+      if(value.startsWith(uri) && uri != "http://www.example.com/") {
         return (Some(qn), value.drop(uri.length)) }}
     return (None, value) }
 
@@ -161,6 +162,9 @@ object JsonLDPrettySerializer {
       "owl" -> OWL.getURI(),
       "dc" -> DC_11.getURI(),
       "dct" -> DCTerms.getURI())
+    for(k <- context.keys) {
+      if(context(k) == JsonString("http://www.example.com/")) {
+        context.remove(k) }}
     val props = MutableMap[String, String]()
     for(p <- graph.listProperties()) {
       val pStr = p.getURI()
@@ -177,7 +181,10 @@ object JsonLDPrettySerializer {
       while(context.contains(sn)) {
         sn = "%s%d" format (shortName, i)
         i += 1 }
-      context(sn) = propType(p, graph)
+      if(p == RDF.`type`) {
+        sn = "@type" }
+      else {
+        context(sn) = propType(p, graph) }
       props(pStr) = sn }
     (context, props.toMap) } 
 
@@ -187,7 +194,8 @@ object JsonLDPrettySerializer {
     if(!(stack contains value)) {
       for(p <- graph.listProperties(value)) {
         val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
-        val isObj = context(prop2sn(p.getURI())).isInstanceOf[JsonMap]
+        val isObj = p == RDF.`type` ||
+          context(prop2sn(p.getURI())).isInstanceOf[JsonMap] 
         
         if(objs.size == 1) {
           graph.removeAll(value, p, objs(0))
