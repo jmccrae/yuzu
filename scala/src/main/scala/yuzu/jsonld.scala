@@ -182,68 +182,80 @@ object JsonLDPrettySerializer {
     (context, props.toMap) } 
 
   private def addProps(obj : JsonMap, value : Resource, context : JsonMap, graph : Model,
-               query : String, prop2sn : Map[String, String], drb : Set[Resource]) {
-    for(p <- graph.listProperties(value)) {
-      val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
-      val isObj = context(prop2sn(p.getURI())).isInstanceOf[JsonMap]
-      
-      if(objs.size == 1) {
-        graph.removeAll(value, p, objs(0))
-        obj(prop2sn(p.getURI())) = jsonLDValue(objs(0), context, graph, query,
-                                               prop2sn, isObj, drb) }
-      else {
-        for(o <- objs) {
-          graph.removeAll(value, p, o) }
-        obj(prop2sn(p.getURI())) = JsonList((objs.map { o => 
-          jsonLDValue(o, context, graph, query, prop2sn, isObj, drb) 
-        }).toList) }}}
+               query : String, prop2sn : Map[String, String], drb : Set[Resource],
+               stack : List[Resource]) {
+    if(!(stack contains value)) {
+      for(p <- graph.listProperties(value)) {
+        val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
+        val isObj = context(prop2sn(p.getURI())).isInstanceOf[JsonMap]
+        
+        if(objs.size == 1) {
+          graph.removeAll(value, p, objs(0))
+          obj(prop2sn(p.getURI())) = jsonLDValue(objs(0), context, graph, query,
+                                                 prop2sn, isObj, drb, 
+                                                 value :: stack) }
+        else {
+          for(o <- objs) {
+            graph.removeAll(value, p, o) }
+          obj(prop2sn(p.getURI())) = JsonList((objs.map { o => 
+            jsonLDValue(o, context, graph, query, prop2sn, 
+                        isObj, drb, value :: stack) 
+          }).toList) }}}}
 
 
   private def addInverseProps(obj : JsonMap, value : Resource, context : JsonMap, 
                       graph : Model, query : String, 
-                      prop2sn : Map[String, String], drb : Set[Resource]) {
-    for(p <- graph.listProperties()) {
-      val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
-      for(o <- objs) {
-        if(o.isResource()) {
-          obj(prop2sn(p.getURI())) match {
-            case jm : JsonMap =>
-              addInverseProps(jm, value, context, graph, query, prop2sn, drb) 
-            case _ =>
-              // ignore
-    }}}}
+                      prop2sn : Map[String, String], drb : Set[Resource],
+                      stack : List[Resource]) {
+    if(!(stack contains value)) {
+      for(p <- graph.listProperties()) {
+        val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
+        for(o <- objs) {
+          if(o.isResource()) {
+            obj(prop2sn(p.getURI())) match {
+              case jm : JsonMap =>
+                addInverseProps(jm, value, context, graph, query, prop2sn, drb,
+                                value :: stack) 
+              case _ =>
+                // ignore
+      }}}}
 
-    if(!graph.listProperties(null, value).isEmpty) {
-      val robj = JsonMap()
-      obj("@reverse") = robj
-      for(p <- graph.listProperties(null, value)) {
-        val objs = graph.listSubjectsWithProperty(p, value).toList.
-          sortBy(_.toString).filter { o =>
-            o.isResource() && !o.asResource().getURI().startsWith(query) 
-          } map { o =>
-            o.asResource() }
+      if(!graph.listProperties(null, value).isEmpty) {
+        val robj = JsonMap()
+        obj("@reverse") = robj
+        for(p <- graph.listProperties(null, value)) {
+          val objs = graph.listSubjectsWithProperty(p, value).toList.
+            sortBy(_.toString).filter { o =>
+              o.isResource() //&& !o.asResource().getURI().startsWith(query) 
+            } map { o =>
+              o.asResource() }
 
-        if(objs.size == 1) {
-          graph.removeAll(objs(0), p, value)
-          robj(prop2sn(p.getURI())) = jsonLDValue(objs(0), context, graph,
-                                                  query, prop2sn, false, drb) }
-        else if(objs.size > 1) {
-          for(o <- objs) {
-            graph.removeAll(o, p, value) }
-          robj(prop2sn(p.getURI())) = JsonList(objs.map { o =>
-            jsonLDValue(o, context, graph, query, prop2sn, false, drb) 
-          }) }}}}
+          if(objs.size == 1) {
+            graph.removeAll(objs(0), p, value)
+            robj(prop2sn(p.getURI())) = jsonLDValue(objs(0), context, graph,
+                                                    query, prop2sn, false, drb,
+                                                    value :: stack) }
+          else if(objs.size > 1) {
+            for(o <- objs) {
+              graph.removeAll(o, p, value) }
+            robj(prop2sn(p.getURI())) = JsonList(objs.map { o =>
+              jsonLDValue(o, context, graph, query, prop2sn, 
+                          false, drb, value :: stack) 
+            }) }}}}}
 
   private def jsonLDValue(value : Any, context : JsonMap, graph : Model, 
                   query : String, prop2sn : Map[String, String], 
-                  isObj : Boolean, drb : Set[Resource]) : JsonObj = {
+                  isObj : Boolean, drb : Set[Resource],
+                  stack : List[Resource]) : JsonObj = {
     value match {
       case list : Seq[_] => 
         if(list.size == 1) {
-          jsonLDValue(list(0), context, graph, query, prop2sn, isObj, drb) }
+          jsonLDValue(list(0), context, graph, query, prop2sn, 
+                      isObj, drb, stack) }
         else {
           JsonList(list.map { v =>
-            jsonLDValue(v, context, graph, query, prop2sn, isObj, drb) })}
+            jsonLDValue(v, context, graph, query, prop2sn, 
+                        isObj, drb, stack) })}
       case r : Resource if r.isURIResource() =>
         if(graph.listStatements(r, null, null : RDFNode).isEmpty && isObj) {
           val (pre, suf) = splitURI(r.getURI())
@@ -260,7 +272,7 @@ object JsonLDPrettySerializer {
             case None =>
               JsonObj("@id" -> suf) } 
 
-          addProps(obj, r, context, graph, query, prop2sn, drb)
+          addProps(obj, r, context, graph, query, prop2sn, drb, stack)
 
           obj }
       case r : Resource =>
@@ -275,7 +287,7 @@ object JsonLDPrettySerializer {
           else {
             JsonMap() }
 
-          addProps(obj, r, context, graph, query, prop2sn, drb)
+          addProps(obj, r, context, graph, query, prop2sn, drb, stack)
 
           obj }
       case l : Literal =>
@@ -322,8 +334,8 @@ object JsonLDPrettySerializer {
     val elem = graph.createResource(query)
 
     val drb = doubleReffedBNodes(graph)
-    addProps(theObj, elem, context, graph, query, prop2sn, drb)
-    addInverseProps(theObj, elem, context, graph, query, prop2sn, drb)
+    addProps(theObj, elem, context, graph, query, prop2sn, drb, Nil)
+    addInverseProps(theObj, elem, context, graph, query, prop2sn, drb, Nil)
 
     var rest = graph.listSubjects().toList
     if(!rest.isEmpty()) {
@@ -334,7 +346,7 @@ object JsonLDPrettySerializer {
       theObj = graphObj
       while(!rest.isEmpty()) {
         theObj("@graph") = theObj("@graph").asInstanceOf[JsonList] :+
-          jsonLDValue(rest.head, context, graph, query, prop2sn, true, drb)
+          jsonLDValue(rest.head, context, graph, query, prop2sn, true, drb, Nil)
         rest = graph.listSubjects().toList }}
 
     theObj }

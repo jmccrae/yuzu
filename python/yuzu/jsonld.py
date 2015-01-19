@@ -86,56 +86,61 @@ def extract_jsonld_context(graph, query):
     return context, props
 
 
-def add_props(obj, value, context, graph, query, prop2sn, drb):
-    for p in set(graph.predicates(value)):
-        objs = sorted(list(graph.objects(value, p)))
-        is_obj = isinstance(context[prop2sn[str(p)]], dict)
-        if len(objs) == 1:
-            graph.remove((value, p, objs[0]))
-            obj[prop2sn[str(p)]] = jsonld_value(objs[0], context, graph,
-                                                query, prop2sn, is_obj, drb)
-        else:
-            for o in objs:
-                graph.remove((value, p, o))
-            obj[prop2sn[str(p)]] = [jsonld_value(o, context, graph, query,
-                                                 prop2sn, is_obj, drb)
-                                    for o in objs]
+def add_props(obj, value, context, graph, query, prop2sn, drb, stack):
+    if value not in stack:
+        for p in set(graph.predicates(value)):
+            objs = sorted(list(graph.objects(value, p)))
+            is_obj = isinstance(context[prop2sn[str(p)]], dict)
+            if len(objs) == 1:
+                graph.remove((value, p, objs[0]))
+                obj[prop2sn[str(p)]] = jsonld_value(objs[0], context, graph,
+                                                    query, prop2sn, is_obj,
+                                                    drb, [value] + stack)
+            else:
+                for o in objs:
+                    graph.remove((value, p, o))
+                obj[prop2sn[str(p)]] = [jsonld_value(o, context, graph, query,
+                                                     prop2sn, is_obj, drb,
+                                                     [value] + stack)
+                                        for o in objs]
 
 
-def add_inverse_props(obj, value, context, graph, query, prop2sn, drb):
+def add_inverse_props(obj, value, context, graph, query, prop2sn, drb, stack):
     for p in set(graph.predicates(value)):
         objs = sorted(list(graph.objects(value, p)))
         for o in objs:
             if isinstance(o, URIRef) or isinstance(o, BNode):
                 add_inverse_props(obj[prop2sn[str(p)]], value, context, graph,
-                                  query, prop2sn, drb)
+                                  query, prop2sn, drb, [value] + stack)
 
     if list(graph.predicates(None, value)):
         robj = {}
         obj["@reverse"] = robj
         for p in set(graph.predicates(None, value)):
             objs = sorted(list(graph.subjects(p, value)))
-            objs = [o for o in objs if not str(o).startswith(query)]
+            #objs = [o for o in objs if not str(o).startswith(query)]
             if len(objs) == 1:
                 graph.remove((objs[0], p, value))
                 robj[prop2sn[str(p)]] = jsonld_value(objs[0], context, graph,
                                                      query, prop2sn, False,
-                                                     drb)
+                                                     drb, [value] + stack)
             elif len(objs) > 1:
                 for o in objs:
                     graph.remove((o, p, value))
                 robj[prop2sn[str(p)]] = [jsonld_value(o, context, graph, query,
-                                                      prop2sn, False, drb)
+                                                      prop2sn, False, drb,
+                                                      [value] + stack)
                                          for o in objs]
 
 
-def jsonld_value(value, context, graph, query, prop2sn, is_obj, drb):
+def jsonld_value(value, context, graph, query, prop2sn, is_obj, drb, stack):
     if isinstance(value, list) and len(value) > 1:
-        return [jsonld_value(v, context, graph, query, prop2sn, is_obj, drb)
+        return [jsonld_value(v, context, graph, query, prop2sn,
+                             is_obj, drb, stack)
                 for v in value]
     elif isinstance(value, list):
         return jsonld_value(value[0], context, graph, query, prop2sn, is_obj,
-                            drb)
+                            drb, stack)
     elif isinstance(value, URIRef):
         if not list(graph.predicate_objects(value)) and is_obj:
             pre, suf = split_uri(str(value))
@@ -150,7 +155,8 @@ def jsonld_value(value, context, graph, query, prop2sn, is_obj, drb):
             else:
                 obj = {"@id": suf}
 
-            add_props(obj, value, context, graph, query, prop2sn, drb)
+            add_props(obj, value, context, graph, query, prop2sn, drb,
+                      stack)
 
             return obj
     elif isinstance(value, BNode):
@@ -165,7 +171,8 @@ def jsonld_value(value, context, graph, query, prop2sn, is_obj, drb):
             else:
                 obj = {}
 
-            add_props(obj, value, context, graph, query, prop2sn, drb)
+            add_props(obj, value, context, graph, query, prop2sn, drb,
+                      stack)
 
             return obj
     else:
@@ -204,8 +211,8 @@ def jsonld_from_model(graph, query):
     elem = URIRef(query)
 
     drb = list(double_reffed_bnodes(graph))
-    add_props(the_obj, elem, context, graph, query, prop2sn, drb)
-    add_inverse_props(the_obj, elem, context, graph, query, prop2sn, drb)
+    add_props(the_obj, elem, context, graph, query, prop2sn, drb, [])
+    add_inverse_props(the_obj, elem, context, graph, query, prop2sn, drb, [])
 
     rest = list(graph.subjects())
     if rest:
@@ -219,7 +226,8 @@ def jsonld_from_model(graph, query):
         the_obj = graph_obj
         while rest:
             the_obj["@graph"].append(jsonld_value(rest[0], context, graph,
-                                                  query, prop2sn, True, drb))
+                                                  query, prop2sn, True, drb,
+                                                  []))
             rest = list(graph.subjects())
 
     return the_obj
