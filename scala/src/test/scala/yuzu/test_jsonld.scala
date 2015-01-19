@@ -130,6 +130,7 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/dp"),
             graph.createLiteral("baz"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
+          println(obj)
         obj should be (JsonObj(
           "@context" -> ctxt(
             "mp" -> "http://www.example.com/mp",

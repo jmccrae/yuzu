@@ -45,7 +45,6 @@ object JsonLDPrettySerializer {
 
   class JsonMap(val value : MutableMap[String, JsonObj]) extends JsonObj {
     def write(out : Writer, indent : Int) {
-      //out.write("  " * indent)
       out.write("{\n")
       val elems = value.toSeq.sortBy(_._1)
       if(!elems.isEmpty) {
@@ -84,7 +83,6 @@ object JsonLDPrettySerializer {
 
   case class JsonList(value : Seq[JsonObj]) extends JsonObj {
     def write(out : Writer, indent : Int) {
-      //out.write("  " * indent)
       out.write("[\n")
       if(!value.isEmpty) {
         val h = value.head
@@ -186,7 +184,7 @@ object JsonLDPrettySerializer {
   private def addProps(obj : JsonMap, value : Resource, context : JsonMap, graph : Model,
                query : String, prop2sn : Map[String, String], drb : Set[Resource]) {
     for(p <- graph.listProperties(value)) {
-      val objs = graph.listObjectsOfProperty(value, p).toSeq.sortBy(_.toString)
+      val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
       val isObj = context(prop2sn(p.getURI())).isInstanceOf[JsonMap]
       
       if(objs.size == 1) {
@@ -205,7 +203,7 @@ object JsonLDPrettySerializer {
                       graph : Model, query : String, 
                       prop2sn : Map[String, String], drb : Set[Resource]) {
     for(p <- graph.listProperties()) {
-      val objs = graph.listObjectsOfProperty(value, p).toSeq.sortBy(_.toString)
+      val objs = graph.listObjectsOfProperty(value, p).toList.sortBy(_.toString)
       for(o <- objs) {
         if(o.isResource()) {
           obj(prop2sn(p.getURI())) match {
@@ -219,7 +217,7 @@ object JsonLDPrettySerializer {
       val robj = JsonMap()
       obj("@reverse") = robj
       for(p <- graph.listProperties(null, value)) {
-        val objs = graph.listSubjectsWithProperty(p, value).toSeq.
+        val objs = graph.listSubjectsWithProperty(p, value).toList.
           sortBy(_.toString).filter { o =>
             o.isResource() && !o.asResource().getURI().startsWith(query) 
           } map { o =>
