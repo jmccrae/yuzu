@@ -257,7 +257,7 @@ class TripleBackend(db : String) extends Backend {
         for(line <- io.Source.fromInputStream(stream).getLines()) {
           try {
             read += 1 
-            if(read < skip) {
+            if(read < skip || !eof) {
               out.println(line) }
             else {
               val elems = line.split(" ")
@@ -280,7 +280,7 @@ class TripleBackend(db : String) extends Backend {
       
                         eof = false
                         out.print(toN3(n)) }}
-                  case Right((v, n)) => out.print("%d=%s" format(v, toN3(fixURI(n)))) }
+                  case Right((v, n)) => out.print("%d=%s" format(v, toN3(n))) }
                 out.print(" ") }
               out.println(". ") }}
             catch {
