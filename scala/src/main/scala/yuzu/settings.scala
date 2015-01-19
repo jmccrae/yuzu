@@ -73,7 +73,7 @@ object YuzuSettings {
     Map("uri" -> "http://purl.org/dc/elements/1.1/language", "label" -> "Language"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/rights", "label" -> "Rights"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/type", "label" -> "Type"),
-    //Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Data Issued"),
+    //Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Date Issued"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/creator", "label" -> "Creator"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/source", "label" -> "Source"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/description", "label" -> "Description", "list" -> false),
