@@ -40,7 +40,7 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/bar"),
                       graph.createLiteral("foo", "en"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt("bar" -> "http://www.example.com/bar"),
           "@id" -> "foo",
           "bar" -> Map(
@@ -61,23 +61,23 @@ class JsonLDTest extends WordSpec with Matchers {
           graph.createProperty("http://www.example.com/rest"),
           RDF.nil)
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
-              "list" -> Map(
+              "list" -> JsonObj(
                 "@id" -> "http://www.example.com/list",
                 "@type" -> "@id"
                 ),
-                "first" -> Map(
+                "first" -> JsonObj(
                   "@id" -> "http://www.example.com/first",
                   "@type" -> "@id"
                   ),
-                "rest" -> Map(
+                "rest" -> JsonObj(
                   "@id" -> "http://www.example.com/rest",
                   "@type" -> "@id"
                 )
             ),
           "@id" -> "foo",
-          "list" -> Map(
+          "list" -> JsonObj(
             "first" -> "ex1:value",
             "rest" -> "rdf:nil"
           )
@@ -94,18 +94,18 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/backLink"),
             graph.createResource("http://localhost:8080/foo"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
             "prop" -> "http://www.example.com/prop",
-            "backLink" -> Map(
+            "backLink" -> JsonObj(
               "@id" -> "http://www.example.com/backLink",
               "@type" -> "@id"
               )
             ),
           "@id" -> "foo",
           "prop" -> "foo",
-          "@reverse" -> Map(
-                "backLink" -> Map("@id" -> "ex1:bar")
+          "@reverse" -> JsonObj(
+                "backLink" -> JsonObj("@id" -> "ex1:bar")
               ))) }}
 
     "given multiple values" should {
@@ -130,22 +130,22 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/dp"),
             graph.createLiteral("baz"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
             "mp" -> "http://www.example.com/mp",
             "dp" -> "http://www.example.com/dp",
-            "op" -> Map(
+            "op" -> JsonObj(
               "@id" -> "http://www.example.com/op",
               "@type" -> "@id"
             )),
           "@id" -> "foo",
           "mp" -> Seq(
-            Map("@value" -> "foo", "@language" -> "en"),
-            Map("@id" -> "ex1:bar")
+            JsonObj("@value" -> "foo", "@language" -> "en"),
+            JsonObj("@id" -> "ex1:bar")
            ),
             "op" -> Seq("foo#baz", "ex1:bar"),
             "dp" -> Seq(
-            Map("@value" -> "bar", "@type" -> "ex1:type"), "baz"
+            JsonObj("@value" -> "bar", "@type" -> "ex1:type"), "baz"
               ))) }}
 
     "given a double reffed bnode" should {
@@ -157,13 +157,13 @@ class JsonLDTest extends WordSpec with Matchers {
         graph.createResource("http://localhost:8080/foo").
           addProperty(graph.createProperty("http://www.example.com/prop2"), b)
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
-            "prop1" -> Map(
+            "prop1" -> JsonObj(
               "@id" -> "http://www.example.com/prop1",
               "@type" -> "@id"
                 ),
-                "prop2" -> Map(
+                "prop2" -> JsonObj(
                   "@id" -> "http://www.example.com/prop2",
                   "@type" -> "@id"
                 )
@@ -182,21 +182,21 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/prop"),
                graph.createLiteral("bar", "en"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
             "prop" -> "http://www.example.com/prop"
             ),
           "@graph" -> Seq(
-                Map(
+                JsonObj(
                   "@id" -> "foo",
-                  "prop" -> Map(
+                  "prop" -> JsonObj(
                     "@value" -> "foo",
                     "@language" -> "en"
                   )
                 ),
-                Map(
+                JsonObj(
                   "@id" -> "foo_typo",
-                  "prop" -> Map(
+                  "prop" -> JsonObj(
                       "@value" -> "bar",
                       "@language" -> "en"
                     )

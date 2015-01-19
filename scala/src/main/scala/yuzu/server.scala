@@ -473,10 +473,12 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
           } else {
             val out = new java.io.StringWriter()
             addNamespaces(model)
-            RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
             if(mime == jsonld) {
-              addContextToJsonLD(out.toString())
+              //addContextToJsonLD(out.toString())
+              JsonLDPrettySerializer.write(out, model, BASE_NAME + id)
+              out.toString()
             } else {
+              RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
               out.toString()
             }
           }
