@@ -6,25 +6,25 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://localhost:8080/"
+  val BASE_NAME = "http://wordnet-rdf.princeton.edu/"
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
-  val CONTEXT = ""
+  val CONTEXT = "/"
   // The data download will be at BASE_NAME + DUMP_URI
-  val DUMP_URI = "/example.nt.gz"
+  val DUMP_URI = "/wn31.nt.gz"
   // The local path to the data
-  val DUMP_FILE = "../example.nt.gz"
+  val DUMP_FILE = "../wn31.nt.gz"
   // Where the database should appear
-  val DB_FILE = "example.db"
+  val DB_FILE = "wn31.db"
   // The name of the server
-  val DISPLAY_NAME = "Example"
+  val DISPLAY_NAME = "Princeton WordNet"
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
-  val PREFIX1_URI = "http://www.example.com/"
-  val PREFIX1_QN = "ex1"
-  val PREFIX2_URI = "http://www.example.com/"
-  val PREFIX2_QN = "ex2"
+  val PREFIX1_URI = "http://wordnet-rdf.princeton.edu/ontology#"
+  val PREFIX1_QN = "wn"
+  val PREFIX2_URI = "http://lemon-model.net/lemon#"
+  val PREFIX2_QN = "lemon"
   val PREFIX3_URI = "http://www.example.com/"
   val PREFIX3_QN = "ex3"
   val PREFIX4_URI = "http://www.example.com/"

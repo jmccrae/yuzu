@@ -6,31 +6,31 @@ import re
 # The location where this server is to be deployed to
 # Only URIs in the dump that start with this address will be published
 # Should end with a trailing /
-BASE_NAME = "http://localhost:8080/"
+BASE_NAME = "http://wordnet-rdf.princeton.edu/"
 # The prefix that this servlet will be deployed, e.g.
 # if the servlet is at http://www.example.org/yuzu/ the context
-# is /yuzu/
+# is /yuzu
 CONTEXT = ""
 # The data download will be at BASE_NAME + DUMP_URI
-DUMP_URI = "/example.nt.gz"
+DUMP_URI = "/wn31.nt.gz"
 # The local path to the data
-DUMP_FILE = "../example.nt.gz"
+DUMP_FILE = "../wn31.mini.nt.gz"
 # Where the SQLite database should appear
-DB_FILE = "example.db"
+DB_FILE = "wn31.db"
 # The name of the server
-DISPLAY_NAME = "Example"
+DISPLAY_NAME = "Princeton WordNet"
 # The extra namespaces to be abbreviated in HTML and RDF/XML
 # documents if desired
-PREFIX1_URI = "http://www.example.com/"
-PREFIX1_QN = "ex1"
-PREFIX2_URI = "http://www.example.com/"
-PREFIX2_QN = "ex2"
-PREFIX3_URI = "http://www.example.com/"
-PREFIX3_QN = "ex3"
-PREFIX4_URI = "http://www.example.com/"
-PREFIX4_QN = "ex4"
-PREFIX5_URI = "http://www.example.com/"
-PREFIX5_QN = "ex5"
+PREFIX1_URI = "http://wordnet-rdf.princeton.edu/ontology#"
+PREFIX1_QN = "wn"
+PREFIX2_URI = "http://lemon-model.net/lemon#"
+PREFIX2_QN = "lemon"
+PREFIX3_URI = "http://lemon-model.net/lexica/uby/wn/"
+PREFIX3_QN = "ubywn"
+PREFIX4_URI = "http://www.w3.org/2006/03/wn/wn20/instances/"
+PREFIX4_QN = "w3cwn"
+PREFIX5_URI = "http://verbs.colorado.edu/verb-index/vn/"
+PREFIX5_QN = "vn"
 PREFIX6_URI = "http://www.example.com/"
 PREFIX6_QN = "ex6"
 PREFIX7_URI = "http://www.example.com/"
@@ -71,16 +71,32 @@ FACETS = [
     {
         "uri": "http://www.w3.org/2000/01/rdf-schema#label",
         "label": "Label",
+        "list": False
+    },
+    {
+        "uri": "http://wordnet-rdf.princeton.edu/ontology#gloss",
+        "label": "Gloss",
+        "list": False
+    },
+    {
+        "uri": "http://wordnet-rdf.princeton.edu/ontology#translation",
+        "label": "Translation",
+        "list": False
+    },
+    {
+        "uri": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        "label": "Type",
         "list": True
+    },
+    {
+        "uri": "http://wordnet-rdf.princeton.edu/ontology#part_of_speech",
+        "label": "Part of speech",
+        "list:": True
     }
 ]
 # Properties to use as labels
 LABELS = [
-    "<http://www.w3.org/2000/01/rdf-schema#label>",
-    "<http://xmlns.com/foaf/0.1/nick>",
-    "<http://purl.org/dc/elements/1.1/title>",
-    "<http://purl.org/rss/1.0/title>",
-    "<http://xmlns.com/foaf/0.1/name>"
+    "<http://www.w3.org/2000/01/rdf-schema#label>"
 ]
 
 # Any forced names of properties
@@ -96,7 +112,7 @@ LINKED_SETS = ["http://dbpedia.org/"]
 NOT_LINKED = ["http://www.w3.org/", "http://purl.org/dc/",
               "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/"]
 # The minimum number of links to another dataset to be included in metadata
-MIN_LINKS = 1
+MIN_LINKS = 50
 
 # Metadata
 
