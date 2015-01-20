@@ -1,151 +1,127 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>{{title}}</title>
-    <!-- Bootstrap theme -->
-    <link href="{{context}}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
-    <!-- JQuery (not required) -->
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-    <style>
-        .rdf_table {
-            background-color: #eee;
-            margin-top: 40px;
-            margin-bottom: 40px;
-        }
-        .rdf_table_nested {
-            background-color: #eee;
-        }
-        .rdf_prop {
-            font-weight: bold;
-            width: 180px;
-        }
-        .rdf_table td {
-            padding-left: 20px;
-            padding-top: 10px;
-            padding-bottom: 10px;
-            padding-right: 10px;
-            font-size: 120%;
-        }
-        .rdf_embedded_table {
-            width: 100%;
-            margin-top: 0px;
-            margin-bottom: 0px;
-        }
-        .rdf_embedded_table td {
-            padding-left: 20px;
-            padding-top: 10px;
-            padding-bottom: 10px;
-            padding-right: 10px;
-            font-size: 110%;
-        }
-        .panel-default {
-            margin-bottom: 0px;
-            border-bottom: 0px;
-        }
-        .panel-heading {
-            font-size: 140%;
-            font-weight: bold;
-        }
-         .rdf_table_nested td{
-            padding-left: 2px;
-        }
-        .rdf_table td.rdf_value {
-            min-width: 350px;
-        }
-        .rdf_subheader {
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-        .rdf_table_nested tr:hover {
-            background-color: #ddd;
-        }
-        .rdf_table tr:hover {
-            background-color: #ddd;
-        }
-        .rdf_header h1 {
-            font-weight: bold;
-        }
-        .rdf_header {
-            border-bottom: 1px solid #eee;
-            margin-top: 30px;
-            overflow: hidden;
-        }
-        .rdf_classof {
-            font-style: italic;
-        }
-        .rdf_datatype a {
-            font-size: 80%;
-            font-style: italic;
-            color: #333;
-        }
-        a.anchor {
-            display: block; 
-            position: relative; 
-            top: -150px; 
-            visibility: hidden;
-        }
-        div.footer_link {
-            border-right: 1px solid #ccc;
-            text-align: right;
-        }
-        a.footer_link {
-            font-variant: small-caps;
-            font-weight: bold;
-        }
-    </style>
-    <script>
-    function flagFallBack(tag) {
-        if(tag.src.indexOf("und.gif", tag.src.length - 7) === -1) {
-            tag.src='{{context}}/assets/flag/und.gif';
-            tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
-        }
-    }
-    </script>
-    <link rel="shortcut icon" href="{{context}}/favicon.ico" />
-</head>
-<body style="padding-top:100px;">
-    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;height:100px;">
-        <div class="container">
-            <div class="navbar-header">
-                <a href="{{context}}/"><img src="{{context}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
-                <span style="font-size:400%;vertical-align:middle;font-weight:bold;padding-left:30px;">{{app_title}}</span>
-            </div>
-        </div>
-    </div>
-    <div class="container">
-        <div class="row">
-    <!--<div class="alert alert-danger">
-        <h3 style="margin-top:5px;">Step 1</h3>
-        <p>This is the default basic style for Yuzu, you should adapt this 
-        to your site by editing <tt>common/html/page.html</tt>. For more 
-        details see README</p>
-    </div>-->
-    {{#is_test}}
-    <div class="alert alert-danger">
-        <h3 style="margin-top:5px;">This is a Test Instance</h3>
-        <p>The URL used to access this instance does not correspond to the configuration.</p>
-    </div>
-    {{/is_test}}
-            {{{content}}}
-        </div>
-    </div>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
-    <div class="navbar" style="background-color:#fff;padding-top:100px;">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-1 col-lg-offset-10 footer_link">
-                    <a href="{{context}}/dataid" class="footer_link">About</a><br/>
-                    <a href="{{context}}/license" class="footer_link">License</a><br/>
-                    <a href="{{context}}/download" class="footer_link">Download</a><br/>
-                    <a href="https://github.com/jmccrae/yuzu" class="footer_link">Source</a>
-                </div>
-                <div class="col-lg-1" style="line-height:5.5em;vertical-align:middle;">
-                    <a href="{{context}}/license">
-                        <img src="{{context}}/assets/cc/cc-zero.png" height="30px"/></a>
-                </div>
-            </div>
-        </div>
-    </div>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta content="all" name="robots">
+
+<meta content="" name="keywords">
+
+<meta content="" name="description">
+
+<meta content="Trustees of Princeton University © 2013" name="publisher">
+
+<meta content="Princeton University" name="author">
+
+<meta content="no" http-equiv="imagetoolbar">
+
+<meta content="chrome=1" http-equiv="X-UA-Compatible">
+
+<meta content="text/html; charset=utf-8" http-equiv="content-type">
+<link href="http://www.princeton.edu/main/favicon.ico" rel="shortcut icon">
+<title>WordNet - {{title}}</title>
+<link href="http://wordnet.princeton.edu/wwwdept_themes/common/css/component.css" media="all" rel="stylesheet" type="text/css"><!--[if lte IE 7]><link href="http://wordnet.princeton.edu/wwwdept_themes/common/css/msie.css" media="all" rel="stylesheet" type="text/css"><![endif]--><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/style.css" media="screen,print" rel="stylesheet" type="text/css"><link href="http://wordnet.princeton.edu/wwwdept_themes/common/css/forms.css" media="all" rel="stylesheet" type="text/css"><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/print.css" media="print" rel="stylesheet" type="text/css"><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/handheld.css" media="handheld" rel="stylesheet" type="text/css"><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/aural.css" media="aural" rel="stylesheet" type="text/css"><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/braille.css" media="braille" rel="stylesheet" type="text/css"><!--[if lt IE 6]><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/msie5.css" media="all" rel="stylesheet" type="text/css"><![endif]--><!--[if IE 6]><nocache><link href="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/css/msie6.css" media="all" rel="stylesheet" type="text/css"></nocache><![endif]--><link href="http://wordnet.princeton.edu/wordnet/css/custom.css" media="all" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
+<script type="text/javascript">
+		var _gaq = _gaq || [];
+		_gaq.push(
+			['_setAccount', 'UA-1512522-2'],
+			['_trackPageview']
+		);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+	<link href="/assets/wnrdf.css" media="all" rel="stylesheet" type="text/css">
+</head>
+
+<body class="wordnet" id="home">
+<!--googleoff: all--><div id="skipnav"><a href="#content">Skip over navigation</a></div><!--googleon: all--><div class="pagelevel-home nav-vertical" id="wrappercontainer"><div id="toolbarcontainer"><div id="toolbar"><!-- robots:noindex --><div id="logolink"><a href="http://www.princeton.edu/"><img alt="Princeton University" src="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/images/logobar_logo.png"></a></div><div id="toolbarlinks">
+<ul id="toolbarnav">
+
+</ul>
+</div><div id="searchbox"><form action="http://wordnet.princeton.edu/wordnet/tools/search/index.xml" method="get"><input name="search_type" type="hidden" value="site"><input id="submit" name="submit" type="hidden" value="search"><input accesskey="4" class="searchtext" name="query" onblur="if (this.value == &#39;&#39;) this.value=&#39;Search&#39;" onfocus="if (this.value == &#39;Search&#39;) this.value=&#39;&#39;" type="text" value="Search"><input class="submit" name="submit" type="submit" value="Search"></form></div><!-- /robots:noindex --></div></div><div id="wrapper"><div id="headercontainer"><div id="header"><div id="bannercontainer"><div id="banner"><div id="bannerphoto"></div><div class="header" id="bannerlogo"><a href="/wordnet/"><img alt="WordNet" src="http://wordnet.princeton.edu/wordnet/banner_logo.png">
+<h1><span>WordNet</span></h1>
+</a></div><div class="clear"></div></div></div><div id="navalphacontainer"><div id="navalpha"><!-- robots:noindex --><div class="clear"></div><!-- /robots:noindex --></div></div></div></div><div id="maincontainer" class="subcontent-collapse"><div id="main"><!-- robots:noindex --><div id="navbetacontainer"><div id="navbeta">
+<ul>
+
+<li class="normal level1"><a href="/wordnet/" target="_self"><span>What is WordNet?</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/about-wordnet/"><span>People</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/news/"><span>News</span></a></li>
+
+<li class="externallink normal level1"><a href="http://wordnetweb.princeton.edu/perl/webwn" target="_self"><span>Use WordNet online</span></a></li>
+
+<li class="externallink normal selected level1"><a href="http://wordnet-rdf.princeton.edu/" target="_self"><span>WordNet RDF</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/download/"><span>Download</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/citing-wordnet/"><span>Citing WordNet</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/license/"><span>License and commercial use</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/related-projects/"><span>Related projects</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/documentation/"><span>WordNet documentation</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/publications/"><span>Publications</span></a></li>
+
+<li class="normal level1"><a href="/wordnet/frequently-asked-questions/"><span>Frequently Asked Questions</span></a></li>
+
+<li class="externallink normal level1"><a href="http://wordnet.princeton.edu/wordnet/man/wnstats.7WN.html" target="_self"><span>WordNet Statistics</span></a></li>
+
+<li class="externallink normal level1"><a href="http://www.globalwordnet.org/" target="_self"><span>WordNets in other languages</span></a></li>
+
+<li class="normal last level1"><a href="/wordnet/contact/"><span>Contact us, Report problems</span></a></li>
+
+</ul>
+<br style="clear: both; line-height: 1px;">
+<span></span></div></div><!-- /robots:noindex --><div id="contentcontainer"><div id="breadcrumbscontainer"><div id="breadcrumbs"><a class='selected' href="/wordnet/">About WordNet</a><div class="clear"></div></div></div><div id="uppercontent"></div><div id="content">
+
+<div class="body">
+{{{content}}}
+</div>
+
+</div>
+<!--<div id="subcontent"><div class="picture-component"><div class="body">
+<p>We appreciate your comments and suggestions, especially when they are constructive and help us improve WordNet.  We get numerous questions regarding topics that are addressed on our <a href="/wordnet/frequently-asked-questions/" target="_self">FAQ</a> page. Before you <a href="mailto:wordnet@princeton.edu" target="_self">email the WordNet team</a>, please <a href="/wordnet/frequently-asked-questions/" target="_self">check the FAQ</a> first to see if the answer it already there. If you have a problem or question regarding something you downloaded from the "<a href="/wordnet/related-projects/" target="_self">Related projects</a>" page, you must contact the developer directly.</p>
+
+
+<p>Our staff examines all mail and tries to make appropriate database changes, but we hope you understand that due to time and staff constraints we cannot always respond.</p>
+
+
+<p>Please note that changes made to the database are not reflected until a new version of WordNet is publicly released. Due to limited staffing, the date of the next release has not been scheduled. Check our website periodically for WordNet release information.</p>
+
+</div></div></div>
+
+<div id="lowercontent"></div>-->
+
+</div><div class="clear"></div></div></div><!-- robots:noindex --><div class="clear"></div><div id="footercontainer"><div id="footer"><div id="footercontent">
+
+      <!-- BEGIN EDITING -->
+Photo: Princeton University, Office of Communications, Mahlon Lovett<br>
+Contact: <a href="mailto:wordnet@princeton.edu">wordnet@princeton.edu</a>
+<p>&copy; 2013 The Trustees of <a href="http://wws.princeton.edu/">Princeton University</a></p>
+      <!-- END EDITING --> 
+    
+  <!-- robots:noindex -->
+<p>Last update: November  7, 2013</p>
+<!-- /robots:noindex --></div></div></div><!-- /robots:noindex --></div></div>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-50143216-1', 'princeton.edu');
+  ga('send', 'pageview');
+
+</script>
 </body>
+
 </html>
