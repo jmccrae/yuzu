@@ -136,8 +136,6 @@ class DefaultDisplayer:
     def uri_to_str(self, uri):
         if uri in PROP_NAMES:
             return PROP_NAMES[uri]
-        elif uri.startswith(BASE_NAME):
-            return "%s" % uri[len(BASE_NAME):]
         elif uri.startswith(PREFIX1_URI):
             return "%s:%s" % (PREFIX1_QN, uri[len(PREFIX1_URI):])
         elif uri.startswith(PREFIX2_URI):
@@ -156,6 +154,8 @@ class DefaultDisplayer:
             return "%s:%s" % (PREFIX8_QN, uri[len(PREFIX8_URI):])
         elif uri.startswith(PREFIX9_URI):
             return "%s:%s" % (PREFIX9_QN, uri[len(PREFIX9_URI):])
+        elif uri.startswith(BASE_NAME):
+            return "%s" % uri[len(BASE_NAME):]
         elif uri.startswith(str(RDF)):
             return uri[len(str(RDF)):]
         elif uri.startswith(str(RDFS)):
@@ -209,8 +209,6 @@ class PrettyDisplayer:
     def uri_to_str(self, uri):
         if uri in PROP_NAMES:
             return PROP_NAMES[uri]
-        elif uri.startswith(BASE_NAME):
-            return self.magic_string("%s" % uri[len(BASE_NAME):])
         elif uri.startswith(PREFIX1_URI):
             return self.magic_string(
                 "%s" % (uri[len(PREFIX1_URI):]))
@@ -238,6 +236,8 @@ class PrettyDisplayer:
         elif uri.startswith(PREFIX9_URI):
             return self.magic_string(
                 "%s" % (uri[len(PREFIX9_URI):]))
+        elif uri.startswith(BASE_NAME):
+            return self.magic_string("%s" % uri[len(BASE_NAME):])
         elif uri.startswith(str(RDF)):
             return self.magic_string(uri[len(str(RDF)):])
         elif uri.startswith(str(RDFS)):
