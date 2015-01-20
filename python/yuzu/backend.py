@@ -291,16 +291,16 @@ class RDFBackend(Store):
                 results.append({'link': obj, 'label': n3.value,
                                 'count': count})
             elif type(n3) == URIRef:
-                u = self.unname(str(n3))
-                if u:
-                    s, _ = u
-                    if label:
-                        results.append({'link': obj, 'label': label,
-                                        'count': count})
-                    else:
-                        results.append({'link': obj, 'label': s,
-                                        'count': count})
+#                u = self.unname(str(n3))
+#                if u:
+#                    s, _ = u
+                if label:
+                    results.append({'link': obj, 'label': label,
+                                    'count': count})
                 else:
+#                        results.append({'link': obj, 'label': s,
+#                                        'count': count})
+#                else:
                     results.append({'link': obj,
                                     'label': DISPLAYER.apply(str(n3)),
                                     'count': count})
