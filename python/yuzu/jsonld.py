@@ -1,12 +1,8 @@
 import re
-from yuzu.settings import (PREFIX1_URI, PREFIX2_URI, PREFIX3_URI,
-                           PREFIX4_URI, PREFIX5_URI, PREFIX6_URI,
-                           PREFIX7_URI, PREFIX8_URI, PREFIX9_URI,
-                           PREFIX1_QN, PREFIX2_QN, PREFIX3_QN,
-                           PREFIX4_QN, PREFIX5_QN, PREFIX6_QN,
-                           PREFIX7_QN, PREFIX8_QN, PREFIX9_QN, BASE_NAME)
-from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
+from yuzu.settings import BASE_NAME
+from rdflib.namespace import RDF
 from rdflib import URIRef, BNode
+import json
 
 
 def is_alnum(string):
@@ -24,49 +20,32 @@ def prop_type(p, graph):
         return str(p)
 
 
-def split_uri(value):
+def split_uri(value, graph):
     if value.startswith(BASE_NAME):
         return "", value[len(BASE_NAME):]
-    for uri, qn in [(PREFIX1_URI, PREFIX1_QN),
-                    (PREFIX2_URI, PREFIX2_QN),
-                    (PREFIX3_URI, PREFIX3_QN),
-                    (PREFIX4_URI, PREFIX4_QN),
-                    (PREFIX5_URI, PREFIX5_QN),
-                    (PREFIX6_URI, PREFIX6_QN),
-                    (PREFIX7_URI, PREFIX7_QN),
-                    (PREFIX8_URI, PREFIX8_QN),
-                    (PREFIX9_URI, PREFIX9_QN),
-                    (str(RDF), "rdf"),
-                    (str(RDFS), "rdfs"),
-                    (str(XSD), "xsd"),
-                    (str(OWL), "owl"),
-                    (str(DC), "dc"),
-                    (str(DCTERMS), "dct")]:
-        if value.startswith(uri) and uri != "http://www.example.com/":
+    for qn, uri in graph.namespaces():
+        if value.startswith(uri):
             return qn, value[len(uri):]
     return "", value
 
 
+def is_prefix_used(prefix, graph):
+    for s, p, o in graph:
+        if isinstance(s, URIRef) and str(s).startswith(prefix):
+            return True
+        if str(p).startswith(prefix):
+            return True
+        if isinstance(o, URIRef) and str(o).startswith(prefix):
+            return True
+    return False
+
+
 def extract_jsonld_context(graph, query):
     context = {
-        "@base": BASE_NAME,
-        PREFIX1_QN: PREFIX1_URI,
-        PREFIX2_QN: PREFIX2_URI,
-        PREFIX3_QN: PREFIX3_URI,
-        PREFIX4_QN: PREFIX4_URI,
-        PREFIX5_QN: PREFIX5_URI,
-        PREFIX6_QN: PREFIX6_URI,
-        PREFIX7_QN: PREFIX7_URI,
-        PREFIX8_QN: PREFIX8_URI,
-        PREFIX9_QN: PREFIX9_URI,
-        "rdf": str(RDF),
-        "rdfs": str(RDFS),
-        "xsd": str(XSD),
-        "owl": str(OWL),
-        "dc": str(DC),
-        "dct": str(DCTERMS)}
-    context = {k: v for k, v in context.items()
-               if v != "http://www.example.com/"}
+        "@base": BASE_NAME}
+    for k, v in graph.namespaces():
+        if is_prefix_used(str(v), graph):
+            context[k] = str(v)
     props = {}
     for p in set(graph.predicates()):
         p_str = str(p)
@@ -76,7 +55,7 @@ def extract_jsonld_context(graph, query):
         if not is_alnum(short_name) and '/' in p_str:
             short_name = p_str[p_str.rindex('/')+1:]
         if not is_alnum(short_name):
-            pre, suf = split_uri(p_str)
+            pre, suf = split_uri(p_str, graph)
             short_name = suf
         sn = short_name
         i = 2
@@ -149,13 +128,13 @@ def jsonld_value(value, context, graph, query, prop2sn, is_obj, drb, stack):
                             drb, stack)
     elif isinstance(value, URIRef):
         if not list(graph.predicate_objects(value)) and is_obj:
-            pre, suf = split_uri(str(value))
+            pre, suf = split_uri(str(value), graph)
             if pre:
                 return "%s:%s" % (pre, suf)
             else:
                 return suf
         else:
-            pre, suf = split_uri(str(value))
+            pre, suf = split_uri(str(value), graph)
             if pre:
                 obj = {"@id": "%s:%s" % (pre, suf)}
             else:
@@ -186,8 +165,12 @@ def jsonld_value(value, context, graph, query, prop2sn, is_obj, drb, stack):
             return {"@value": str(value),
                     "@language": value.language}
         elif value.datatype:
-            pre, suf = split_uri(value.datatype)
-            if pre:
+            pre, suf = split_uri(value.datatype, graph)
+            if pre == "xsd" and suf == "integer":
+                return int(value)
+            elif pre == "xsd" and suf == "double":
+                return float(value)
+            elif pre:
                 return {"@value": str(value),
                         "@type": str("%s:%s" % (pre, suf))}
             else:
@@ -202,6 +185,10 @@ def double_reffed_bnodes(graph):
         if isinstance(o, BNode):
             if len(list(graph.subject_predicates(o))) > 1:
                 yield(o)
+
+
+def write(graph, query):
+    return json.dumps(jsonld_from_model(graph, query), indent=2)
 
 
 def jsonld_from_model(graph, query):

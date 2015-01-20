@@ -25,15 +25,17 @@ from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX4_URI, PREFIX4_QN, PREFIX5_URI, PREFIX5_QN,
                            PREFIX6_URI, PREFIX6_QN, PREFIX7_URI, PREFIX7_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
-                           DISPLAY_NAME, FACETS, SEARCH_PATH,
+                           DISPLAY_NAME, FACETS, SEARCH_PATH, DISPLAYER,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
-                           LIST_PATH, DB_FILE, METADATA_PATH)
+                           LIST_PATH, DB_FILE, METADATA_PATH, DCAT,
+                           FOAF, ODRL, PROV, VOID, DATAID)
 from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
                             YZ_INVALID_QUERY, YZ_BAD_REQUEST,
                             YZ_NOT_FOUND_TITLE, YZ_NOT_FOUND_PAGE,
                             YZ_JSON_LD_NOT_INSTALLED, YZ_NOT_IMPLEMENTED,
                             YZ_METADATA, YZ_NO_RESULTS)
 from yuzu.dataid import dataid
+import yuzu.jsonld
 
 
 __author__ = 'John P. McCrae'
@@ -228,6 +230,15 @@ class RDFServer:
         graph.namespace_manager.bind(PREFIX7_QN, PREFIX7_URI)
         graph.namespace_manager.bind(PREFIX8_QN, PREFIX8_URI)
         graph.namespace_manager.bind(PREFIX9_QN, PREFIX9_URI)
+        graph.namespace_manager.bind("owl", str(OWL))
+        graph.namespace_manager.bind("dc", str(DC))
+        graph.namespace_manager.bind("dct", str(DCTERMS))
+        graph.namespace_manager.bind("dataid", DATAID)
+        graph.namespace_manager.bind("dcat", DCAT)
+        graph.namespace_manager.bind("foaf", FOAF)
+        graph.namespace_manager.bind("odrl", ODRL)
+        graph.namespace_manager.bind("prov", PROV)
+        graph.namespace_manager.bind("void", VOID)
 
     def rdfxml_to_html(self, graph, query, title="", is_test=False):
         """Convert RDF data to XML
@@ -290,7 +301,11 @@ class RDFServer:
                         prop = qs_parsed['property'][0]
                     else:
                         prop = None
-                    return self.search(start_response, query, prop)
+                    if 'offset' in qs_parsed:
+                        offset = int(qs_parsed['offset'][0])
+                    else:
+                        offset = 0
+                    return self.search(start_response, query, prop, offset)
                 else:
                     return self.send400(start_response, YZ_NO_RESULTS)
             else:
@@ -380,9 +395,8 @@ class RDFServer:
                 try:
                     self.add_namespaces(graph)
                     if mime == "json-ld":
-                        content = graph.serialize(
-                            format=mime,
-                            context=self.jsonld_context()).decode('utf-8')
+                        content = yuzu.jsonld.write(
+                            graph, BASE_NAME + id)
                     else:
                         content = graph.serialize(format=mime).decode('utf-8')
                 except Exception as e:
@@ -414,7 +428,7 @@ class RDFServer:
             if labels:
                 title = ', '.join(labels)
             else:
-                title = id
+                title = DISPLAYER.uri_to_str(BASE_NAME + id)
             if mime == "html":
                 content = self.rdfxml_to_html(graph, BASE_NAME + id, title,
                                               is_test)
@@ -422,9 +436,8 @@ class RDFServer:
                 try:
                     self.add_namespaces(graph)
                     if mime == "json-ld":
-                        content = graph.serialize(
-                            format=mime,
-                            context=self.jsonld_context()).decode('utf-8')
+                        content = yuzu.jsonld.write(
+                            graph, BASE_NAME + id)
                     else:
                         content = graph.serialize(format=mime).decode('utf-8')
                 except Exception as e:
@@ -457,7 +470,7 @@ class RDFServer:
         else:
             has_next = "disabled"
         nxt = offset + limit
-        pages = "%d - %d" % (offset + 1, offset + len(results) + 1)
+        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)) + 1)
         facets = []
         for facet in FACETS:
             if "list" not in facet or facet["list"] is True:
@@ -480,24 +493,63 @@ class RDFServer:
 
         start_response(
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])
+        query = ""
+        if prop:
+            query += "&prop=" + quote_plus(prop)
+        if obj:
+            query += "&obj=" + quote_plus(obj)
+        if obj_offset:
+            query += "&obj_offset=" + obj_offset
+
+        results2 = [{
+            "title": r["label"],
+            "link": r["link"],
+            "model": from_model(
+                self.backend.summarize(r["id"]),
+                BASE_NAME + r["id"])}
+            for r in results]
+        print(results2)
         mres = pystache.render(template, {
             'facets': facets,
-            'results': results,
+            'results': results2,
             'has_prev': has_prev,
             'prev': prev,
             'has_next': has_next,
             'next': nxt,
             'pages': pages,
+            'query': query,
             'context': CONTEXT})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
-    def search(self, start_response, query, prop):
+    def search(self, start_response, query, prop, offset):
+        limit = 20
         start_response(
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])
-        results = self.backend.search(query, prop)
+        results = self.backend.search(query, prop, offset, limit)
+        prev = max(0, offset - limit)
+        nxt = offset + limit
+        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)))
+        if offset == 0:
+            has_prev = " disabled"
+        else:
+            has_prev = ""
+        if len(results) <= limit:
+            has_next = " disabled"
+        else:
+            has_next = ""
+        qs = "&query=" + quote_plus(query)
+        if prop:
+            qs = "&property=" + quote_plus(prop)
         page = pystache.render(
             open(resolve('html/search.html')).read(),
-            {'results': results, 'context': CONTEXT})
+            {'results': results[:limit],
+             'context': CONTEXT,
+             'prev': prev,
+             'has_prev': has_prev,
+             'next': nxt,
+             'has_next': has_next,
+             'pages': pages,
+             'query': qs})
         return [self.render_html(DISPLAY_NAME, page).encode('utf-8')]
 
     def jsonld_context(self):

@@ -176,7 +176,7 @@ class RDFBackend(Store):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
 
-    def search(self, query, prop, limit=20):
+    def search(self, query, prop, offset, limit=20):
         """Search for pages with the appropriate property
         @param query The value to query for
         @param prop The property to use or None for no properties
@@ -190,17 +190,40 @@ class RDFBackend(Store):
             cursor.execute("""select distinct sids.n3, sids.label from
             free_text join ids as pids on free_text.pid = pids.id
             join ids as sids on free_text.sid = sids.id
-            where pids.n3=? and object match ? limit ?""",
-                           ("<%s>" % prop, query, limit))
+            where pids.n3=? and object match ? limit ? offset ?""",
+                           ("<%s>" % prop, query, limit + 1, offset))
         else:
             cursor.execute("""select distinct sids.n3, sids.label from
             free_text join ids as sids on free_text.sid = sids.id
-            where object match ? limit ?""",
-                           (query, limit))
+            where object match ? limit ? offset ?""",
+                           (query, limit + 1, offset))
         rows = cursor.fetchall()
         conn.close()
         return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
                  'label': label} for uri, label in rows]
+
+    def summarize(self, id):
+        """Summarize an id
+        @param id The id
+        @return A RDFlib Graph or None if the ID is not found
+        """
+        g = ConjunctiveGraph()
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """select subject, property, object from triples where
+            subject=?""", ("<%s%s>" % (BASE_NAME, unicode_escape(id)),))
+        rows = cursor.fetchall()
+        if rows:
+            for s, p, o in rows:
+                for f in FACETS:
+                    if str(p)[1:-1] == f["uri"]:
+                        g.add((from_n3(s), from_n3(p), from_n3(o)))
+            conn.close()
+            return g
+        else:
+            return None
 
     def list_resources(self, offset, limit, prop=None, obj=None):
         """
@@ -232,9 +255,11 @@ class RDFBackend(Store):
             uri, label = row
             if uri != "<BLANK>":
                 if label:
-                    refs.append({'link': CONTEXT + "/" + uri, 'label': label})
+                    refs.append({'link': CONTEXT + "/" + uri, 'label': label,
+                                 'id': uri})
                 else:
-                    refs.append({'link': CONTEXT + "/" + uri, 'label': uri})
+                    refs.append({'link': CONTEXT + "/" + uri, 'label': uri,
+                                 'id': uri})
             n += 1
             row = cursor.fetchone()
         conn.close()
