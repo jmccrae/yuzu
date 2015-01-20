@@ -500,9 +500,18 @@ class RDFServer:
             query += "&obj=" + quote_plus(obj)
         if obj_offset:
             query += "&obj_offset=" + obj_offset
+
+        results2 = [{
+            "title": r["label"],
+            "link": r["link"],
+            "model": from_model(
+                self.backend.summarize(r["id"]),
+                BASE_NAME + r["id"])}
+            for r in results]
+        print(results2)
         mres = pystache.render(template, {
             'facets': facets,
-            'results': results,
+            'results': results2,
             'has_prev': has_prev,
             'prev': prev,
             'has_next': has_next,
