@@ -25,7 +25,7 @@ from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX4_URI, PREFIX4_QN, PREFIX5_URI, PREFIX5_QN,
                            PREFIX6_URI, PREFIX6_QN, PREFIX7_URI, PREFIX7_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
-                           DISPLAY_NAME, FACETS, SEARCH_PATH,
+                           DISPLAY_NAME, FACETS, SEARCH_PATH, DISPLAYER,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
                            LIST_PATH, DB_FILE, METADATA_PATH)
 from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
@@ -415,7 +415,7 @@ class RDFServer:
             if labels:
                 title = ', '.join(labels)
             else:
-                title = id
+                title = DISPLAYER.uri_to_str(BASE_NAME + id)
             if mime == "html":
                 content = self.rdfxml_to_html(graph, BASE_NAME + id, title,
                                               is_test)

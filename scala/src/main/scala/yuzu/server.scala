@@ -474,12 +474,16 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
                                             RDFS.label,
                                             null).map(_.getObject().toString()).mkString(", ")
           val content = if(mime == html) {
-            rdfxmlToHtml(model, Some(BASE_NAME + id), title)
+            if(title == "") {
+              rdfxmlToHtml(model, Some(BASE_NAME + id), 
+                           DISPLAYER.uriToStr(BASE_NAME + id)) 
+            } else {
+              rdfxmlToHtml(model, Some(BASE_NAME + id), title)
+            }
           } else {
             val out = new java.io.StringWriter()
             addNamespaces(model)
             if(mime == jsonld) {
-              //addContextToJsonLD(out.toString())
               JsonLDPrettySerializer.write(out, model, BASE_NAME + id)
               out.toString()
             } else {
