@@ -301,7 +301,8 @@ class RDFBackend(Store):
                         results.append({'link': obj, 'label': s,
                                         'count': count})
                 else:
-                    results.append({'link': obj, 'label': DISPLAYER(str(n3)),
+                    results.append({'link': obj,
+                                    'label': DISPLAYER.apply(str(n3)),
                                     'count': count})
             n += 1
             row = cursor.fetchone()
