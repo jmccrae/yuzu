@@ -458,7 +458,7 @@ class RDFServer:
         else:
             has_next = "disabled"
         nxt = offset + limit
-        pages = "%d - %d" % (offset + 1, offset + len(results) + 1)
+        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)) + 1)
         facets = []
         for facet in FACETS:
             if "list" not in facet or facet["list"] is True:
@@ -481,6 +481,13 @@ class RDFServer:
 
         start_response(
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])
+        query = ""
+        if prop:
+            query += "&prop=" + quote_plus(prop)
+        if obj:
+            query += "&obj=" + quote_plus(obj)
+        if obj_offset:
+            query += "&obj_offset=" + obj_offset
         mres = pystache.render(template, {
             'facets': facets,
             'results': results,
@@ -489,6 +496,7 @@ class RDFServer:
             'has_next': has_next,
             'next': nxt,
             'pages': pages,
+            'query': query,
             'context': CONTEXT})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
