@@ -486,7 +486,8 @@ class TripleBackend(db : String) extends Backend {
         case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), c) })}}
 
   /** Free text search */
-  def search(query : String, property : Option[String], limit : Int = 20) = {
+  def search(query : String, property : Option[String], offset : Int,
+             limit : Int) = {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
@@ -494,12 +495,12 @@ class TripleBackend(db : String) extends Backend {
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p and object match $query 
-                LIMIT $limit""".as2[String, String]
+                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
           sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 WHERE object match $query
-                LIMIT $limit""".as2[String, String] }
+                LIMIT $limit OFFSET $offset""".as2[String, String] }
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
       result.toVector.map {
         case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))

@@ -86,6 +86,7 @@ object mustache {
 
 object RDFServer {
 
+  def quotePlus(s : String) = java.net.URLEncoder.encode(s, "UTF-8")
   def renderHTML(title : String, text : String, isTest : Boolean)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.mustache"))
     template.substitute("title"-> title, "app_title" -> DISPLAY_NAME, 
@@ -384,7 +385,17 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
           } else {
             None
           }
-          search(resp, query, prop)
+          val offset = if(qsParsed.containsKey("offset") && qsParsed.get("offset")(0) != "") {
+            try {
+              qsParsed.get("offset")(0).toInt
+            } catch {
+              case x : NumberFormatException =>
+                0
+            }
+          } else {
+            0
+          }
+          search(resp, query, prop, offset)
         } else {
           send400(resp, YZ_NO_QUERY)
         }
@@ -516,13 +527,13 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     val next = offset + limit
     val pages = "%d - %d" format(offset + 1, offset + math.min(limit, results.size))
     val facets = FACETS.filter(_.getOrElse("list", true) == true).map { facet =>
-      val uri_enc = java.net.URLEncoder.encode(facet("uri").toString, "UTF-8")
+      val uri_enc = quotePlus(facet("uri").toString)
       if(property != None && ("<" + facet("uri") + ">") == property.get) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
         facet ++ Map("uri_enc" -> uri_enc, 
           "values" -> vs.map { v => Map[String,String](
                   "prop_uri" -> uri_enc,
-                  "value_enc" -> java.net.URLEncoder.encode(v.link, "UTF-8"),
+                  "value_enc" -> quotePlus(v.link),
                   "value" -> v.label.take(100),
                   "count" -> v.count.toString,
                   "offset" -> obj_offset.getOrElse(0).toString
@@ -533,10 +544,10 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       }
     } 
     val queryString = (property match {
-        case Some(p) => "&prop=" + java.net.URLEncoder.encode(p, "UTF-8")
+        case Some(p) => "&prop=" + quotePlus(p)
         case None => "" }) + 
       (obj match {
-        case Some(o) => "&obj=" + java.net.URLEncoder.encode(o, "UTF-8")
+        case Some(o) => "&obj=" + quotePlus(o)
         case None => "" }) +
       (obj_offset match {
         case Some(o) => "&obj_offset=" + o
@@ -555,11 +566,29 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     }
   }
 
-  def search(resp : HttpServletResponse, query : String, property : Option[String]) {
+  def search(resp : HttpServletResponse, query : String, property : Option[String],
+             offset : Int) {
+    val limit = 20
     val buf = new StringBuilder()
-    val results = backend.search(query, property)
+    val results = backend.search(query, property, offset, limit + 1)
+    val prev = math.max(0, offset - limit)
+    val next = offset + limit
+    val pages = "%d - %d" format (offset + 1, offset + math.min(limit, results.size))
+    val hasPrev = if(offset == 0) { " disabled" } else { "" }
+    val hasNext = if(results.size <= limit) { " disabled" } else { "" }
+    val qs = "&query=" + quotePlus(query) + (
+      property match {
+        case Some(p) => "&property=" + quotePlus(p)
+        case None => ""
+      })
     val page = mustache(resolve("html/search.html")).substitute(
-      "results" -> results
+      "results" -> results.dropRight(1),
+      "prev" -> prev,
+      "has_prev" -> hasPrev,
+      "next" -> next,
+      "hasNext" -> hasNext,
+      "pages" -> pages,
+      "query" -> qs
     )
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, page, false))

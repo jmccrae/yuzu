@@ -42,7 +42,8 @@ trait Backend {
    * @param property The property
    * @param limit The limit
    */
-  def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult]
+  def search(query : String, property : Option[String], 
+             offset : Int, limit : Int) : Seq[SearchResult]
   /**
    * Load the data from an input stream 
    */

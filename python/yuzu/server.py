@@ -291,7 +291,11 @@ class RDFServer:
                         prop = qs_parsed['property'][0]
                     else:
                         prop = None
-                    return self.search(start_response, query, prop)
+                    if 'offset' in qs_parsed:
+                        offset = int(qs_parsed['offset'][0])
+                    else:
+                        offset = 0
+                    return self.search(start_response, query, prop, offset)
                 else:
                     return self.send400(start_response, YZ_NO_RESULTS)
             else:
@@ -500,13 +504,35 @@ class RDFServer:
             'context': CONTEXT})
         return [self.render_html(DISPLAY_NAME, mres).encode('utf-8')]
 
-    def search(self, start_response, query, prop):
+    def search(self, start_response, query, prop, offset):
+        limit = 20
         start_response(
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])
-        results = self.backend.search(query, prop)
+        results = self.backend.search(query, prop, offset, limit)
+        prev = max(0, offset - limit)
+        nxt = offset + limit
+        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)))
+        if offset == 0:
+            has_prev = " disabled"
+        else:
+            has_prev = ""
+        if len(results) <= limit:
+            has_next = " disabled"
+        else:
+            has_next = ""
+        qs = "&query=" + quote_plus(query)
+        if prop:
+            qs = "&property=" + quote_plus(prop)
         page = pystache.render(
             open(resolve('html/search.html')).read(),
-            {'results': results, 'context': CONTEXT})
+            {'results': results[:limit],
+             'context': CONTEXT,
+             'prev': prev,
+             'has_prev': has_prev,
+             'next': nxt,
+             'has_next': has_next,
+             'pages': pages,
+             'query': qs})
         return [self.render_html(DISPLAY_NAME, page).encode('utf-8')]
 
     def jsonld_context(self):

@@ -23,7 +23,7 @@ class DummyBackend extends Backend {
   }
   def listValues(offset : Int, limit : Int, prop : String) = (false, Nil)
   //def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
-  def search(query : String, property : Option[String], limit : Int = 20) = Nil
+  def search(query : String, property : Option[String], offset : Int, limit : Int) = Nil
   def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { }
   def tripleCount = 0
   def linkCounts = Nil
@@ -142,7 +142,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val mockResponse = mock[HttpServletResponse]
     val out = new StringWriter()
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
-    rdfServer.search(mockResponse, "test", Some("http://www.w3.org/2000/01/rdf-schema#label"))
+    rdfServer.search(mockResponse, "test", Some("http://www.w3.org/2000/01/rdf-schema#label"), 0)
     //assert(out.toString() contains "href='/test_resource")
   }
 
@@ -196,7 +196,6 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val uri1 = "http://localhost:8080/data/saldo/bosättningsstopp..nn.1"
     val uri2 = "http://localhost:8080/data/saldo/bos%C3%A4ttningsstopp..nn.1"
     
-    println(UnicodeEscape.fixURI(NodeFactory.createURI(uri1)))
     UnicodeEscape.fixURI(NodeFactory.createURI(uri1)) should be (UnicodeEscape.fixURI(NodeFactory.createURI(uri2)))
   }
 

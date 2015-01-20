@@ -176,7 +176,7 @@ class RDFBackend(Store):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
 
-    def search(self, query, prop, limit=20):
+    def search(self, query, prop, offset, limit=20):
         """Search for pages with the appropriate property
         @param query The value to query for
         @param prop The property to use or None for no properties
@@ -190,13 +190,13 @@ class RDFBackend(Store):
             cursor.execute("""select distinct sids.n3, sids.label from
             free_text join ids as pids on free_text.pid = pids.id
             join ids as sids on free_text.sid = sids.id
-            where pids.n3=? and object match ? limit ?""",
-                           ("<%s>" % prop, query, limit))
+            where pids.n3=? and object match ? limit ? offset ?""",
+                           ("<%s>" % prop, query, limit + 1, offset))
         else:
             cursor.execute("""select distinct sids.n3, sids.label from
             free_text join ids as sids on free_text.sid = sids.id
-            where object match ? limit ?""",
-                           (query, limit))
+            where object match ? limit ? offset ?""",
+                           (query, limit + 1, offset))
         rows = cursor.fetchall()
         conn.close()
         return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
