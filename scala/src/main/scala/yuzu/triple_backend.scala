@@ -423,6 +423,23 @@ class TripleBackend(db : String) extends Backend {
     else {
       None }}
 
+  def summarize(page : String) = withSession(conn) { implicit session =>
+    val model = ModelFactory.createDefaultModel()
+    val subject = "<%s%s>" format (BASE_NAME, page)
+    sql"""SELECT subject, property, object FROM triples WHERE subject=$subject""".
+      as3[String, String, String].
+      foreach {
+        case (s, p, o) if FACETS.exists(_("uri") == p.drop(1).dropRight(1)) =>
+          model.add(
+            model.createStatement(
+              model.getRDFNode(fromN3(s)).asResource(),
+              model.getProperty(fromN3(p).getURI()),
+              model.getRDFNode(fromN3(o))))
+        case _ =>
+      }
+    model }
+          
+
   /** Add all blank nodes that have this subject */
   private def addBlanks(subj : Node, model : Model)(implicit session : Session) {
     val s = toN3(subj)
@@ -467,9 +484,9 @@ class TripleBackend(db : String) extends Backend {
       val results2 = results.toVector
       (results2.size > limit,
        results2.map {
-         case (s, null) => SearchResult(CONTEXT + "/" + s, s)
-         case (s, "") => SearchResult(CONTEXT + "/" + s, s)
-         case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l)) })}}
+         case (s, null) => SearchResult(CONTEXT + "/" + s, s, s)
+         case (s, "") => SearchResult(CONTEXT + "/" + s, s, s)
+         case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l), s) })}}
 
   /** List all pages by value */
   def listValues(offset : Int , limit : Int, prop : String) = {
@@ -481,9 +498,9 @@ class TripleBackend(db : String) extends Backend {
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit,
       results.map {
-        case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
-        case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
-        case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), c) })}}
+        case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
+        case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
+        case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), s, c) })}}
 
   /** Free text search */
   def search(query : String, property : Option[String], offset : Int,
@@ -503,9 +520,9 @@ class TripleBackend(db : String) extends Backend {
                 LIMIT $limit OFFSET $offset""".as2[String, String] }
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
       result.toVector.map {
-        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
-        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l)) }}}
+        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
+        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
+        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l), n32page(s)) }}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>

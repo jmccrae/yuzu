@@ -11,8 +11,8 @@ import scala.collection.JavaConversions._
 
 import com.github.jmccrae.sqlutils._
 
-case class SearchResult(link : String, label : String)
-case class SearchResultWithCount(link : String, label : String, count : Int)
+case class SearchResult(link : String, label : String, id : String)
+case class SearchResultWithCount(link : String, label : String, id : String, count : Int)
 
 
 trait Backend {
@@ -21,6 +21,8 @@ trait Backend {
     timeout : Int = 10) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
   def lookup(id : String) : Option[Model] 
+  /** Summarize the key triples to preview a page */
+  def summarize(id : String) : Model
   /** 
    * List pages by property and object
    * @param offset The query offset

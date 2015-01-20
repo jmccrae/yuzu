@@ -372,7 +372,7 @@ class RDFServer:
                     prop = "<%s>" % qs['prop'][0]
                 if 'obj' in qs:
                     obj = qs['obj'][0]
-                if 'obj_offset' in qs and re.match("\d+", qs['obj_offset']):
+                if 'obj_offset' in qs and re.match("\d+", qs['obj_offset'][0]):
                     obj_offset = int(qs['obj_offset'][0])
 
             return self.list_resources(start_response, offset,
@@ -508,7 +508,6 @@ class RDFServer:
                 self.backend.summarize(r["id"]),
                 BASE_NAME + r["id"])}
             for r in results]
-        print(results2)
         mres = pystache.render(template, {
             'facets': facets,
             'results': results2,
@@ -540,9 +539,16 @@ class RDFServer:
         qs = "&query=" + quote_plus(query)
         if prop:
             qs = "&property=" + quote_plus(prop)
+        results2 = [{
+            "title": r["label"],
+            "link": r["link"],
+            "model": from_model(
+                self.backend.summarize(r["id"]),
+                BASE_NAME + r["id"])}
+            for r in results]
         page = pystache.render(
             open(resolve('html/search.html')).read(),
-            {'results': results[:limit],
+            {'results': results2[:limit],
              'context': CONTEXT,
              'prev': prev,
              'has_prev': has_prev,

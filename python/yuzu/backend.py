@@ -200,7 +200,8 @@ class RDFBackend(Store):
         rows = cursor.fetchall()
         conn.close()
         return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
-                 'label': label} for uri, label in rows]
+                 'label': label, 'id': uri[len(BASE_NAME) + 1:-1]} 
+                for uri, label in rows]
 
     def summarize(self, id):
         """Summarize an id
@@ -221,9 +222,7 @@ class RDFBackend(Store):
                     if str(p)[1:-1] == f["uri"]:
                         g.add((from_n3(s), from_n3(p), from_n3(o)))
             conn.close()
-            return g
-        else:
-            return None
+        return g
 
     def list_resources(self, offset, limit, prop=None, obj=None):
         """
