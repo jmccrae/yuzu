@@ -27,7 +27,8 @@ from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
                            DISPLAY_NAME, FACETS, SEARCH_PATH, DISPLAYER,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
-                           LIST_PATH, DB_FILE, METADATA_PATH)
+                           LIST_PATH, DB_FILE, METADATA_PATH, DCAT,
+                           FOAF, ODRL, PROV, VOID, DATAID)
 from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
                             YZ_INVALID_QUERY, YZ_BAD_REQUEST,
                             YZ_NOT_FOUND_TITLE, YZ_NOT_FOUND_PAGE,
@@ -229,6 +230,15 @@ class RDFServer:
         graph.namespace_manager.bind(PREFIX7_QN, PREFIX7_URI)
         graph.namespace_manager.bind(PREFIX8_QN, PREFIX8_URI)
         graph.namespace_manager.bind(PREFIX9_QN, PREFIX9_URI)
+        graph.namespace_manager.bind("owl", str(OWL))
+        graph.namespace_manager.bind("dc", str(DC))
+        graph.namespace_manager.bind("dct", str(DCTERMS))
+        graph.namespace_manager.bind("dataid", DATAID)
+        graph.namespace_manager.bind("dcat", DCAT)
+        graph.namespace_manager.bind("foaf", FOAF)
+        graph.namespace_manager.bind("odrl", ODRL)
+        graph.namespace_manager.bind("prov", PROV)
+        graph.namespace_manager.bind("void", VOID)
 
     def rdfxml_to_html(self, graph, query, title="", is_test=False):
         """Convert RDF data to XML
@@ -385,9 +395,8 @@ class RDFServer:
                 try:
                     self.add_namespaces(graph)
                     if mime == "json-ld":
-                        content = graph.serialize(
-                            format=mime,
-                            context=self.jsonld_context()).decode('utf-8')
+                        content = yuzu.jsonld.write(
+                            graph, BASE_NAME + id)
                     else:
                         content = graph.serialize(format=mime).decode('utf-8')
                 except Exception as e:
@@ -427,7 +436,6 @@ class RDFServer:
                 try:
                     self.add_namespaces(graph)
                     if mime == "json-ld":
-                        print(mime)
                         content = yuzu.jsonld.write(
                             graph, BASE_NAME + id)
                     else:

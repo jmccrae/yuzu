@@ -313,6 +313,12 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     model.setNsPrefix("dc", DC_11.getURI())
     model.setNsPrefix("dct", DCTerms.getURI())
     model.setNsPrefix("xsd", XSD.getURI())
+    model.setNsPrefix("dcat", DCAT)
+    model.setNsPrefix("void", VOID)
+    model.setNsPrefix("dataid", DATAID)
+    model.setNsPrefix("foaf", FOAF)
+    model.setNsPrefix("odrl", ODRL)
+    model.setNsPrefix("prov", PROV)
   }
  
   
@@ -464,7 +470,11 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       } else {
         val out = new java.io.StringWriter()
         addNamespaces(model)
-        RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
+        if(mime == jsonld) {
+          JsonLDPrettySerializer.write(out, model, BASE_NAME + METADATA_PATH)
+        } else {
+          RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
+        }
         out.toString()
       }
       resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {

@@ -22,6 +22,10 @@ object JsonLDPrettySerializer {
         o
       case s : String =>
         JsonString(s)
+      case i : Int =>
+        JsonInt(i)
+      case d : Double =>
+        JsonFloat(d)
       case s : Seq[_] =>
         JsonList(s.map(JsonObj(_)))
       case m : Map[_, _] =>
@@ -41,6 +45,16 @@ object JsonLDPrettySerializer {
     def write(out : Writer, indent : Int) {
       out.write("\"%s\"" format (value.replaceAll("\\\\","\\\\\\\\").
         replaceAll("\"", "\\\\\""))) }
+  }
+
+  case class JsonInt(value : Int) extends JsonObj {
+    def write(out : Writer, indent : Int) {
+      out.write(value.toString) }
+  }
+
+  case class JsonFloat(value : Double) extends JsonObj {
+    def write(out : Writer, index : Int) {
+      out.write(value.toString) }
   }
 
   class JsonMap(val value : MutableMap[String, JsonObj]) extends JsonObj {
@@ -121,50 +135,30 @@ object JsonLDPrettySerializer {
     else {
       JsonString(p.getURI()) }}
 
-  private def splitURI(value : String) : (Option[String], String) = {
+  private def splitURI(value : String, graph : Model) : (Option[String], String) = {
     if(value.startsWith(BASE_NAME)) {
       return (None, value.drop(BASE_NAME.length)) }
-    for((uri, qn) <- Seq((PREFIX1_URI, PREFIX1_QN),
-                    (PREFIX2_URI, PREFIX2_QN),
-                    (PREFIX3_URI, PREFIX3_QN),
-                    (PREFIX4_URI, PREFIX4_QN),
-                    (PREFIX5_URI, PREFIX5_QN),
-                    (PREFIX6_URI, PREFIX6_QN),
-                    (PREFIX7_URI, PREFIX7_QN),
-                    (PREFIX8_URI, PREFIX8_QN),
-                    (PREFIX9_URI, PREFIX9_QN),
-                    (RDF.getURI(), "rdf"),
-                    (RDFS.getURI(), "rdfs"),
-                    (XSD.getURI(), "xsd"),
-                    (OWL.getURI(), "owl"),
-                    (DC_11.getURI(), "dc"),
-                    (DCTerms.getURI(), "dct"))) {
-      if(value.startsWith(uri) && uri != "http://www.example.com/") {
+    for((qn, uri) <- graph.getNsPrefixMap()) {
+      if(value.startsWith(uri)) {
         return (Some(qn), value.drop(uri.length)) }}
     return (None, value) }
 
+  private def isPrefixUsed(prefix : String, graph : Model) : Boolean = {
+    graph.listStatements().exists { stat =>
+      stat.getPredicate().getURI().startsWith(prefix) ||
+      (stat.getSubject().isURIResource() &&
+       stat.getSubject().asResource().getURI().startsWith(prefix)) ||
+      (stat.getObject().isURIResource() &&
+       stat.getObject().asResource().getURI().startsWith(prefix)) 
+    }
+  }
+
   private def extractJsonLDContext(graph : Model, 
       query : String) : (JsonMap, Map[String, String]) = {
-    val context = JsonObj(
-      "@base" -> BASE_NAME,
-      PREFIX1_QN -> PREFIX1_URI,
-      PREFIX2_QN -> PREFIX2_URI,
-      PREFIX3_QN -> PREFIX3_URI,
-      PREFIX4_QN -> PREFIX4_URI,
-      PREFIX5_QN -> PREFIX5_URI,
-      PREFIX6_QN -> PREFIX6_URI,
-      PREFIX7_QN -> PREFIX7_URI,
-      PREFIX8_QN -> PREFIX8_URI,
-      PREFIX9_QN -> PREFIX9_URI,
-      "rdf" -> RDF.getURI(),
-      "rdfs" -> RDFS.getURI(),
-      "xsd" -> XSD.getURI(),
-      "owl" -> OWL.getURI(),
-      "dc" -> DC_11.getURI(),
-      "dct" -> DCTerms.getURI())
-    for(k <- context.keys) {
-      if(context(k) == JsonString("http://www.example.com/")) {
-        context.remove(k) }}
+    val context = JsonObj("@base" -> BASE_NAME)
+    for((k, v) <- graph.getNsPrefixMap()) {
+      if(isPrefixUsed(v, graph)) {
+        context(k) = v }}
     val props = MutableMap[String, String]()
     for(p <- graph.listProperties()) {
       val pStr = p.getURI()
@@ -174,7 +168,7 @@ object JsonLDPrettySerializer {
       if(!isAlnum(shortName) && pStr.contains("/")) {
         shortName = pStr.drop(pStr.lastIndexOf("/") + 1) }
       if(!isAlnum(shortName)) {
-        val (pre, suf) = splitURI(pStr)
+        val (pre, suf) = splitURI(pStr, graph)
         shortName = suf }
       var sn = shortName
       var i = 2
@@ -266,14 +260,14 @@ object JsonLDPrettySerializer {
                         isObj, drb, stack) })}
       case r : Resource if r.isURIResource() =>
         if(graph.listStatements(r, null, null : RDFNode).isEmpty && isObj) {
-          val (pre, suf) = splitURI(r.getURI())
+          val (pre, suf) = splitURI(r.getURI(), graph)
           pre match {
             case Some(pre) =>
               JsonString("%s:%s" format (pre, suf))
             case None => 
               JsonString(suf) }}
         else {
-          val (pre, suf) = splitURI(r.getURI())
+          val (pre, suf) = splitURI(r.getURI(), graph)
           val obj = pre match {
             case Some(pre) =>
               JsonObj("@id" -> ("%s:%s" format (pre, suf)))
@@ -303,8 +297,12 @@ object JsonLDPrettySerializer {
           JsonObj("@value" -> l.getLexicalForm(),
                   "@language" -> l.getLanguage())  }
         else if(l.getDatatype() != null) {
-          val (pre, suf) = splitURI(l.getDatatype().getURI())
+          val (pre, suf) = splitURI(l.getDatatype().getURI(), graph)
           pre match {
+            case Some("xsd") if suf == "integer" =>
+              JsonInt(l.getInt())
+            case Some("xsd") if suf == "double" =>
+              JsonFloat(l.getDouble())
             case Some(pre) =>
               JsonObj("@value" -> l.getLexicalForm(),
                       "@type" -> ("%s:%s" format (pre, suf)))

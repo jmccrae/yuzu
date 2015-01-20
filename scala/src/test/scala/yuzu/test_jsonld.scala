@@ -12,22 +12,7 @@ class JsonLDTest extends WordSpec with Matchers {
 
   def ctxt(cts : (String, Any)*) = {
     val m = Map[String, Any](
-      "@base" -> BASE_NAME,
-      PREFIX1_QN -> PREFIX1_URI,
-      PREFIX2_QN -> PREFIX2_URI,
-      PREFIX3_QN -> PREFIX3_URI,
-      PREFIX4_QN -> PREFIX4_URI,
-      PREFIX5_QN -> PREFIX5_URI,
-      PREFIX6_QN -> PREFIX6_URI,
-      PREFIX7_QN -> PREFIX7_URI,
-      PREFIX8_QN -> PREFIX8_URI,
-      PREFIX9_QN -> PREFIX9_URI,
-      "rdf" -> RDF.getURI(),
-      "rdfs" -> RDFS.getURI(),
-      "xsd" -> XSD.getURI(),
-      "owl" -> OWL.getURI(),
-      "dc" -> DC_11.getURI(),
-      "dct" -> DCTerms.getURI())
+      "@base" -> BASE_NAME)
     for(k <- m.keys) {
       if(m(k) == "http://www.example.com/") {
         m.remove(k) }}
@@ -53,6 +38,8 @@ class JsonLDTest extends WordSpec with Matchers {
     "give a blank node" should {
       "serialize correctly" in {
         val graph = ModelFactory.createDefaultModel()
+        graph.setNsPrefix("rdf", RDF.getURI())
+        graph.setNsPrefix("rdfs", RDFS.getURI())
         val b1 = graph.createResource()
         graph.createResource("http://localhost:8080/foo").
           addProperty(graph.createProperty("http://www.example.com/list"),
@@ -77,7 +64,8 @@ class JsonLDTest extends WordSpec with Matchers {
                 "rest" -> JsonObj(
                   "@id" -> "http://www.example.com/rest",
                   "@type" -> "@id"
-                )
+                ),
+                "rdf" -> JsonString(RDF.getURI())
             ),
           "@id" -> "foo",
           "list" -> JsonObj(
@@ -217,5 +205,19 @@ class JsonLDTest extends WordSpec with Matchers {
           "@context" -> ctxt(),
           "@id" -> "foo",
           "@type" -> "http://www.example.com/Bar")) }}
+
+    "given an integer" should {
+      "not use @type" in {
+        val graph = ModelFactory.createDefaultModel()
+        graph.setNsPrefix("xsd", XSD.getURI())
+        graph.createResource("http://localhost:8080/foo").
+          addProperty(graph.createProperty("http://www.example.com/foo"),
+            graph.createTypedLiteral("3", NodeFactory.getType(XSD.integer.getURI())))
+        val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
+        obj should be (JsonObj(
+          "@context" -> ctxt(
+            "foo" -> "http://www.example.com/foo"),
+          "@id" -> "foo",
+          "foo" -> 3)) }}
   }
 }

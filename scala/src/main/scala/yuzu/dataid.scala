@@ -197,6 +197,9 @@ object DataID {
         model.createProperty(VOID + "subset"),
         linkset)
       linkset.addProperty(
+        model.createProperty(VOID + "subjectTargets"),
+        dataid)
+      linkset.addProperty(
         model.createProperty(VOID + "target"),
         model.createResource(target))
       linkset.addProperty(

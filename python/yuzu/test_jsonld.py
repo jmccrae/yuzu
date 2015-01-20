@@ -1,38 +1,15 @@
 import unittest
 from rdflib import Graph, URIRef, BNode, Literal
 from yuzu.jsonld import jsonld_from_model
-from yuzu.settings import (PREFIX1_URI, PREFIX2_URI, PREFIX3_URI,
-                           PREFIX4_URI, PREFIX5_URI, PREFIX6_URI,
-                           PREFIX7_URI, PREFIX8_URI, PREFIX9_URI,
-                           PREFIX1_QN, PREFIX2_QN, PREFIX3_QN,
-                           PREFIX4_QN, PREFIX5_QN, PREFIX6_QN,
-                           PREFIX7_QN, PREFIX8_QN, PREFIX9_QN, BASE_NAME)
-from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
+from yuzu.settings import BASE_NAME
+from rdflib.namespace import RDF, XSD
 
 
 class JsonLDTest(unittest.TestCase):
 
     def ctxt(self, ct):
         self.maxDiff = None
-        m = {
-            "@base": BASE_NAME,
-            PREFIX1_QN: PREFIX1_URI,
-            PREFIX2_QN: PREFIX2_URI,
-            PREFIX3_QN: PREFIX3_URI,
-            PREFIX4_QN: PREFIX4_URI,
-            PREFIX5_QN: PREFIX5_URI,
-            PREFIX6_QN: PREFIX6_URI,
-            PREFIX7_QN: PREFIX7_URI,
-            PREFIX8_QN: PREFIX8_URI,
-            PREFIX9_QN: PREFIX9_URI,
-            "rdf": str(RDF),
-            "rdfs": str(RDFS),
-            "xsd": str(XSD),
-            "owl": str(OWL),
-            "dc": str(DC),
-            "dct": str(DCTERMS)}
-        m = {k: v for k, v in m.items()
-             if v != "http://www.example.com/"}
+        m = {"@base": BASE_NAME}
         for k in ct:
             m[k] = ct[k]
         return m
@@ -82,7 +59,8 @@ class JsonLDTest(unittest.TestCase):
                 "rest": {
                     "@id": "http://www.example.com/rest",
                     "@type": "@id"
-                }
+                },
+                "rdf": str(RDF)
             }),
             "@id": "foo",
             "list": {
@@ -231,9 +209,22 @@ class JsonLDTest(unittest.TestCase):
         print("type")
         print(obj)
         self.assertDictEqual({
-            "@context": self.ctxt({}),
+            "@context": self.ctxt({"rdf": str(RDF)}),
             "@id": "foo",
             "@type": "http://www.example.com/Bar"}, obj)
+
+    def test_int(self):
+        g = Graph()
+        g.add((URIRef("http://localhost:8080/foo"),
+               URIRef("http://www.example.com/prop"),
+               Literal("3", datatype=XSD.integer)))
+        obj = jsonld_from_model(g, "http://localhost:8080/foo")
+        print("int")
+        print(obj)
+        self.assertDictEqual({
+            "@context": self.ctxt({"prop": "http://www.example.com/prop"}),
+            "@id": "foo",
+            "prop": 3}, obj)
 
 
 if __name__ == '__main__':
