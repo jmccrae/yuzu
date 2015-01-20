@@ -12,29 +12,29 @@ BASE_NAME = "http://linghub.lider-project.eu/"
 # is /yuzu/
 CONTEXT = ""
 # The data download will be at BASE_NAME + DUMP_URI
-DUMP_URI = "/example.nt.gz"
+DUMP_URI = "/linghub.nt.gz"
 # The local path to the data
 DUMP_FILE = "../linghub.nt.gz"
 # Where the SQLite database should appear
 DB_FILE = "linghub.db"
 # The name of the server
-DISPLAY_NAME = "Example"
+DISPLAY_NAME = "LingHub"
 # The extra namespaces to be abbreviated in HTML and RDF/XML
 # documents if desired
-PREFIX1_URI = "http://www.example.com/"
-PREFIX1_QN = "ex1"
-PREFIX2_URI = "http://www.example.com/"
-PREFIX2_QN = "ex2"
-PREFIX3_URI = "http://www.example.com/"
-PREFIX3_QN = "ex3"
-PREFIX4_URI = "http://www.example.com/"
-PREFIX4_QN = "ex4"
-PREFIX5_URI = "http://www.example.com/"
-PREFIX5_QN = "ex5"
-PREFIX6_URI = "http://www.example.com/"
-PREFIX6_QN = "ex6"
-PREFIX7_URI = "http://www.example.com/"
-PREFIX7_QN = "ex7"
+PREFIX1_URI = "http://www.w3.org/ns/dcat#"
+PREFIX1_QN = "dcat"
+PREFIX2_URI = "http://xmlns.com/foaf/0.1"
+PREFIX2_QN = "foaf"
+PREFIX3_URI = "http://www.clarin.eu/cmd/"
+PREFIX3_QN = "cmd"
+PREFIX4_URI = "http://purl.org/dc/terms/"
+PREFIX4_QN = "dct"
+PREFIX5_URI = "http://www.resourcebook.eu/lremap/owl/lremap_resource.owl#"
+PREFIX5_QN = "lremap"
+PREFIX6_URI = "http://purl.org/ms-lod/MetaShare.ttl#"
+PREFIX6_QN = "metashare"
+PREFIX7_URI = "http://purl.org/ms-lod/BioServices.ttl#"
+PREFIX7_QN = "bio"
 PREFIX8_URI = "http://www.example.com/"
 PREFIX8_QN = "ex8"
 PREFIX9_URI = "http://www.example.com/"
@@ -69,9 +69,49 @@ METADATA_PATH = "dataid"
 # Properties to use as facets
 FACETS = [
     {
-        "uri": "http://www.w3.org/2000/01/rdf-schema#label",
-        "label": "Label",
+        "uri": "http://purl.org/dc/elements/1.1/title",
+        "label": "Title",
+        "list": False
+    },
+    {
+        "uri": "http://purl.org/dc/elements/1.1/language",
+        "label": "Language",
         "list": True
+    },
+    {
+        "uri": "http://purl.org/dc/elements/1.1/rights",
+        "label": "Rights",
+        "list": True
+    },
+    {
+        "uri": "http://purl.org/dc/elements/1.1/type",
+        "label": "Type",
+        "list": True
+    },
+    {
+        "uri": "http://purl.org/dc/elements/1.1/creator",
+        "label": "Creator",
+        "list": True
+    },
+    {
+        "uri": "http://purl.org/dc/elements/1.1/source",
+        "label": "Source",
+        "list": True
+    },
+    {
+        "uri": "http://purl.org/dc/elements/1.1/description",
+        "label": "Description",
+        "list": False
+    },
+    {
+        "uri": "http://www.w3.org/ns/dcat#accessURL",
+        "label": "Access URL",
+        "list": False
+    },
+    {
+        "uri": "http://www.w3.org/ns/dcat#contactPoint",
+        "label": "Contact Point",
+        "list": False
     }
 ]
 # Properties to use as labels
