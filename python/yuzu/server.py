@@ -470,7 +470,7 @@ class RDFServer:
         else:
             has_next = "disabled"
         nxt = offset + limit
-        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)) + 1)
+        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)))
         facets = []
         for facet in FACETS:
             if "list" not in facet or facet["list"] is True:
