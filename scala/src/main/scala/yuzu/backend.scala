@@ -193,7 +193,7 @@ object RDFBackend {
       case file @ endsGZ() => new GZIPInputStream(new FileInputStream(file))
       case file => new FileInputStream(file)
     }
-    backend.loadByTmp(inputStream, opts contains "-e")
+    backend.load(inputStream, opts contains "-e")
     //backend.close()
   }
 }

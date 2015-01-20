@@ -7,6 +7,7 @@ from yuzu.settings import (PREFIX1_URI, PREFIX2_URI, PREFIX3_URI,
                            PREFIX7_QN, PREFIX8_QN, PREFIX9_QN, BASE_NAME)
 from rdflib.namespace import RDF, RDFS, XSD, OWL, DC, DCTERMS
 from rdflib import URIRef, BNode
+import json
 
 
 def is_alnum(string):
@@ -202,6 +203,10 @@ def double_reffed_bnodes(graph):
         if isinstance(o, BNode):
             if len(list(graph.subject_predicates(o))) > 1:
                 yield(o)
+
+
+def write(graph, query):
+    return json.dumps(jsonld_from_model(graph, query), indent=2)
 
 
 def jsonld_from_model(graph, query):

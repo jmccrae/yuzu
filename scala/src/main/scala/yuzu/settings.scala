@@ -74,13 +74,18 @@ object YuzuSettings {
   // Properties to use as labels
   val LABELS = Set(
     "<http://www.w3.org/2000/01/rdf-schema#label>",
-  "<http://xmlns.com/foaf/0.1/nick>",
-  "<http://purl.org/dc/elements/1.1/title>",
-  "<http://purl.org/rss/1.0/title>",
-  "<http://xmlns.com/foaf/0.1/name>"
+    "<http://xmlns.com/foaf/0.1/nick>",
+    "<http://purl.org/dc/elements/1.1/title>",
+    "<http://purl.org/rss/1.0/title>",
+    "<http://xmlns.com/foaf/0.1/name>"
   )
   // The displayer for URIs
   val DISPLAYER = PrettyDisplayer
+  
+  // Any forced names on properties
+  val PROP_NAMES = Map(
+   "http://localhost:8080/ontology#link" -> "Link property"
+  )
   // Linked datasets (this is only used for metadata but is created
   // on DB load). Not linked indicates URI starts which are not to 
   // be considered links, any other links are assumed to start with the 

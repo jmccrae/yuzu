@@ -34,6 +34,7 @@ from yuzu.user_text import (YZ_NO_QUERY, YZ_TIME_OUT, YZ_MOVED_TO,
                             YZ_JSON_LD_NOT_INSTALLED, YZ_NOT_IMPLEMENTED,
                             YZ_METADATA, YZ_NO_RESULTS)
 from yuzu.dataid import dataid
+import yuzu.jsonld
 
 
 __author__ = 'John P. McCrae'
@@ -422,9 +423,9 @@ class RDFServer:
                 try:
                     self.add_namespaces(graph)
                     if mime == "json-ld":
-                        content = graph.serialize(
-                            format=mime,
-                            context=self.jsonld_context()).decode('utf-8')
+                        print(mime)
+                        content = yuzu.jsonld.write(
+                            graph, BASE_NAME + id)
                     else:
                         content = graph.serialize(format=mime).decode('utf-8')
                 except Exception as e:

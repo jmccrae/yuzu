@@ -83,6 +83,11 @@ LABELS = [
     "<http://xmlns.com/foaf/0.1/name>"
 ]
 
+# Any forced names of properties
+PROP_NAMES = {
+    "http://localhost:8080/ontology#link": "Link property"
+}
+
 # Linked datasets (this is only used for metadata but is created
 # on DB load). Not linked indicates URI starts which are not to
 # be considered links, any other links are assumed to start with the
@@ -129,7 +134,9 @@ DERIVED_FROM = []
 # Displayers are here due to circular importing :(
 class DefaultDisplayer:
     def uri_to_str(self, uri):
-        if uri.startswith(BASE_NAME):
+        if uri in PROP_NAMES:
+            return PROP_NAMES[uri]
+        elif uri.startswith(BASE_NAME):
             return "%s" % uri[len(BASE_NAME):]
         elif uri.startswith(PREFIX1_URI):
             return "%s:%s" % (PREFIX1_QN, uri[len(PREFIX1_URI):])
@@ -200,7 +207,9 @@ class PrettyDisplayer:
             ""
 
     def uri_to_str(self, uri):
-        if uri.startswith(BASE_NAME):
+        if uri in PROP_NAMES:
+            return PROP_NAMES[uri]
+        elif uri.startswith(BASE_NAME):
             return self.magic_string("%s" % uri[len(BASE_NAME):])
         elif uri.startswith(PREFIX1_URI):
             return self.magic_string(

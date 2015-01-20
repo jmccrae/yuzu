@@ -192,5 +192,13 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     N3.toN3(NodeFactory.createURI(uri)) should be ("<" + uri + ">")
   }
 
+  "fix_url" should "encode non-ASCII the same" in {
+    val uri1 = "http://localhost:8080/data/saldo/bosättningsstopp..nn.1"
+    val uri2 = "http://localhost:8080/data/saldo/bos%C3%A4ttningsstopp..nn.1"
+    
+    println(UnicodeEscape.fixURI(NodeFactory.createURI(uri1)))
+    UnicodeEscape.fixURI(NodeFactory.createURI(uri1)) should be (UnicodeEscape.fixURI(NodeFactory.createURI(uri2)))
+  }
+
 
 }

@@ -170,18 +170,23 @@ object RDFServer {
       out.flush()
     }
     def binary(contentType : String, file : URL) {
-      resp.addHeader("Content-type", contentType)
-      if(file.getProtocol() == "file") {
-        resp.addHeader("Content-length", new File(file.getPath()).length().toString)
+      try {
+        val in = file.openStream()
+        resp.addHeader("Content-type", contentType)
+        if(file.getProtocol() == "file") {
+          resp.addHeader("Content-length", new File(file.getPath()).length().toString)
+        }
+        val out = resp.getOutputStream()
+        val buf = new Array[Byte](4096)
+        var read = 0
+        while({ read = in.read(buf) ; read } >= 0) {
+          out.write(buf, 0, read)
+        }
+        out.flush()
+      } catch {
+        case x : java.io.FileNotFoundException =>
+          resp.sendError(SC_NOT_FOUND, YZ_BINARY_NOT_FOUND) 
       }
-      val in = file.openStream()
-      val out = resp.getOutputStream()
-      val buf = new Array[Byte](4096)
-      var read = 0
-      while({ read = in.read(buf) ; read } >= 0) {
-        out.write(buf, 0, read)
-      }
-      out.flush()
     }
   }
 }

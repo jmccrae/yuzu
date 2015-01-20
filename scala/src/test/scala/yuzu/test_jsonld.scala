@@ -213,7 +213,6 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
             graph.createResource("http://www.example.com/Bar"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-          println(obj)
         obj should be (JsonObj(
           "@context" -> ctxt(),
           "@id" -> "foo",
