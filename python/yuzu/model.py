@@ -1,6 +1,7 @@
 from rdflib.term import Literal, URIRef, BNode
 from rdflib.namespace import RDF
-from yuzu.settings import DISPLAYER, CONTEXT
+from yuzu.settings import CONTEXT
+from yuzu.displayer import DISPLAYER
 
 
 def from_model(graph, query):

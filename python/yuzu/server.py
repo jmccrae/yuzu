@@ -20,12 +20,13 @@ from copy import copy
 
 from yuzu.model import from_model, sparql_results_to_dict
 from yuzu.backend import RDFBackend
+from yuzu.displayer import DISPLAYER
 from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX2_URI, PREFIX2_QN, PREFIX3_URI, PREFIX3_QN,
                            PREFIX4_URI, PREFIX4_QN, PREFIX5_URI, PREFIX5_QN,
                            PREFIX6_URI, PREFIX6_QN, PREFIX7_URI, PREFIX7_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
-                           DISPLAY_NAME, FACETS, SEARCH_PATH, DISPLAYER,
+                           DISPLAY_NAME, FACETS, SEARCH_PATH,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
                            LIST_PATH, DB_FILE, METADATA_PATH, DCAT,
                            FOAF, ODRL, PROV, VOID, DATAID)

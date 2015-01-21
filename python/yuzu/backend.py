@@ -17,7 +17,8 @@ if sys.version_info[0] < 3:
 else:
     from urllib.parse import urlparse, unquote
 
-from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
+import yuzu.displayer
+from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, 
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
                            LINKED_SETS, MIN_LINKS, YUZUQL_LIMIT,
                            PREFIX1_URI, PREFIX1_QN,
@@ -304,7 +305,8 @@ class RDFBackend(Store):
 #                                        'count': count})
 #                else:
                     results.append({'link': obj,
-                                    'label': DISPLAYER.apply(str(n3)),
+                                    'label': yuzu.displyer.DISPLAYER.apply(
+                                        str(n3)),
                                     'count': count})
             n += 1
             row = cursor.fetchone()
