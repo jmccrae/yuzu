@@ -38,7 +38,14 @@
 	</script>
 	<link href="/assets/wnrdf.css" media="all" rel="stylesheet" type="text/css">
 </head>
-
+<script type="text/javascript">
+function flagFallBack(tag) {
+    if(tag.src.indexOf("und.gif", tag.src.length - 7) === -1) {
+        tag.src='{{context}}/assets/flag/und.gif';
+        tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
+    }
+}
+</script>
 <body class="wordnet" id="home">
 <!--googleoff: all--><div id="skipnav"><a href="#content">Skip over navigation</a></div><!--googleon: all--><div class="pagelevel-home nav-vertical" id="wrappercontainer"><div id="toolbarcontainer"><div id="toolbar"><!-- robots:noindex --><div id="logolink"><a href="http://www.princeton.edu/"><img alt="Princeton University" src="http://wordnet.princeton.edu/wwwdept_themes/inventive-warmorange/images/logobar_logo.png"></a></div><div id="toolbarlinks">
 <ul id="toolbarnav">
