@@ -200,7 +200,7 @@ class RDFBackend(Store):
         rows = cursor.fetchall()
         conn.close()
         return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
-                 'label': label, 'id': uri[len(BASE_NAME) + 1:-1]} 
+                 'label': label, 'id': uri[len(BASE_NAME) + 1:-1]}
                 for uri, label in rows]
 
     def summarize(self, id):
@@ -216,11 +216,13 @@ class RDFBackend(Store):
             """select subject, property, object from triples where
             subject=?""", ("<%s%s>" % (BASE_NAME, unicode_escape(id)),))
         rows = cursor.fetchall()
+        added = 0
         if rows:
             for s, p, o in rows:
                 for f in FACETS:
-                    if str(p)[1:-1] == f["uri"]:
+                    if added < 20 and str(p)[1:-1] == f["uri"]:
                         g.add((from_n3(s), from_n3(p), from_n3(o)))
+                        added += 1
             conn.close()
         return g
 

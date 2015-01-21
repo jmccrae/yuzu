@@ -11,11 +11,12 @@ def from_model(graph, query):
         for class_of_value in graph.objects(elem, RDF.type):
             class_of = from_node(graph, class_of_value, [])
             break
+    triples = list(triple_frags(elem, graph, [], class_of))
     model = {
         'display': DISPLAYER.apply(elem),
         'uri': query,
-        'triples': list(triple_frags(elem, graph, [], class_of)),
-        'has_triples': len(list(graph.predicate_objects(elem))) > 0,
+        'triples': triples,
+        'has_triples': len(triples) > 0,
         'classOf': class_of,
         'context': CONTEXT,
         'inverses': list(inverse_triple_frags(elem, graph, query))
@@ -71,8 +72,8 @@ def triple_frags(elem, graph, stack, classOf):
 
 
 def inverse_triple_frags(elem, graph, query):
-    triples = [(from_node(graph, p, []),
-                from_node(graph, s, []))
+    triples = [(from_node(graph, p, [], False),
+                from_node(graph, s, [], False))
                for s, p in graph.subject_predicates(elem)
                if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
                    ('#' not in str(s) and str(s) != query))]
@@ -85,25 +86,37 @@ def inverse_triple_frags(elem, graph, query):
         }
 
 
-def from_node(graph, node, stack):
+def from_node(graph, node, stack, recurse=True):
     if type(node) == URIRef:
         fragment = None
         if '#' in str(node):
             fragment = str(node)[str(node).index('#') + 1:]
-        return {
-            'display': DISPLAYER.apply(node),
-            'uri': str(node),
-            'triples': list(triple_frags(node, graph, stack, None)),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0,
-            'context': CONTEXT,
-            'fragment': fragment
-        }
+        if recurse:
+            triples = list(triple_frags(node, graph, stack, None))
+            return {
+                'display': DISPLAYER.apply(node),
+                'uri': str(node),
+                'triples': triples,
+                'has_triples': len(triples) > 0,
+                'context': CONTEXT,
+                'fragment': fragment
+            }
+        else:
+            return {
+                'display': DISPLAYER.apply(node),
+                'uri': str(node),
+                'triples': [],
+                'has_triples': False,
+                'context': CONTEXT,
+                'fragment': fragment
+            }
     elif type(node) == BNode:
+        triples = list(triple_frags(node, graph, stack, None))
         return {
             'display': DISPLAYER.apply(node),
             'bnode': True,
-            'triples': list(triple_frags(node, graph, stack, None)),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'triples': triples,
+            'has_triples': len(triples) > 0,
             'context': CONTEXT
         }
     elif type(node) == Literal:
@@ -112,7 +125,7 @@ def from_node(graph, node, stack):
             'literal': True,
             'lang': node.language,
             'datatype': from_dt(node.datatype),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'has_triples': False,
             'context': CONTEXT
         }
 

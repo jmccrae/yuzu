@@ -2,7 +2,7 @@
 <tr>
     <td class="rdf_prop">
         {{#prop}}
-            <a href="{{uri}}">{{display}}</a>
+            <a href="{{uri}}" class="rdf_link">{{display}}</a>
         {{/prop}}
     </td>
     <td class="rdf_value rdf_first_value">
@@ -25,7 +25,7 @@
                         <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
                     {{/lang}}
                     {{#datatype}}
-                        <span class="pull-right rdf_datatype"><a href="{{uri}}">{{display}}</a></span>
+                        <span class="pull-right rdf_datatype"><a href="{{uri}}" class="rdf_link">{{display}}</a></span>
                     {{/datatype}}
                 {{/literal}}
                 {{^literal}}
@@ -33,7 +33,7 @@
                         <i>Anonymous Node</i>
                     {{/bnode}}
                     {{^bnode}}
-                        <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}">{{display}}</a>
+                        <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" class="rdf_link rdf_prop">{{display}}</a>
                     {{/bnode}}
                 {{/literal}}
             {{/has_triples}}
