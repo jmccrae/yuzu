@@ -10,6 +10,7 @@ from yuzu.settings import (PREFIX1_QN, PREFIX1_URI, DATAID,
                            PREFIX7_QN, PREFIX7_URI,
                            PREFIX8_QN, PREFIX8_URI,
                            PREFIX9_QN, PREFIX9_URI, PROP_NAMES, BASE_NAME)
+import yuzu.backend
 
 
 # Displayers are here due to circular importing :(
@@ -88,6 +89,7 @@ class PrettyDisplayer:
             ""
 
     def uri_to_str(self, uri):
+        db = yuzu.backend.RDFBackend()
         if uri in PROP_NAMES:
             return PROP_NAMES[uri]
         elif uri.startswith(PREFIX1_URI):
@@ -118,7 +120,11 @@ class PrettyDisplayer:
             return self.magic_string(
                 "%s" % (uri[len(PREFIX9_URI):]))
         elif uri.startswith(BASE_NAME):
-            return self.magic_string("%s" % uri[len(BASE_NAME):])
+            l = db.label(uri[len(BASE_NAME):])
+            if l:
+                return l
+            else:
+                return self.magic_string(uri[len(str(BASE_NAME)):])
         elif uri.startswith(str(RDF)):
             return self.magic_string(uri[len(str(RDF)):])
         elif uri.startswith(str(RDFS)):

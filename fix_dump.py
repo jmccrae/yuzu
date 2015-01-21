@@ -9,6 +9,7 @@ for line in sys.stdin.readlines():
         elems[-2] = elems[-2].replace("@dan", "@da")
         elems[-2] = elems[-2].replace("@eng", "@en")
         elems[-2] = elems[-2].replace("@eus", "@eu")
+        elems[-2] = elems[-2].replace("@fas", "@fa")
         elems[-2] = elems[-2].replace("@fin", "@fi")
         elems[-2] = elems[-2].replace("@fra", "@fr")
         elems[-2] = elems[-2].replace("@glg", "@gl")

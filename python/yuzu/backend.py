@@ -400,7 +400,7 @@ class RDFBackend(Store):
 
         cursor.execute(
             """select object from triples where page=? and property=?""",
-            (id, "http://www.w3.org/2000/01/rdf-schema#label"))
+            (id, "<http://www.w3.org/2000/01/rdf-schema#label>"))
 
         l = ", ".join(str(from_n3(s)) for s, in cursor.fetchall())
         conn.close()
