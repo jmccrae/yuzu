@@ -495,7 +495,7 @@ class RDFServer:
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])
         query = ""
         if prop:
-            query += "&prop=" + quote_plus(prop)
+            query += "&prop=" + quote_plus(prop[-1:1])
         if obj:
             query += "&obj=" + quote_plus(obj)
         if obj_offset:

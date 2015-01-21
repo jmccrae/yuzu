@@ -75,8 +75,9 @@ def inverse_triple_frags(elem, graph, query):
     triples = [(from_node(graph, p, [], False),
                 from_node(graph, s, [], False))
                for s, p in graph.subject_predicates(elem)
-               if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
-                   ('#' not in str(s) and str(s) != query))]
+               if not str(s).startswith(query)]
+#               if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
+#                   ('#' not in str(s) and str(s) != query))]
     sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
     grouped = groupby(sortt)
     for p, objs in grouped:
