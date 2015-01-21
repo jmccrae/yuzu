@@ -3,19 +3,19 @@
 
 </div>
 <div class="row">
-    <div class="col-lg-2">
+    <div class="list-by">
         <h4>List by:</h4>
-        <div class="list-group">
+        <div class="btn-group">
             {{#facets}}
-            <a href='{{context}}/list/?prop={{uri_enc}}' class="list-group-item active" class="rdf_link">{{label}}</a>
+            <a href='{{context}}/list/?prop={{uri_enc}}' class="btn btn-default active" class="rdf_link">{{label}}</a>
             {{#values?}}
-                <div class="list-group">
+                <div class="btn">
             {{/values?}}
                 {{#values}}
-                <a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}&obj_offset={{offset}}' class="list-group-item" style="word-wrap:break-word;">{{value}} ({{count}})</a>
+                <a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}&obj_offset={{offset}}' class="btn btn-secondary" style="word-wrap:break-word;">{{value}} ({{count}})</a>
                 {{/values}}
                 {{#more_values}}
-                <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}' class="list-group-item">More values...</a>
+                <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}' class="btn btn-secondary">More values...</a>
                 {{/more_values}}
                 {{#values?}}
                 </div>
@@ -23,7 +23,7 @@
             {{/facets}}
         </div>
     </div>
-    <div class="col-lg-10">
+    <div>
             {{#results}}
                 <div class="panel panel-default">
                 <div class="panel-heading"><a href="{{link}}" class="rdf_link">{{title}}</a></div>

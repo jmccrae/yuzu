@@ -52,6 +52,9 @@
 table.rdf_embedded_table {
     width: 100%;
 }
+.rdf_embedded_table td.rdf_prop {
+    padding-left: 1em;
+}
 a.anchor {
     display: block; 
     position: relative; 
@@ -99,7 +102,6 @@ a.anchor {
           user-select: none;
   background-image: none;
   border: 1px solid transparent;
-  border-radius: 4px;
 }
 .btn.disabled,
 .btn[disabled],
@@ -115,6 +117,11 @@ fieldset[disabled] .btn {
   color: #333;
   background-color: #fff;
   border-color: #ccc;
+}
+.btn-secondary {
+    color: #333;
+    background-color: #ccc;
+    border-left: 1px solid #999;
 }
 .btn-group,
 .btn-group-vertical {
@@ -138,4 +145,19 @@ fieldset[disabled] .btn {
   line-height: 1.42857143;
   border: 1px solid transparent;
   border-radius: 4px 4px 0 0;
+}
+a.rdf_link {
+    text-decoration: none;
+}
+a.btn-default {
+    text-decoration: none;
+}
+a.btn-secondary {
+    text-decoration: none;
+}
+.list-by h4 {
+    margin-bottom: 5px;
+}
+.list-by {
+    margin-bottom: 25px;
 }
