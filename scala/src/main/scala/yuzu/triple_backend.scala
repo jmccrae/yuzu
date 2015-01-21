@@ -495,7 +495,7 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val limit2 = limit + 1
       val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
-                          WHERE property=$prop 
+                          WHERE property=$prop AND head=1
                           GROUP BY oid ORDER BY count(*) DESC 
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit,

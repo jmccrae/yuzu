@@ -554,7 +554,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       }
     } 
     val queryString = (property match {
-        case Some(p) => "&prop=" + quotePlus(p)
+        case Some(p) => "&prop=" + quotePlus(p.drop(1).dropRight(1))
         case None => "" }) + 
       (obj match {
         case Some(o) => "&obj=" + quotePlus(o)

@@ -280,7 +280,7 @@ class RDFBackend(Store):
         if not offset:
             offset = 0
         cursor.execute("""SELECT DISTINCT object, obj_label, count(*)
-                          FROM triples WHERE property=?
+                          FROM triples WHERE property=? AND head=0
                           GROUP BY oid ORDER BY count(*) DESC
                           LIMIT ? OFFSET ?""", (prop, limit + 1, offset))
         row = cursor.fetchone()
