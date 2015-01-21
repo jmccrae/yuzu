@@ -426,10 +426,12 @@ class TripleBackend(db : String) extends Backend {
   def summarize(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
     val subject = "<%s%s>" format (BASE_NAME, page)
+    var added = 0
     sql"""SELECT subject, property, object FROM triples WHERE subject=$subject""".
       as3[String, String, String].
       foreach {
-        case (s, p, o) if FACETS.exists(_("uri") == p.drop(1).dropRight(1)) =>
+        case (s, p, o) if added < 20 && FACETS.exists(_("uri") == p.drop(1).dropRight(1)) =>
+          added += 1
           model.add(
             model.createStatement(
               model.getRDFNode(fromN3(s)).asResource(),

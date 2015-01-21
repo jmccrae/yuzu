@@ -15,7 +15,7 @@
             {{#result}}
                 <td>
                     {{#uri}}
-                        <a href="{{uri}}">{{display}}</a>
+                        <a href="{{uri}}" class="rdf_link">{{display}}</a>
                     {{/uri}}
                     {{#value}}
                         {{value}}
@@ -24,7 +24,7 @@
                         <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif"/></span>
                     {{/lang}}
                     {{#datatype}}
-                        <span class="pull-right disabled"><a href="{{uri}}">{{display}}</a></span>
+                        <span class="pull-right disabled"><a href="{{uri}}" class="rdf_link">{{display}}</a></span>
                     {{/datatype}}
                     {{#bnode}}
                         <i>Anonymous Node</i>
