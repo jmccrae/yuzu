@@ -388,6 +388,22 @@ class RDFBackend(Store):
                 print(e)
                 return False, 'error', ""
 
+    def label(self, id):
+        """Get the label for an id
+        @param id The id
+        @return The label
+        """
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """select object from triples where page=? and property=?""",
+            (id, "http://www.w3.org/2000/01/rdf-schema#label"))
+
+        l = ", ".join(str(from_n3(s)) for s, in cursor.fetchall())
+        conn.close()
+        return l
+
     @staticmethod
     def split_uri(subj):
         if '#' in subj:
