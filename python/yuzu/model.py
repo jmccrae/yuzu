@@ -92,7 +92,7 @@ def from_node(graph, node, stack, recurse=True, query=None):
         fragment = None
         if '#' in str(node):
             fragment = str(node)[str(node).index('#') + 1:]
-        if recurse and str(node) != query:
+        if recurse and str(node).startswith(query):
             triples = list(triple_frags(node, graph, stack, None, query))
             return {
                 'display': DISPLAYER.apply(node),
