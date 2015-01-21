@@ -18,12 +18,13 @@ class DummyBackend extends Backend {
   } else {
     None
   }
+  def summarize(id : String) = ModelFactory.createDefaultModel()
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) = {
-    (false, List(SearchResult("/test_resource", "resource")))
+    (false, List(SearchResult("/test_resource", "resource", "test_resource")))
   }
   def listValues(offset : Int, limit : Int, prop : String) = (false, Nil)
   //def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
-  def search(query : String, property : Option[String], limit : Int = 20) = Nil
+  def search(query : String, property : Option[String], offset : Int, limit : Int) = Nil
   def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { }
   def tripleCount = 0
   def linkCounts = Nil
@@ -135,14 +136,14 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val out = new StringWriter()
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
     rdfServer.listResources(mockResponse, 0, None, None, None)
-    assert(out.toString() contains "href='/test_resource'")
+    assert(out.toString() contains "href=\"/test_resource\"")
   }
 
   "server" should "search" in {
     val mockResponse = mock[HttpServletResponse]
     val out = new StringWriter()
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
-    rdfServer.search(mockResponse, "test", Some("http://www.w3.org/2000/01/rdf-schema#label"))
+    rdfServer.search(mockResponse, "test", Some("http://www.w3.org/2000/01/rdf-schema#label"), 0)
     //assert(out.toString() contains "href='/test_resource")
   }
 
@@ -190,6 +191,13 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val uri = "http://tbx2rdf.lider-project.eu/data/iate/LexicalEntry-Agen%3Fie+de+aprovizionare"
     UnicodeEscape.fixURI(NodeFactory.createURI(uri)) should be (NodeFactory.createURI(uri)) 
     N3.toN3(NodeFactory.createURI(uri)) should be ("<" + uri + ">")
+  }
+
+  "fix_url" should "encode non-ASCII the same" in {
+    val uri1 = "http://localhost:8080/data/saldo/bosättningsstopp..nn.1"
+    val uri2 = "http://localhost:8080/data/saldo/bos%C3%A4ttningsstopp..nn.1"
+    
+    UnicodeEscape.fixURI(NodeFactory.createURI(uri1)) should be (UnicodeEscape.fixURI(NodeFactory.createURI(uri2)))
   }
 
 

@@ -12,22 +12,10 @@ class JsonLDTest extends WordSpec with Matchers {
 
   def ctxt(cts : (String, Any)*) = {
     val m = Map[String, Any](
-      "@base" -> BASE_NAME,
-      PREFIX1_QN -> PREFIX1_URI,
-      PREFIX2_QN -> PREFIX2_URI,
-      PREFIX3_QN -> PREFIX3_URI,
-      PREFIX4_QN -> PREFIX4_URI,
-      PREFIX5_QN -> PREFIX5_URI,
-      PREFIX6_QN -> PREFIX6_URI,
-      PREFIX7_QN -> PREFIX7_URI,
-      PREFIX8_QN -> PREFIX8_URI,
-      PREFIX9_QN -> PREFIX9_URI,
-      "rdf" -> RDF.getURI(),
-      "rdfs" -> RDFS.getURI(),
-      "xsd" -> XSD.getURI(),
-      "owl" -> OWL.getURI(),
-      "dc" -> DC_11.getURI(),
-      "dct" -> DCTerms.getURI())
+      "@base" -> BASE_NAME)
+    for(k <- m.keys) {
+      if(m(k) == "http://www.example.com/") {
+        m.remove(k) }}
     for((k, v) <- cts) {
       m(k) = v }
     m }
@@ -40,7 +28,7 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/bar"),
                       graph.createLiteral("foo", "en"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt("bar" -> "http://www.example.com/bar"),
           "@id" -> "foo",
           "bar" -> Map(
@@ -50,6 +38,8 @@ class JsonLDTest extends WordSpec with Matchers {
     "give a blank node" should {
       "serialize correctly" in {
         val graph = ModelFactory.createDefaultModel()
+        graph.setNsPrefix("rdf", RDF.getURI())
+        graph.setNsPrefix("rdfs", RDFS.getURI())
         val b1 = graph.createResource()
         graph.createResource("http://localhost:8080/foo").
           addProperty(graph.createProperty("http://www.example.com/list"),
@@ -61,24 +51,25 @@ class JsonLDTest extends WordSpec with Matchers {
           graph.createProperty("http://www.example.com/rest"),
           RDF.nil)
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
-              "list" -> Map(
+              "list" -> JsonObj(
                 "@id" -> "http://www.example.com/list",
                 "@type" -> "@id"
                 ),
-                "first" -> Map(
+                "first" -> JsonObj(
                   "@id" -> "http://www.example.com/first",
                   "@type" -> "@id"
                   ),
-                "rest" -> Map(
+                "rest" -> JsonObj(
                   "@id" -> "http://www.example.com/rest",
                   "@type" -> "@id"
-                )
+                ),
+                "rdf" -> JsonString(RDF.getURI())
             ),
           "@id" -> "foo",
-          "list" -> Map(
-            "first" -> "ex1:value",
+          "list" -> JsonObj(
+            "first" -> "http://www.example.com/value",
             "rest" -> "rdf:nil"
           )
         )) }}
@@ -94,18 +85,18 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/backLink"),
             graph.createResource("http://localhost:8080/foo"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
             "prop" -> "http://www.example.com/prop",
-            "backLink" -> Map(
+            "backLink" -> JsonObj(
               "@id" -> "http://www.example.com/backLink",
               "@type" -> "@id"
               )
             ),
           "@id" -> "foo",
           "prop" -> "foo",
-          "@reverse" -> Map(
-                "backLink" -> Map("@id" -> "ex1:bar")
+          "@reverse" -> JsonObj(
+                "backLink" -> JsonObj("@id" -> "http://www.example.com/bar")
               ))) }}
 
     "given multiple values" should {
@@ -130,22 +121,22 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/dp"),
             graph.createLiteral("baz"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
             "mp" -> "http://www.example.com/mp",
             "dp" -> "http://www.example.com/dp",
-            "op" -> Map(
+            "op" -> JsonObj(
               "@id" -> "http://www.example.com/op",
               "@type" -> "@id"
             )),
           "@id" -> "foo",
           "mp" -> Seq(
-            Map("@value" -> "foo", "@language" -> "en"),
-            Map("@id" -> "ex1:bar")
+            JsonObj("@value" -> "foo", "@language" -> "en"),
+            JsonObj("@id" -> "http://www.example.com/bar")
            ),
-            "op" -> Seq("foo#baz", "ex1:bar"),
+            "op" -> Seq("foo#baz", "http://www.example.com/bar"),
             "dp" -> Seq(
-            Map("@value" -> "bar", "@type" -> "ex1:type"), "baz"
+            JsonObj("@value" -> "bar", "@type" -> "http://www.example.com/type"), "baz"
               ))) }}
 
     "given a double reffed bnode" should {
@@ -157,13 +148,13 @@ class JsonLDTest extends WordSpec with Matchers {
         graph.createResource("http://localhost:8080/foo").
           addProperty(graph.createProperty("http://www.example.com/prop2"), b)
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
-            "prop1" -> Map(
+            "prop1" -> JsonObj(
               "@id" -> "http://www.example.com/prop1",
               "@type" -> "@id"
                 ),
-                "prop2" -> Map(
+                "prop2" -> JsonObj(
                   "@id" -> "http://www.example.com/prop2",
                   "@type" -> "@id"
                 )
@@ -182,25 +173,51 @@ class JsonLDTest extends WordSpec with Matchers {
           addProperty(graph.createProperty("http://www.example.com/prop"),
                graph.createLiteral("bar", "en"))
         val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
-        obj should be (Map(
+        obj should be (JsonObj(
           "@context" -> ctxt(
             "prop" -> "http://www.example.com/prop"
             ),
           "@graph" -> Seq(
-                Map(
+                JsonObj(
                   "@id" -> "foo",
-                  "prop" -> Map(
+                  "prop" -> JsonObj(
                     "@value" -> "foo",
                     "@language" -> "en"
                   )
                 ),
-                Map(
+                JsonObj(
                   "@id" -> "foo_typo",
-                  "prop" -> Map(
+                  "prop" -> JsonObj(
                       "@value" -> "bar",
                       "@language" -> "en"
                     )
                 )
               ))) }}
+
+    "given a typed node" should {
+      "use @type" in {
+        val graph = ModelFactory.createDefaultModel()
+        graph.createResource("http://localhost:8080/foo").
+          addProperty(graph.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+            graph.createResource("http://www.example.com/Bar"))
+        val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
+        obj should be (JsonObj(
+          "@context" -> ctxt(),
+          "@id" -> "foo",
+          "@type" -> "http://www.example.com/Bar")) }}
+
+    "given an integer" should {
+      "not use @type" in {
+        val graph = ModelFactory.createDefaultModel()
+        graph.setNsPrefix("xsd", XSD.getURI())
+        graph.createResource("http://localhost:8080/foo").
+          addProperty(graph.createProperty("http://www.example.com/foo"),
+            graph.createTypedLiteral("3", NodeFactory.getType(XSD.integer.getURI())))
+        val obj = jsonLDfromModel(graph, "http://localhost:8080/foo")
+        obj should be (JsonObj(
+          "@context" -> ctxt(
+            "foo" -> "http://www.example.com/foo"),
+          "@id" -> "foo",
+          "foo" -> 3)) }}
   }
 }

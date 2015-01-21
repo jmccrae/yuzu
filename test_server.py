@@ -35,7 +35,7 @@ class ServerTest(unittest.TestCase):
     def test_list(self):
         conn = self.do_get("/list/")
         content = str(conn.getresponse().read())
-        self.assertIn("href=\\\'/data/example\\\'", content)
+        self.assertIn("href=\"/data/example\"", content)
         self.assertIn("<a href=\\\'/list/?offset=0\\\' class=\\\'btn"
                       + " btn-default disabled\\\'>&lt;&lt;</a>", content)
         self.assertIn("<a href=\\\'/list/?offset=20\\\' class=\\\'btn"
@@ -67,7 +67,7 @@ class ServerTest(unittest.TestCase):
         self.assertIn("flag/de.gif", content)
         self.assertIn("Example", content)
         self.assertIn("flag/en.gif", content)
-        self.assertIn("Ontology#link", content)
+        self.assertIn("Link property", content)
         self.assertIn("href=\"http://localhost:8080/data/example2\"",
                       content)
         self.assertIn("See Also", content)
@@ -112,7 +112,7 @@ class ServerTest(unittest.TestCase):
         content = str(conn.getresponse().read())
         self.assertIn("\"@context\"", content)
         self.assertIn("\"Beispiel\"", content)
-        self.assertIn("\"rdfs:seeAlso\"", content)
+        self.assertIn("\"seeAlso\"", content)
         self.assertIn("\"http://dbpedia.org/resource/Example\"", content)
         conn.close()
 

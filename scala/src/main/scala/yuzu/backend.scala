@@ -11,8 +11,8 @@ import scala.collection.JavaConversions._
 
 import com.github.jmccrae.sqlutils._
 
-case class SearchResult(link : String, label : String)
-case class SearchResultWithCount(link : String, label : String, count : Int)
+case class SearchResult(link : String, label : String, id : String)
+case class SearchResultWithCount(link : String, label : String, id : String, count : Int)
 
 
 trait Backend {
@@ -21,6 +21,8 @@ trait Backend {
     timeout : Int = 10) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
   def lookup(id : String) : Option[Model] 
+  /** Summarize the key triples to preview a page */
+  def summarize(id : String) : Model
   /** 
    * List pages by property and object
    * @param offset The query offset
@@ -42,7 +44,8 @@ trait Backend {
    * @param property The property
    * @param limit The limit
    */
-  def search(query : String, property : Option[String], limit : Int = 20) : Seq[SearchResult]
+  def search(query : String, property : Option[String], 
+             offset : Int, limit : Int) : Seq[SearchResult]
   /**
    * Load the data from an input stream 
    */
@@ -193,7 +196,7 @@ object RDFBackend {
       case file @ endsGZ() => new GZIPInputStream(new FileInputStream(file))
       case file => new FileInputStream(file)
     }
-    backend.loadByTmp(inputStream, opts contains "-e")
+    backend.load(inputStream, opts contains "-e")
     //backend.close()
   }
 }

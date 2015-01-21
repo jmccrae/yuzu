@@ -233,7 +233,7 @@ class TripleBackend(db : String) extends Backend {
         System.err.println(s)
         throw x }}
 
-  def loadByTmp(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
     val c = conn
     c.setAutoCommit(false)
     withSession(c) { implicit session =>
@@ -267,12 +267,14 @@ class TripleBackend(db : String) extends Backend {
 
               for(e <- Seq(subj, prop, obj)) {
                 e match {
-                  case Left(n) => known.get(n) match {
-                    case Some(i) => out.print("%d=%s" format(i, toN3(fixURI(n))))
+                  case Left(n2) => 
+                    val n = fixURI(n2)
+                    known.get(n) match {
+                    case Some(i) => out.print("%d=%s" format(i, toN3(n)))
                     case None => if(known.size < max) {
                         val v = offset + known.size
                         known.put(n, v)
-                        out.print("%d=%s" format(v, toN3(fixURI(n)))) }
+                        out.print("%d=%s" format(v, toN3(n))) }
                       else {
                         if(eof) {
                           System.err.println("Preprocessed to %d" format (read))
@@ -304,7 +306,7 @@ class TripleBackend(db : String) extends Backend {
         dumpMap(known.toMap)
         c.commit()
       } while(!eof) 
-      System.err.println("Preprocesing done")
+      System.err.println("Preprocessing done")
 
       val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
         insert5[Int, Int, Int, String, Boolean]
@@ -327,11 +329,11 @@ class TripleBackend(db : String) extends Backend {
 
               insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
 
-              if(FACETS.exists(_("uri") == prop.getURI())) {
+              //if(FACETS.exists(_("uri") == prop.getURI())) {
                 if(obj.isLiteral()) {
                   insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
                 else {
-                  insertFreeText(sid, pid, obj.toString) }}
+                  insertFreeText(sid, pid, obj.toString) }//}
               
               if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
                 updateLabel(obj.getLiteralLexicalForm(), sid) }
@@ -394,164 +396,6 @@ class TripleBackend(db : String) extends Backend {
 
     c.commit() } }
 
-  /** 
-   * Load the database from a stream
-   * @param inputStream An N-Triple Input Stream
-   */
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { 
-    val c = conn
-    c.setAutoCommit(false)
-    withSession(c) { implicit session =>
-      val idCache = cache
-      createTables 
-
-      // Queries
-      val insertKey = sql"""INSERT OR IGNORE INTO ids (n3) VALUES (?)""".
-        insert1[String]
-      val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?, ?)""".
-        insert5[Int, Int, Int, String, Boolean]
-      val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
-        insert3[Int, Int, String]
-      val updateLabel = sql"""UPDATE ids SET label=? WHERE id=?""".
-        insert2[String, Int]
-
-      var linkCounts = collection.mutable.Map[String, Int]()
-
-      var n = 0
-      var n2 = 0
-
-      val preLoader = new StreamRDFBase {
-        override def quad(q : Quad) = triple(q.asTriple())
-        override def triple(t : Triple) = {
-          val subj = fixURI(t.getSubject())
-          val prop = fixURI(t.getPredicate())
-          val obj = fixURI(t.getObject())
-
-          insertKey(toN3(subj))
-          insertKey(toN3(prop))
-          insertKey(toN3(obj))
-
-          n2 += 1
-          if(n2 % 100000 == 0) {
-            System.err.print(".") 
-            System.err.flush()
-            insertKey.execute }}}
-
-      val loader = new StreamRDFBase {
-        override def quad(q : Quad) = triple(q.asTriple())
-        override def triple(t : Triple) = {
-          val subj = fixURI(t.getSubject())
-          val prop = fixURI(t.getPredicate())
-          val obj = fixURI(t.getObject())
-
-          if(subj.isURI()) {
-            if(subj.getURI().startsWith(BASE_NAME)) {
-              val page = node2page(subj)
-              val sid = idCache.get(toN3(subj))
-              val pid = idCache.get(toN3(prop))
-              val oid = idCache.get(toN3(obj))
-
-              insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
-
-              if(FACETS.exists(_("uri") == prop.getURI())) {
-                if(obj.isLiteral()) {
-                  insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
-                else {
-                  insertFreeText(sid, pid, obj.toString) }}
-              
-              if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
-                updateLabel(obj.getLiteralLexicalForm(), sid) }
-
-              if(obj.isURI()) {
-                try {
-                  val objUri = URI.create(obj.getURI())
-                  if(!(NOT_LINKED :+ BASE_NAME).exists(obj.getURI().startsWith(_)) &&
-                      obj.getURI().startsWith("http")) {
-                    val target = LINKED_SETS.find(obj.getURI().startsWith(_)) match {
-                      case Some(l) => l
-                      case None => new URI(
-                        objUri.getScheme(),
-                        objUri.getUserInfo(),
-                        objUri.getHost(),
-                        objUri.getPort(),
-                        "/", null, null).toString }
-                    if(linkCounts.contains(target)) {
-                      linkCounts(target) += 1 } 
-                    else {
-                      linkCounts(target) = 1 }}}
-                catch {
-                  case x : Exception => // oh well 
-                }}}}
-                
-          else {
-            val sid = idCache.get(toN3(subj))
-            val pid = idCache.get(toN3(prop))
-            val oid = idCache.get(toN3(obj))
-
-            insertTriples(sid, pid, oid, "<BLANK>", false) }
-
-          if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
-            val page = node2page(obj)
-            val sid = idCache.get(toN3(subj))
-            val pid = idCache.get(toN3(prop))
-            val oid = idCache.get(toN3(obj))
-
-            insertTriples(sid, pid, oid, page, false) }
-          
-          n += 1
-          if(n % 100000 == 0) {
-            System.err.print(".") 
-            System.err.flush() 
-            insertTriples.execute
-            insertFreeText.execute
-            updateLabel.execute }
-        }}
-
-      System.err.print("Preloading")
-
-      if(ignoreErrors) {
-        readNTriples(preLoader, inputStream, ignoreErrors) }
-      else {
-        RDFDataMgr.parse(preLoader, new TypedInputStream(inputStream), Lang.NTRIPLES) }
-      insertKey.execute
-      c.commit()
-
-      System.err.println()
-
-      System.err.print("Caching")
-
-      var n4 = 0
-      for((id, n3) <- sql"""SELECT id, n3 FROM ids""".as2[Int, String].take(1000000)) {
-        idCache.put(n3, id) 
-        n4 += 1
-        if(n4 % 100000 == 0) {
-          System.err.print(".")
-          System.err.flush() }}
-
-      System.err.println()
-
-      System.err.print("Loading")
-
-      if(ignoreErrors) {
-        readNTriples(loader, inputStream, ignoreErrors) }
-      else {
-        RDFDataMgr.parse(loader, new TypedInputStream(inputStream), Lang.NTRIPLES) }
-      
-      insertTriples.execute
-      insertFreeText.execute
-      updateLabel.execute
-      c.commit()
-
-      System.err.println("")
-      
-      val insertLinkCount = sql"""INSERT INTO links VALUES (?, ?)""".insert2[Int, String]
-      linkCounts.foreach { case (target, count) => insertLinkCount(count, target) }
-      insertLinkCount.execute
-
-      c.commit()
-    }
-  }
-
     /** Look up a single page */
   def lookup(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
@@ -578,6 +422,23 @@ class TripleBackend(db : String) extends Backend {
       Some(model) }
     else {
       None }}
+
+  def summarize(page : String) = withSession(conn) { implicit session =>
+    val model = ModelFactory.createDefaultModel()
+    val subject = "<%s%s>" format (BASE_NAME, page)
+    sql"""SELECT subject, property, object FROM triples WHERE subject=$subject""".
+      as3[String, String, String].
+      foreach {
+        case (s, p, o) if FACETS.exists(_("uri") == p.drop(1).dropRight(1)) =>
+          model.add(
+            model.createStatement(
+              model.getRDFNode(fromN3(s)).asResource(),
+              model.getProperty(fromN3(p).getURI()),
+              model.getRDFNode(fromN3(o))))
+        case _ =>
+      }
+    model }
+          
 
   /** Add all blank nodes that have this subject */
   private def addBlanks(subj : Node, model : Model)(implicit session : Session) {
@@ -623,9 +484,9 @@ class TripleBackend(db : String) extends Backend {
       val results2 = results.toVector
       (results2.size > limit,
        results2.map {
-         case (s, null) => SearchResult(CONTEXT + "/" + s, s)
-         case (s, "") => SearchResult(CONTEXT + "/" + s, s)
-         case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l)) })}}
+         case (s, null) => SearchResult(CONTEXT + "/" + s, s, s)
+         case (s, "") => SearchResult(CONTEXT + "/" + s, s, s)
+         case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l), s) })}}
 
   /** List all pages by value */
   def listValues(offset : Int , limit : Int, prop : String) = {
@@ -637,12 +498,13 @@ class TripleBackend(db : String) extends Backend {
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit,
       results.map {
-        case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
-        case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), c)
-        case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), c) })}}
+        case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
+        case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
+        case (s, l, c) => SearchResultWithCount(s, UnicodeEscape.unescape(l), s, c) })}}
 
   /** Free text search */
-  def search(query : String, property : Option[String], limit : Int = 20) = {
+  def search(query : String, property : Option[String], offset : Int,
+             limit : Int) = {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
@@ -650,17 +512,17 @@ class TripleBackend(db : String) extends Backend {
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p and object match $query 
-                LIMIT $limit""".as2[String, String]
+                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
           sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 WHERE object match $query
-                LIMIT $limit""".as2[String, String] }
+                LIMIT $limit OFFSET $offset""".as2[String, String] }
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
       result.toVector.map {
-        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
-        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l)) }}}
+        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
+        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
+        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l), n32page(s)) }}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>
