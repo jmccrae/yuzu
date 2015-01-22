@@ -21,16 +21,16 @@ object UnicodeEscape {
   /** Fix unicode escape characters */
   def unescape(str : String) : String = {
     val sb = new StringBuilder(str)
-    var i = 0
-    while(i < sb.length) {
+    var i = sb.indexOf('\\')
+    while(i >= 0 && i < sb.length - 5) {
       if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
-      try {
-        sb.replace(i,i+6, 
-          Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
-      catch {
-      case x : NumberFormatException =>
-        System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
-      i += 1 }
+        try {
+          sb.replace(i,i+6, 
+            Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
+        catch {
+        case x : NumberFormatException =>
+          System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
+      i = sb.indexOf('\\', i + 1) }
     sb.toString }
 
 
@@ -257,7 +257,7 @@ class TripleBackend(db : String) extends Backend {
         for(line <- io.Source.fromInputStream(stream).getLines()) {
           try {
             read += 1 
-            if(read < skip || !eof) {
+            if(read < skip) {
               out.println(line) }
             else {
               val elems = line.split(" ")
