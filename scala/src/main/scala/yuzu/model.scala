@@ -7,6 +7,16 @@ import com.hp.hpl.jena.vocabulary._
 import java.util.{List=>JList}
 import scala.collection.JavaConversions._
 
+class ElementList(elements : List[Element]) {
+  def ::(e : Element) = new ElementList(e :: elements)
+  val head = if(elements.isEmpty) { null } else { elements.head }
+  val tail = if(elements.isEmpty) { Nil } else { elements.tail }
+}
+
+object ElementList {
+  def apply(e : Element*) = new ElementList(List(e:_*)) 
+}
+
 case class Element(val display : String, 
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
@@ -202,7 +212,8 @@ object PrettyDisplayer extends URIDisplayer {
 
 object QueryElement {
   import YuzuSettings._
-  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode) = {
+  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode,
+                  model : Model) = {
     if(!stack.contains(elem)) {
       ((elem.listProperties().toSeq.filter { stat =>
         stat.getPredicate() != RDF.`type` ||
@@ -211,7 +222,9 @@ object QueryElement {
         stat.getPredicate()
       }).toList.map {
         case (p, ss) => 
-          new TripleFrag(fromNode(p, elem :: stack), ss.map(s => fromNode(s.getObject(), elem :: stack)))
+          model.removeAll(elem, p, null)
+          new TripleFrag(fromNode(p, elem :: stack, model), 
+                         ss.map(s => fromNode(s.getObject(), elem :: stack, model)))
       } sortBy(_.prop.display)).toList
     } else {
       Nil
@@ -228,11 +241,13 @@ object QueryElement {
       stat.getPredicate()
     }).toList.map {
       case (p, ss) =>
-        new TripleFrag(fromNode(p, Nil), ss.map(s => fromNode(s.getSubject(), Nil)))
+        model.remove(ss) 
+        new TripleFrag(fromNode(p, Nil, model), 
+                       ss.map(s => fromNode(s.getSubject(), Nil, model)))
     } sortBy(_.prop.display)).toList
   }
 
-  def fromModel(model : Model, query : String) : Element = {
+  def fromModel(model : Model, query : String) : ElementList = {
     val elem = model.createResource(query)
     val classOf = elem.getProperty(RDF.`type`) match {
       case null => null
@@ -248,19 +263,25 @@ object QueryElement {
           node.toString()
         }
     }).getOrElse(DISPLAYER.apply(elem))
-    Element(label,
+    val head = Element(label,
       uri=elem.getURI(),
-      triples=tripleFrags(elem, Nil, classOf),
-      classOf=fromNode(classOf),
+      triples=tripleFrags(elem, Nil, classOf, model),
+      classOf=fromNode(classOf, Nil, model),
       inverses=inverseTripleFrags(model, elem, query))
+    val ss =  model.listSubjects().filter(_.isURIResource())
+    if(ss.hasNext) {
+      head :: fromModel(model, ss.next().getURI()) }
+    else {
+      head :: ElementList() }
   }
 
-  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {
+  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil,
+               model : Model) : Element = node match {
     case null => null
     case r : Resource =>
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
-        triples=tripleFrags(r, stack, null),
+        triples=tripleFrags(r, stack, null, model),
         bnode=(!r.isURIResource()))
     case l : Literal =>
       Element(DISPLAYER.apply(l), 

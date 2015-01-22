@@ -567,7 +567,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         "title" -> result.label,
         "link" -> result.link,
         "model" -> QueryElement.fromModel(backend.summarize(result.id),
-                                          BASE_NAME + result.id)) }
+                                          BASE_NAME + result.id).head) }
                             
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, 
@@ -603,7 +603,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         "title" -> result.label,
         "link" -> result.link,
         "model" -> QueryElement.fromModel(backend.summarize(result.id),
-                                          BASE_NAME + result.id)) }
+                                          BASE_NAME + result.id).head) }
     val page = mustache(resolve("html/search.html")).substitute(
       "results" -> results2.take(limit),
       "prev" -> prev,
