@@ -10,7 +10,7 @@ import scala.collection.JavaConversions._
 class ElementList(elements : List[Element]) {
   def ::(e : Element) = new ElementList(e :: elements)
   val head = if(elements.isEmpty) { null } else { elements.head }
-  val tail = if(elements.isEmpty) { Nil } else { elements.tail }
+  val tail = seqAsJavaList(if(elements.isEmpty) { Nil } else { elements.tail })
 }
 
 object ElementList {
@@ -222,6 +222,7 @@ object QueryElement {
         stat.getPredicate()
       }).toList.map {
         case (p, ss) => 
+          println("%s %s *" format(elem.toString, p.toString))
           model.removeAll(elem, p, null)
           new TripleFrag(fromNode(p, elem :: stack, model), 
                          ss.map(s => fromNode(s.getObject(), elem :: stack, model)))
@@ -247,32 +248,43 @@ object QueryElement {
     } sortBy(_.prop.display)).toList
   }
 
+  private def nextSubject(model : Model, classOf : RDFNode) : Option[String] = {
+    (model.listStatements().filter { stat =>
+      (stat.getPredicate() != RDF.`type` ||
+       stat.getObject() != classOf) &&
+      stat.getSubject().isURIResource() } map { stat =>
+      stat.getSubject().getURI() }).toSeq.headOption }
+
   def fromModel(model : Model, query : String) : ElementList = {
-    val elem = model.createResource(query)
-    val classOf = elem.getProperty(RDF.`type`) match {
-      case null => null
-      case st => st.getObject()
-    }
-    val label = (LABELS.flatMap { prop =>
-      Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
-      }).headOption.map({ stat =>
-        val node = stat.getObject()
-        if(node.isLiteral()) {
-          node.asLiteral().getLexicalForm()
-        } else {
-          node.toString()
-        }
-    }).getOrElse(DISPLAYER.apply(elem))
-    val head = Element(label,
-      uri=elem.getURI(),
-      triples=tripleFrags(elem, Nil, classOf, model),
-      classOf=fromNode(classOf, Nil, model),
-      inverses=inverseTripleFrags(model, elem, query))
-    val ss =  model.listSubjects().filter(_.isURIResource())
-    if(ss.hasNext) {
-      head :: fromModel(model, ss.next().getURI()) }
-    else {
-      head :: ElementList() }
+    var s : Option[String] = Some(query)
+    var rv = collection.mutable.ListBuffer[Element]()
+    while(s != None) {
+      println(s)
+      println(model.listStatements().size)
+      val elem = model.createResource(s.get)
+      val classOf = elem.getProperty(RDF.`type`) match {
+        case null => null
+        case st => st.getObject()
+      }
+      val label = (LABELS.flatMap { prop =>
+        Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
+        }).headOption.map({ stat =>
+          val node = stat.getObject()
+          if(node.isLiteral()) {
+            node.asLiteral().getLexicalForm()
+          } else {
+            node.toString()
+          }
+      }).getOrElse(DISPLAYER.apply(elem))
+      val head = Element(label,
+        uri=elem.getURI(),
+        triples=tripleFrags(elem, Nil, classOf, model),
+        classOf=fromNode(classOf, Nil, model),
+        inverses=inverseTripleFrags(model, elem, s.get))
+      rv.append(head)
+      s = nextSubject(model, classOf)
+    } 
+    new ElementList(rv.toList)
   }
 
   def fromNode(node : RDFNode, stack : List[RDFNode] = Nil,
