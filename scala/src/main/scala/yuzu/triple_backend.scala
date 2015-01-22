@@ -233,7 +233,8 @@ class TripleBackend(db : String) extends Backend {
         System.err.println(s)
         throw x }}
 
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean, 
+           maxCache : Int = 1000000) {
     val c = conn
     c.setAutoCommit(false)
     withSession(c) { implicit session =>
@@ -245,7 +246,6 @@ class TripleBackend(db : String) extends Backend {
       var oldOutFile : Option[File] = None
       var outFile : File = null
       var eof = true
-      val max = 1000000
 
       do {
         eof = true
@@ -271,7 +271,7 @@ class TripleBackend(db : String) extends Backend {
                     val n = fixURI(n2)
                     known.get(n) match {
                     case Some(i) => out.print("%d=%s" format(i, toN3(n)))
-                    case None => if(known.size < max) {
+                    case None => if(known.size < maxCache) {
                         val v = offset + known.size
                         known.put(n, v)
                         out.print("%d=%s" format(v, toN3(n))) }
