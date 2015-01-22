@@ -233,7 +233,8 @@ class TripleBackend(db : String) extends Backend {
         System.err.println(s)
         throw x }}
 
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean, 
+           maxCache : Int = 1000000) {
     val c = conn
     c.setAutoCommit(false)
     withSession(c) { implicit session =>
@@ -245,7 +246,6 @@ class TripleBackend(db : String) extends Backend {
       var oldOutFile : Option[File] = None
       var outFile : File = null
       var eof = true
-      val max = 1000000
 
       do {
         eof = true
@@ -271,7 +271,7 @@ class TripleBackend(db : String) extends Backend {
                     val n = fixURI(n2)
                     known.get(n) match {
                     case Some(i) => out.print("%d=%s" format(i, toN3(n)))
-                    case None => if(known.size < max) {
+                    case None => if(known.size < maxCache) {
                         val v = offset + known.size
                         known.put(n, v)
                         out.print("%d=%s" format(v, toN3(n))) }
@@ -426,10 +426,12 @@ class TripleBackend(db : String) extends Backend {
   def summarize(page : String) = withSession(conn) { implicit session =>
     val model = ModelFactory.createDefaultModel()
     val subject = "<%s%s>" format (BASE_NAME, page)
+    var added = 0
     sql"""SELECT subject, property, object FROM triples WHERE subject=$subject""".
       as3[String, String, String].
       foreach {
-        case (s, p, o) if FACETS.exists(_("uri") == p.drop(1).dropRight(1)) =>
+        case (s, p, o) if added < 20 && FACETS.exists(_("uri") == p.drop(1).dropRight(1)) =>
+          added += 1
           model.add(
             model.createStatement(
               model.getRDFNode(fromN3(s)).asResource(),
@@ -493,7 +495,7 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val limit2 = limit + 1
       val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
-                          WHERE property=$prop 
+                          WHERE property=$prop AND head=1
                           GROUP BY oid ORDER BY count(*) DESC 
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit,

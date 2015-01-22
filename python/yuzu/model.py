@@ -1,6 +1,7 @@
 from rdflib.term import Literal, URIRef, BNode
 from rdflib.namespace import RDF
-from yuzu.settings import DISPLAYER, CONTEXT
+from yuzu.settings import CONTEXT
+from yuzu.displayer import DISPLAYER
 
 
 def from_model(graph, query):
@@ -9,13 +10,14 @@ def from_model(graph, query):
     class_of_objects = graph.objects(elem, RDF.type)
     if class_of_objects:
         for class_of_value in graph.objects(elem, RDF.type):
-            class_of = from_node(graph, class_of_value, [])
+            class_of = from_node(graph, class_of_value, [], query)
             break
+    triples = list(triple_frags(elem, graph, [], class_of, query))
     model = {
         'display': DISPLAYER.apply(elem),
         'uri': query,
-        'triples': list(triple_frags(elem, graph, [], class_of)),
-        'has_triples': len(list(graph.predicate_objects(elem))) > 0,
+        'triples': triples,
+        'has_triples': len(triples) > 0,
         'classOf': class_of,
         'context': CONTEXT,
         'inverses': list(inverse_triple_frags(elem, graph, query))
@@ -48,13 +50,13 @@ def groupby(triples):
     return result
 
 
-def triple_frags(elem, graph, stack, classOf):
+def triple_frags(elem, graph, stack, classOf, query):
     if elem in stack:
         for p in []:
             yield p
     else:
-        triples = [(from_node(graph, p, [elem] + stack),
-                    from_node(graph, o, [elem] + stack))
+        triples = [(from_node(graph, p, [elem] + stack, query),
+                    from_node(graph, o, [elem] + stack, query))
                    for p, o in graph.predicate_objects(elem)
                    if p != RDF.type or o != classOf]
         sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
@@ -71,11 +73,12 @@ def triple_frags(elem, graph, stack, classOf):
 
 
 def inverse_triple_frags(elem, graph, query):
-    triples = [(from_node(graph, p, []),
-                from_node(graph, s, []))
+    triples = [(from_node(graph, p, [], False, query),
+                from_node(graph, s, [], False, query))
                for s, p in graph.subject_predicates(elem)
-               if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
-                   ('#' not in str(s) and str(s) != query))]
+               if not str(s).startswith(query)]
+#               if (('#' in str(s) and str(s)[:str(s).index('#')] != query) or
+#                   ('#' not in str(s) and str(s) != query))]
     sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
     grouped = groupby(sortt)
     for p, objs in grouped:
@@ -85,25 +88,37 @@ def inverse_triple_frags(elem, graph, query):
         }
 
 
-def from_node(graph, node, stack):
+def from_node(graph, node, stack, recurse=True, query=None):
     if type(node) == URIRef:
         fragment = None
         if '#' in str(node):
             fragment = str(node)[str(node).index('#') + 1:]
-        return {
-            'display': DISPLAYER.apply(node),
-            'uri': str(node),
-            'triples': list(triple_frags(node, graph, stack, None)),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0,
-            'context': CONTEXT,
-            'fragment': fragment
-        }
+        if recurse and str(node).startswith(str(query)):
+            triples = list(triple_frags(node, graph, stack, None, query))
+            return {
+                'display': DISPLAYER.apply(node),
+                'uri': str(node),
+                'triples': triples,
+                'has_triples': len(triples) > 0,
+                'context': CONTEXT,
+                'fragment': fragment
+            }
+        else:
+            return {
+                'display': DISPLAYER.apply(node),
+                'uri': str(node),
+                'triples': [],
+                'has_triples': False,
+                'context': CONTEXT,
+                'fragment': fragment
+            }
     elif type(node) == BNode:
+        triples = list(triple_frags(node, graph, stack, None, query))
         return {
             'display': DISPLAYER.apply(node),
             'bnode': True,
-            'triples': list(triple_frags(node, graph, stack, None)),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'triples': triples,
+            'has_triples': len(triples) > 0,
             'context': CONTEXT
         }
     elif type(node) == Literal:
@@ -112,7 +127,7 @@ def from_node(graph, node, stack):
             'literal': True,
             'lang': node.language,
             'datatype': from_dt(node.datatype),
-            'has_triples': len(list(graph.predicate_objects(node))) > 0,
+            'has_triples': False,
             'context': CONTEXT
         }
 

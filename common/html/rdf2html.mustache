@@ -15,7 +15,7 @@
 </ul>
 </div>
 {{#classOf}}
-    <h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>
+    <h5 class="rdf_classof">Instance of: <a href="{{uri}}" class="rdf_link">{{display}}</a></h5>
 {{/classOf}}
 <table class="rdf_table" resource="">
     {{#triples}}
@@ -27,13 +27,13 @@
     <tr>
         <td class="rdf_prop rdf_first_value">
             {{#prop}}
-                Is <a href="{{uri}}">{{display}}</a> of
+                Is <a href="{{uri}}" class="rdf_link">{{display}}</a> of
             {{/prop}}
         </td>
         <td class="rdf_value">
         {{#obj}}
                 {{#elem}}
-                    <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" resource="">{{display}}</a>
+                    <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" resource="" class="rdf_link rdf_prop">{{display}}</a>
                 {{/elem}}
             {{^last}}
     </td>
@@ -52,12 +52,9 @@
 {{#triples}}
     {{#has_triples}}
         {{#prop}}
-            <h3 class="rdf_subheader"><a href="{{uri}}">{{display}}</a></h3>
+            <h3 class="rdf_subheader"><a href="{{uri}}" class="rdf_link rdf_prop">{{display}}</a></h3>
         {{/prop}}
             {{#obj}}
-            {{#elem}}
-                {{#classOf}}<h5 class="rdf_classof">Instance of: <a href="{{uri}}">{{display}}</a></h5>{{/classOf}}
-            {{/elem}}
         <span property="{{#prop}}{{uri}}{{/prop}}" resource="{{#elem}}{{uri}}{{/elem}}"></span>
         <a class="anchor" id="{{#elem}}{{fragment}}{{/elem}}"></a>
         <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}">
