@@ -246,6 +246,7 @@ class TripleBackend(db : String) extends Backend {
       var oldOutFile : Option[File] = None
       var outFile : File = null
       var eof = true
+      var first = true
 
       do {
         eof = true
@@ -268,7 +269,7 @@ class TripleBackend(db : String) extends Backend {
               for(e <- Seq(subj, prop, obj)) {
                 e match {
                   case Left(n2) => 
-                    val n = fixURI(n2)
+                    val n = if(first) { fixURI(n2) } else { n2 }
                     known.get(n) match {
                     case Some(i) => out.print("%d=%s" format(i, toN3(n)))
                     case None => if(known.size < maxCache) {
@@ -305,6 +306,7 @@ class TripleBackend(db : String) extends Backend {
         offset += known.size
         dumpMap(known.toMap)
         c.commit()
+        first = false
       } while(!eof) 
       System.err.println("Preprocessing done")
 
