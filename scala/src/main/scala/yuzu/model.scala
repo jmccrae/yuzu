@@ -152,8 +152,8 @@ object DefaultDisplayer extends URIDisplayer {
 object PrettyDisplayer extends URIDisplayer {
   import YuzuSettings._
   def magicString(text : String) = {
-    val s = text.replaceAll("([a-z])([A-Z])","$1 $2").
-      replaceAll("_"," ")
+    val s = java.net.URLDecoder.decode(text.replaceAll("([a-z])([A-Z])","$1 $2").
+      replaceAll("_"," "), "UTF-8")
     s.take(1).toUpperCase + s.drop(1)
   }
 
