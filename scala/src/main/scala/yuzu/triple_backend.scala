@@ -489,9 +489,9 @@ class TripleBackend(db : String) extends Backend {
       (results2.size > limit,
        results2.map {
          case (s, null) => SearchResult(CONTEXT + "/" + s, 
-           DISPLAYER.uriToStr(CONTEXT + "/" + s), s)
+           DISPLAYER.uriToStr(BASE_NAME + s), s)
          case (s, "") => SearchResult(CONTEXT + "/" + s, 
-           DISPLAYER.uriToStr(CONTEXT + "/" + s), s)
+           DISPLAYER.uriToStr(BASE_NAME + s), s)
          case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l), s) })}}
 
   /** List all pages by value */
