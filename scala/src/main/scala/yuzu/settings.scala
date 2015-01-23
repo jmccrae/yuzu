@@ -69,7 +69,7 @@ object YuzuSettings {
 
   // Properties to use as facets
   val FACETS = Seq(
-    Map("uri" -> "http://www.w3.org/ns/lemon/ontolex#writtenRep", "label" -> "Lemma"),
+    Map("uri" -> "http://www.w3.org/ns/lemon/ontolex#writtenRep", "label" -> "Lemma", "list" -> false),
     Map("uri" -> "http://www.lexinfo.net/ontology/2.0/lexinfo#termType", "label" -> "Term Type"),
     Map("uri" -> "http://www.w3.org/ns/lemon/ontolex#language", "label" -> "Language"),
     Map("uri" -> "http://tbx2rdf.lider-project.eu/tbx#reliabilityCode", "label" -> "Reliability"),
