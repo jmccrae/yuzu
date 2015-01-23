@@ -222,7 +222,6 @@ object QueryElement {
         stat.getPredicate()
       }).toList.map {
         case (p, ss) => 
-          println("%s %s *" format(elem.toString, p.toString))
           model.removeAll(elem, p, null)
           new TripleFrag(fromNode(p, elem :: stack, model), 
                          ss.map(s => fromNode(s.getObject(), elem :: stack, model)))
@@ -259,8 +258,6 @@ object QueryElement {
     var s : Option[String] = Some(query)
     var rv = collection.mutable.ListBuffer[Element]()
     while(s != None) {
-      println(s)
-      println(model.listStatements().size)
       val elem = model.createResource(s.get)
       val classOf = elem.getProperty(RDF.`type`) match {
         case null => null
