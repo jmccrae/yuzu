@@ -326,6 +326,12 @@ class ServerTest(unittest.TestCase):
         self.assertIn(u"✓", content)
         conn.close()
 
+    def test_download(self):
+        conn = self.do_get("/download")
+        content = conn.getresponse().read().decode('utf-8')
+        self.assertIn("example.nt.gz", content)
+        conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()
