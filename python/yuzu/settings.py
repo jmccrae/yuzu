@@ -61,7 +61,7 @@ SPARQL_PATH = "/sparql"
 # Path to site contents list (set to None to disable)
 LIST_PATH = "/list"
 # Path to Data ID (metadata) (no initial slash)
-METADATA_PATH = "dataid"
+METADATA_PATH = "about"
 
 # Properties to use as facets
 FACETS = [
