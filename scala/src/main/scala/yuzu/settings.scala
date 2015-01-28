@@ -35,8 +35,8 @@ object YuzuSettings {
   val PREFIX6_QN = "metashare"
   val PREFIX7_URI = "http://purl.org/ms-lod/BioServices.ttl"
   val PREFIX7_QN = "bio"
-  val PREFIX8_URI = "http://www.example.com#"
-  val PREFIX8_QN = "ex8"
+  val PREFIX8_URI = "http://www.lexvo.org/id/iso639-3/"
+  val PREFIX8_QN = "iso639"
   val PREFIX9_URI = "http://www.example.com#"
   val PREFIX9_QN = "ex9"
 
