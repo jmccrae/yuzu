@@ -209,13 +209,21 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       val pd = cls.getProtectionDomain()
       val cs = pd.getCodeSource()
       val loc = cs.getLocation()
-      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()
+          && new File(loc.getPath() + fname).exists) {
         new URL("file:"+loc.getPath() + fname)
       } else {
         if(new File(fname).exists) {
           new URL("file:"+fname)
-        } else {
+        } else if(new File("../" + fname).exists) {
           new URL("file:../" + fname)
+        // This is a 'hack' for sbt container:launch
+        } else if(new File("../../" + fname).exists) {
+          new URL("file:../../" + fname)
+        } else {
+          System.err.println("Could not locate %s from %s" format (
+            fname, System.getProperty("user.dir")))
+          new URL("file:"+fname)
         }
       }
     }
@@ -480,10 +488,11 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
         out => out.print(content)
       }
-    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
+    } else if(resolve("html/%s.html" format uri.replaceAll("/$", "")).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(), isTest))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(
+            "dump_uri" -> DUMP_URI), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri

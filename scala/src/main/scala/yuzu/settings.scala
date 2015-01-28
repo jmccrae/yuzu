@@ -65,7 +65,7 @@ object YuzuSettings {
   // Path to site contents list (set to null to disable)
   val LIST_PATH = "/list"
   // Path to Data ID (metadata) (no initial slash)
-  val METADATA_PATH = "dataid"
+  val METADATA_PATH = "about"
 
   // Properties to use as facets
   val FACETS = Seq(

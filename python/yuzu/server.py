@@ -413,7 +413,8 @@ class RDFServer:
                                        'text/html; charset=utf-8')])
             s = pystache.render(open(resolve(
                 "html/%s.html" % re.sub("/$", "", uri))).read(),
-                {'context': CONTEXT})
+                {'context': CONTEXT,
+                 'dump_uri': DUMP_URI})
             return [self.render_html(DISPLAY_NAME, s,
                                      is_test).encode('utf-8')]
         # Anything else is sent to the backend
