@@ -7,6 +7,16 @@ import com.hp.hpl.jena.vocabulary._
 import java.util.{List=>JList}
 import scala.collection.JavaConversions._
 
+class ElementList(elements : List[Element]) {
+  def ::(e : Element) = new ElementList(e :: elements)
+  val head = if(elements.isEmpty) { null } else { elements.head }
+  val tail = seqAsJavaList(if(elements.isEmpty) { Nil } else { elements.tail })
+}
+
+object ElementList {
+  def apply(e : Element*) = new ElementList(List(e:_*)) 
+}
+
 case class Element(val display : String, 
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
@@ -142,8 +152,8 @@ object DefaultDisplayer extends URIDisplayer {
 object PrettyDisplayer extends URIDisplayer {
   import YuzuSettings._
   def magicString(text : String) = {
-    val s = text.replaceAll("([a-z])([A-Z])","$1 $2").
-      replaceAll("_"," ")
+    val s = java.net.URLDecoder.decode(text.replaceAll("([a-z])([A-Z])","$1 $2").
+      replaceAll("_"," "), "UTF-8")
     s.take(1).toUpperCase + s.drop(1)
   }
 
@@ -202,7 +212,8 @@ object PrettyDisplayer extends URIDisplayer {
 
 object QueryElement {
   import YuzuSettings._
-  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode) = {
+  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode,
+                  model : Model) = {
     if(!stack.contains(elem)) {
       ((elem.listProperties().toSeq.filter { stat =>
         stat.getPredicate() != RDF.`type` ||
@@ -211,7 +222,9 @@ object QueryElement {
         stat.getPredicate()
       }).toList.map {
         case (p, ss) => 
-          new TripleFrag(fromNode(p, elem :: stack), ss.map(s => fromNode(s.getObject(), elem :: stack)))
+          model.removeAll(elem, p, null)
+          new TripleFrag(fromNode(p, elem :: stack, model), 
+                         ss.map(s => fromNode(s.getObject(), elem :: stack, model)))
       } sortBy(_.prop.display)).toList
     } else {
       Nil
@@ -228,39 +241,56 @@ object QueryElement {
       stat.getPredicate()
     }).toList.map {
       case (p, ss) =>
-        new TripleFrag(fromNode(p, Nil), ss.map(s => fromNode(s.getSubject(), Nil)))
+        model.remove(ss) 
+        new TripleFrag(fromNode(p, Nil, model), 
+                       ss.map(s => fromNode(s.getSubject(), Nil, model)))
     } sortBy(_.prop.display)).toList
   }
 
-  def fromModel(model : Model, query : String) : Element = {
-    val elem = model.createResource(query)
-    val classOf = elem.getProperty(RDF.`type`) match {
-      case null => null
-      case st => st.getObject()
-    }
-    val label = (LABELS.flatMap { prop =>
-      Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
-      }).headOption.map({ stat =>
-        val node = stat.getObject()
-        if(node.isLiteral()) {
-          node.asLiteral().getLexicalForm()
-        } else {
-          node.toString()
-        }
-    }).getOrElse(DISPLAYER.apply(elem))
-    Element(label,
-      uri=elem.getURI(),
-      triples=tripleFrags(elem, Nil, classOf),
-      classOf=fromNode(classOf),
-      inverses=inverseTripleFrags(model, elem, query))
+  private def nextSubject(model : Model, classOf : RDFNode) : Option[String] = {
+    (model.listStatements().filter { stat =>
+      (stat.getPredicate() != RDF.`type` ||
+       stat.getObject() != classOf) &&
+      stat.getSubject().isURIResource() } map { stat =>
+      stat.getSubject().getURI() }).toSeq.headOption }
+
+  def fromModel(model : Model, query : String) : ElementList = {
+    var s : Option[String] = Some(query)
+    var rv = collection.mutable.ListBuffer[Element]()
+    while(s != None) {
+      val elem = model.createResource(s.get)
+      val classOf = elem.getProperty(RDF.`type`) match {
+        case null => null
+        case st => st.getObject()
+      }
+      val label = (LABELS.flatMap { prop =>
+        Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
+        }).headOption.map({ stat =>
+          val node = stat.getObject()
+          if(node.isLiteral()) {
+            node.asLiteral().getLexicalForm()
+          } else {
+            node.toString()
+          }
+      }).getOrElse(DISPLAYER.apply(elem))
+      val head = Element(label,
+        uri=elem.getURI(),
+        triples=tripleFrags(elem, Nil, classOf, model),
+        classOf=fromNode(classOf, Nil, model),
+        inverses=inverseTripleFrags(model, elem, s.get))
+      rv.append(head)
+      s = nextSubject(model, classOf)
+    } 
+    new ElementList(rv.toList)
   }
 
-  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {
+  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil,
+               model : Model) : Element = node match {
     case null => null
     case r : Resource =>
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
-        triples=tripleFrags(r, stack, null),
+        triples=tripleFrags(r, stack, null, model),
         bnode=(!r.isURIResource()))
     case l : Literal =>
       Element(DISPLAYER.apply(l), 

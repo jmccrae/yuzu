@@ -30,7 +30,7 @@ object DataID {
       model.createResource(BASE_NAME))
     
     backend.listResources(0, 1)._2.headOption match {
-      case Some(SearchResult(link, _)) =>
+      case Some(SearchResult(link, _, _)) =>
         dataid.addProperty(
           model.createProperty(VOID + "exampleResource"),
           model.createResource(BASE_NAME.dropRight(1) + link))

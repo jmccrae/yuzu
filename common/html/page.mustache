@@ -85,6 +85,14 @@
             top: -150px; 
             visibility: hidden;
         }
+        div.footer_link {
+            border-right: 1px solid #ccc;
+            text-align: right;
+        }
+        a.footer_link {
+            font-variant: small-caps;
+            font-weight: bold;
+        }
     </style>
     <script>
     function flagFallBack(tag) {
@@ -125,14 +133,13 @@
     <div class="navbar" style="background-color:#fff;padding-top:100px;">
         <div class="container">
             <div class="row">
-                <div class="col-lg-9">
-                    <p>LingHub is developed by the <a href="http://lider-project.eu/">LIDER project</a> and released under the 
-                    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC-BY-NC-SA-4.0</a> License.</p>
-                    <p><a href="{{contact}}/dataid">About this resource.</a>
-                    The source code for this site is available at <a href="https://github.com/liderproject/linghub">GitHub</a>. This site is a 
-                    <a href="https://github.com/jmccrae/yuzu">Yuzu</a> instance.</p>
+                <div class="col-lg-1 col-lg-offset-8 footer_link">
+                    <a href="{{context}}/dataid" class="footer_link">About</a><br/>
+                    <a href="{{context}}/license" class="footer_link">License</a><br/>
+                    <a href="{{context}}/download" class="footer_link">Download</a><br/>
+                    <a href="https://github.com/liderproject/linghub" class="footer_link">Source</a>
                 </div>
-                <div class="pull-right">
+                <div class="col-lg-3" style="line-height:5.5em;vertical-align:middle;">
                     <a href="{{context}}/license">
                         <img src="{{context}}/assets/cc/by-nc-sa.png" height="30px"/></a>
                     <a href="http://www.lider-project.eu/"><img src="http://www.lider-project.eu/sites/default/files/logo.jpg" height="50px"/></a>

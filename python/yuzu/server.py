@@ -20,12 +20,13 @@ from copy import copy
 
 from yuzu.model import from_model, sparql_results_to_dict
 from yuzu.backend import RDFBackend
+from yuzu.displayer import DISPLAYER
 from yuzu.settings import (BASE_NAME, CONTEXT, PREFIX1_URI, PREFIX1_QN,
                            PREFIX2_URI, PREFIX2_QN, PREFIX3_URI, PREFIX3_QN,
                            PREFIX4_URI, PREFIX4_QN, PREFIX5_URI, PREFIX5_QN,
                            PREFIX6_URI, PREFIX6_QN, PREFIX7_URI, PREFIX7_QN,
                            PREFIX8_URI, PREFIX8_QN, PREFIX9_URI, PREFIX9_QN,
-                           DISPLAY_NAME, FACETS, SEARCH_PATH, DISPLAYER,
+                           DISPLAY_NAME, FACETS, SEARCH_PATH,
                            DUMP_URI, DUMP_FILE, ASSETS_PATH, SPARQL_PATH,
                            LIST_PATH, DB_FILE, METADATA_PATH, DCAT,
                            FOAF, ODRL, PROV, VOID, DATAID)
@@ -372,7 +373,7 @@ class RDFServer:
                     prop = "<%s>" % qs['prop'][0]
                 if 'obj' in qs:
                     obj = qs['obj'][0]
-                if 'obj_offset' in qs and re.match("\d+", qs['obj_offset']):
+                if 'obj_offset' in qs and re.match("\d+", qs['obj_offset'][0]):
                     obj_offset = int(qs['obj_offset'][0])
 
             return self.list_resources(start_response, offset,
@@ -412,7 +413,8 @@ class RDFServer:
                                        'text/html; charset=utf-8')])
             s = pystache.render(open(resolve(
                 "html/%s.html" % re.sub("/$", "", uri))).read(),
-                {'context': CONTEXT})
+                {'context': CONTEXT,
+                 'dump_uri': DUMP_URI})
             return [self.render_html(DISPLAY_NAME, s,
                                      is_test).encode('utf-8')]
         # Anything else is sent to the backend
@@ -470,7 +472,7 @@ class RDFServer:
         else:
             has_next = "disabled"
         nxt = offset + limit
-        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)) + 1)
+        pages = "%d - %d" % (offset + 1, offset + min(limit, len(results)))
         facets = []
         for facet in FACETS:
             if "list" not in facet or facet["list"] is True:
@@ -495,7 +497,7 @@ class RDFServer:
             '200 OK', [('Content-type', 'text/html; charset=utf-8')])
         query = ""
         if prop:
-            query += "&prop=" + quote_plus(prop)
+            query += "&prop=" + quote_plus(prop[1:-1])
         if obj:
             query += "&obj=" + quote_plus(obj)
         if obj_offset:
@@ -508,7 +510,6 @@ class RDFServer:
                 self.backend.summarize(r["id"]),
                 BASE_NAME + r["id"])}
             for r in results]
-        print(results2)
         mres = pystache.render(template, {
             'facets': facets,
             'results': results2,
@@ -540,9 +541,16 @@ class RDFServer:
         qs = "&query=" + quote_plus(query)
         if prop:
             qs = "&property=" + quote_plus(prop)
+        results2 = [{
+            "title": r["label"],
+            "link": r["link"],
+            "model": from_model(
+                self.backend.summarize(r["id"]),
+                BASE_NAME + r["id"])}
+            for r in results]
         page = pystache.render(
             open(resolve('html/search.html')).read(),
-            {'results': results[:limit],
+            {'results': results2[:limit],
              'context': CONTEXT,
              'prev': prev,
              'has_prev': has_prev,

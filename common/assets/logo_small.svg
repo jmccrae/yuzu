@@ -314,7 +314,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4"
-     inkscape:cx="199.59362"
+     inkscape:cx="73.879334"
      inkscape:cy="794.89318"
      inkscape:document-units="px"
      inkscape:current-layer="flowRoot2989"
@@ -332,7 +332,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -343,51 +343,6 @@
     <g
        style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        id="flowRoot2989">
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 172.21782,28.435286 c -8.63999,-9.07199 -22.60801,-9.07199 -31.248,0 -8.63999,8.78399 -8.63999,23.32801 0,32.4 l 19.728,20.16 0,20.160004 c 0,12.67199 10.36801,22.896 22.896,22.896 12.67199,0 23.04,-10.22401 23.04,-22.896 l 0,-23.184004 -34.416,-49.536"
-         id="path3782"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 226.36182,60.835286 c 8.63999,-9.07199 9.21599,-23.32801 0.576,-32.112 -8.63999,-9.07199 -23.47201,-9.35999 -32.256,-0.288 l -10.656,11.376 25.344,35.856 16.992,-14.832"
-         id="path3000"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 283.12932,45.283286 c 0.576,-30.52797 -47.232,-29.66397 -47.232,0 l 0,31.536 c 0,26.207974 19.15203,48.384004 47.232,48.384004 l 0,-79.920004"
-         id="path3778"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 334.10532,76.819286 0,-31.536 c 0,-31.10397 -47.232,-29.37597 -47.232,0 l 0,79.920004 c 27.93597,0 47.232,-22.17603 47.232,-48.384004"
-         id="path3002"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 337.55232,44.851286 c 0,11.08799 7.77601,20.88 18,23.328 l 45.936,-46.224 -40.896,0 c -12.67199,0 -23.04,10.36801 -23.04,22.896"
-         id="path3788"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 407.96832,21.955286 -1.44,0 -61.056,62.064 c -4.752,4.32 -8.208,10.22401 -8.208,17.424004 0,12.67199 10.65601,22.896 23.328,22.896 l 1.152,0 c 45.79195,-46.511954 54.43201,-54.720014 62.352,-62.784004 13.53599,-13.53599 6.33598,-39.6 -16.128,-39.6"
-         id="path3786"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 408.40032,124.33929 c 12.52799,0 22.896,-11.52001 22.896,-22.896 0,-13.247994 -7.48801,-19.728004 -19.584,-22.752004 l -44.928,45.648004 41.616,0"
-         id="path3004"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#e8e500;fill-opacity:1;stroke:#acaa00;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 482.81682,45.283286 c 0.576,-30.52797 -47.232,-29.66397 -47.232,0 l 0,31.536 c 0,26.207974 19.15203,48.384004 47.232,48.384004 l 0,-79.920004"
-         id="path3792"
-         inkscape:connector-curvature="0" />
-      <path
-         style="font-size:144px;font-variant:normal;font-weight:900;font-stretch:normal;fill:#9ec600;fill-opacity:1;stroke:#506400;stroke-opacity:1;font-family:VAL Stencil;-inkscape-font-specification:VAL Stencil Heavy;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 533.79282,76.819286 0,-31.536 c 0,-31.10397 -47.232,-29.37597 -47.232,0 l 0,79.920004 c 27.93597,0 47.232,-22.17603 47.232,-48.384004"
-         id="path3006"
-         inkscape:connector-curvature="0" />
       <path
          inkscape:connector-curvature="0"
          id="path5"
@@ -452,7 +407,19 @@
          d="m 127.7127,76.497516 c -1.39015,-13.86658 -8.03967,-27.97093 -18.72872,-39.71922 -0.46647,-0.50736 -0.93496,-1.00804 -1.41178,-1.51249 -10.762711,-11.2463 -24.135647,-18.81087 -37.654664,-21.29864 -13.685447,-2.51852 -26.036736,0.43378 -34.78003,8.31305 -2.348893,2.11676 -4.361424,4.52253 -6.029393,7.1712 -18.937752,17.35831 -21.1259105,54.54633 0.656436,78.320764 21.749139,23.73821 59.206347,25.15836 78.460511,8.20223 2.85993,-1.40273 5.50258,-3.17758 7.88088,-5.32085 8.88943,-8.01096 13.01114,-20.142564 11.60676,-34.156044 z M 44.360211,94.641466 C 22.994054,71.321286 19.63624,39.712006 36.874212,24.177526 c 8.13202,-7.3284 19.699513,-10.05837 32.573064,-7.68913 12.985968,2.38894 25.860469,9.68471 36.246744,20.53612 0.46307,0.48943 0.92338,0.98297 1.3777,1.47706 21.17901,23.2775 24.45181,54.79398 7.29743,70.256354 -17.237987,15.53448 -48.644394,9.20197 -70.008939,-14.116464 z"
          id="path31"
          inkscape:connector-curvature="0"
-         style="fill:url(#radialGradient3833);fill-opacity:1;stroke:none" />
+         style="fill:url(#radialGradient3833);fill-opacity:1;stroke:#c5c5c5;stroke-opacity:1" />
+      <text
+         xml:space="preserve"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#279f27;fill-opacity:1;stroke:none;font-family:Sans"
+         x="139.28572"
+         y="96.362183"
+         id="text3213"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan3215"
+           x="139.28572"
+           y="96.362183"
+           style="font-size:100px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;fill:#279f27;fill-opacity:1;stroke:none;font-family:Tellural;-inkscape-font-specification:Tellural Bold">yuzu</tspan></text>
     </g>
   </g>
 </svg>

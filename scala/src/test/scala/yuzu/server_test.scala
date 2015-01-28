@@ -18,13 +18,15 @@ class DummyBackend extends Backend {
   } else {
     None
   }
+  def summarize(id : String) = ModelFactory.createDefaultModel()
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) = {
-    (false, List(SearchResult("/test_resource", "resource")))
+    (false, List(SearchResult("/test_resource", "resource", "test_resource")))
   }
   def listValues(offset : Int, limit : Int, prop : String) = (false, Nil)
   //def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], offset : Int, limit : Int) = Nil
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { }
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean,
+           maxCache : Int) { }
   def tripleCount = 0
   def linkCounts = Nil
 }
@@ -135,7 +137,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val out = new StringWriter()
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
     rdfServer.listResources(mockResponse, 0, None, None, None)
-    assert(out.toString() contains "href='/test_resource'")
+    assert(out.toString() contains "href=\"/test_resource\"")
   }
 
   "server" should "search" in {

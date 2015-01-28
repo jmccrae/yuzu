@@ -209,13 +209,21 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       val pd = cls.getProtectionDomain()
       val cs = pd.getCodeSource()
       val loc = cs.getLocation()
-      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()
+          && new File(loc.getPath() + fname).exists) {
         new URL("file:"+loc.getPath() + fname)
       } else {
         if(new File(fname).exists) {
           new URL("file:"+fname)
-        } else {
+        } else if(new File("../" + fname).exists) {
           new URL("file:../" + fname)
+        // This is a 'hack' for sbt container:launch
+        } else if(new File("../../" + fname).exists) {
+          new URL("file:../../" + fname)
+        } else {
+          System.err.println("Could not locate %s from %s" format (
+            fname, System.getProperty("user.dir")))
+          new URL("file:"+fname)
         }
       }
     }
@@ -480,10 +488,11 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
         out => out.print(content)
       }
-    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
+    } else if(resolve("html/%s.html" format uri.replaceAll("/$", "")).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(), isTest))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(
+            "dump_uri" -> DUMP_URI), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
@@ -493,7 +502,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         case Some(model) => {
           val title = model.listStatements(model.createResource(BASE_NAME + id),
                                             RDFS.label,
-                                            null).map(_.getObject().toString()).mkString(", ")
+                                            null).map(s => DISPLAYER.apply(s.getObject())).mkString(", ")
           val content = if(mime == html) {
             if(title == "") {
               rdfxmlToHtml(model, Some(BASE_NAME + id), 
@@ -554,7 +563,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       }
     } 
     val queryString = (property match {
-        case Some(p) => "&prop=" + quotePlus(p)
+        case Some(p) => "&prop=" + quotePlus(p.drop(1).dropRight(1))
         case None => "" }) + 
       (obj match {
         case Some(o) => "&obj=" + quotePlus(o)
@@ -562,11 +571,18 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       (obj_offset match {
         case Some(o) => "&obj_offset=" + o
         case None => "" })
+    val results2 = for(result <- results) yield {
+      Map(
+        "title" -> result.label,
+        "link" -> result.link,
+        "model" -> QueryElement.fromModel(backend.summarize(result.id),
+                                          BASE_NAME + result.id).head) }
+                            
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, 
         template.substitute(
           "facets" -> facets,
-          "results" -> results,
+          "results" -> results2,
           "has_prev" -> hasPrev,
           "prev" -> prev.toString,
           "has_next" -> hasNext,
@@ -591,8 +607,14 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         case Some(p) => "&property=" + quotePlus(p)
         case None => ""
       })
+    val results2 = for(result <- results) yield {
+      Map(
+        "title" -> result.label,
+        "link" -> result.link,
+        "model" -> QueryElement.fromModel(backend.summarize(result.id),
+                                          BASE_NAME + result.id).head) }
     val page = mustache(resolve("html/search.html")).substitute(
-      "results" -> results.dropRight(1),
+      "results" -> results2.take(limit),
       "prev" -> prev,
       "has_prev" -> hasPrev,
       "next" -> next,
