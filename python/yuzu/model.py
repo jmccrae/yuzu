@@ -2,27 +2,45 @@ from rdflib.term import Literal, URIRef, BNode
 from rdflib.namespace import RDF
 from yuzu.settings import CONTEXT
 from yuzu.displayer import DISPLAYER
+import json
+
+
+def next_subject(graph, class_of):
+    for s, p, o in graph:
+        if (p != RDF.type or o != class_of) and isinstance(p, URIRef):
+            return str(s)
+    return None
 
 
 def from_model(graph, query):
-    elem = URIRef(query)
-    class_of = None
-    class_of_objects = graph.objects(elem, RDF.type)
-    if class_of_objects:
-        for class_of_value in graph.objects(elem, RDF.type):
-            class_of = from_node(graph, class_of_value, [], query)
-            break
-    triples = list(triple_frags(elem, graph, [], class_of, query))
-    model = {
-        'display': DISPLAYER.apply(elem),
-        'uri': query,
-        'triples': triples,
-        'has_triples': len(triples) > 0,
-        'classOf': class_of,
-        'context': CONTEXT,
-        'inverses': list(inverse_triple_frags(elem, graph, query))
+    s = query
+    rv = []
+    while s:
+        elem = URIRef(s)
+        class_of = None
+        class_of_objects = graph.objects(elem, RDF.type)
+        if class_of_objects:
+            for class_of_value in graph.objects(elem, RDF.type):
+                class_of = from_node(graph, class_of_value, [], False, query)
+                break
+        triples = list(triple_frags(elem, graph, [], class_of, query))
+        graph.remove((elem, None, None))
+        model = {
+            'display': DISPLAYER.apply(elem),
+            'uri': query,
+            'triples': triples,
+            'has_triples': len(triples) > 0,
+            'classOf': class_of,
+            'context': CONTEXT,
+            'inverses': list(inverse_triple_frags(elem, graph, query))
+        }
+        graph.remove((None, None, elem))
+        rv.append(model)
+        s = next_subject(graph, class_of)
+    return {
+        'head': rv[0],
+        'tail': rv[1:]
     }
-    return model
 
 
 def triple_elems(objs):
@@ -55,8 +73,8 @@ def triple_frags(elem, graph, stack, classOf, query):
         for p in []:
             yield p
     else:
-        triples = [(from_node(graph, p, [elem] + stack, query),
-                    from_node(graph, o, [elem] + stack, query))
+        triples = [(from_node(graph, p, [elem] + stack, True, query),
+                    from_node(graph, o, [elem] + stack, True, query))
                    for p, o in graph.predicate_objects(elem)
                    if p != RDF.type or o != classOf]
         sortt = sorted(triples, key=lambda x: x[0]["display"] + x[0]["uri"])
@@ -68,7 +86,7 @@ def triple_frags(elem, graph, stack, classOf, query):
             yield {
                 "has_triples": has_triples,
                 "prop": p,
-                "obj": triple_elems(objs)
+                "obj": list(triple_elems(objs))
             }
 
 
@@ -84,7 +102,7 @@ def inverse_triple_frags(elem, graph, query):
     for p, objs in grouped:
         yield {
             "prop": p,
-            "obj": triple_elems(objs)
+            "obj": list(triple_elems(objs))
         }
 
 
@@ -95,6 +113,7 @@ def from_node(graph, node, stack, recurse=True, query=None):
             fragment = str(node)[str(node).index('#') + 1:]
         if recurse and str(node).startswith(str(query)):
             triples = list(triple_frags(node, graph, stack, None, query))
+            graph.remove((node, None, None))
             return {
                 'display': DISPLAYER.apply(node),
                 'uri': str(node),
@@ -114,6 +133,7 @@ def from_node(graph, node, stack, recurse=True, query=None):
             }
     elif type(node) == BNode:
         triples = list(triple_frags(node, graph, stack, None, query))
+        graph.remove((node, None, None))
         return {
             'display': DISPLAYER.apply(node),
             'bnode': True,

@@ -290,7 +290,7 @@ class ServerTest(unittest.TestCase):
         conn.close()
 
     def test_dataid(self):
-        conn = self.do_get("/dataid")
+        conn = self.do_get("/about")
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
         self.assertIn("Example Resource", content)
@@ -302,7 +302,7 @@ class ServerTest(unittest.TestCase):
         conn.close()
 
     def test_dataid_rdf(self):
-        conn = self.do_get("/dataid.rdf")
+        conn = self.do_get("/about.rdf")
         content = str(conn.getresponse().read())
         self.assertIn("<rdf", content)
         conn.close()
