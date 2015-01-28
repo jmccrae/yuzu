@@ -70,7 +70,7 @@ object YuzuSettings {
   // Properties to use as facets
   val FACETS = Seq(
     Map("uri" -> "http://purl.org/dc/elements/1.1/title", "label" -> "Title", "list" -> false),
-    Map("uri" -> "http://purl.org/dc/elements/1.1/language", "label" -> "Language"),
+    Map("uri" -> "http://purl.org/dc/terms/language", "label" -> "Language"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/rights", "label" -> "Rights"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/type", "label" -> "Type"),
     //Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Date Issued"),
