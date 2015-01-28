@@ -495,9 +495,9 @@ class TripleBackend(db : String) extends Backend {
          case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l), s) })}}
 
   /** List all pages by value */
-  def listValues(offset : Int , limit : Int, prop : String) = {
+  def listValues(offset : Int , limit2 : Int, prop : String) = {
     withSession(conn) { implicit session => 
-      val limit2 = limit + 1
+      val limit = limit2 + 1
       val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
                           WHERE property=$prop AND head=1
                           GROUP BY oid ORDER BY count(*) DESC 

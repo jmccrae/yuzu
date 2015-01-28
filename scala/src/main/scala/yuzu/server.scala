@@ -557,7 +557,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
                   "count" -> v.count.toString,
                   "offset" -> obj_offset.getOrElse(0).toString
                 )},
-          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0)+20) } else { None }))
+          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
       } else {
         facet + ("uri_enc" -> uri_enc)
       }
