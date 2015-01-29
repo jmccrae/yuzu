@@ -257,7 +257,9 @@ object QueryElement {
   def fromModel(model : Model, query : String) : ElementList = {
     var s : Option[String] = Some(query)
     var rv = collection.mutable.ListBuffer[Element]()
-    while(s != None) {
+    // This is a horrible hack but at least the server will stop crashing
+    var i = 1000
+    while(s != None && i > 0) {
       val elem = model.createResource(s.get)
       val classOf = elem.getProperty(RDF.`type`) match {
         case null => null
@@ -280,6 +282,7 @@ object QueryElement {
         inverses=inverseTripleFrags(model, elem, s.get))
       rv.append(head)
       s = nextSubject(model, classOf)
+      i -= 1
     } 
     new ElementList(rv.toList)
   }
