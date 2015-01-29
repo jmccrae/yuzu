@@ -99,8 +99,6 @@ object DefaultDisplayer extends URIDisplayer {
   def uriToStr(uri : String) = {
     if(PROP_NAMES.contains(uri)) {
       PROP_NAMES(uri)
-    } else if(uri.startsWith(BASE_NAME)) {
-      "%s" format (uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       "%s:%s" format (PREFIX1_QN, uri.drop(PREFIX1_URI.size))
     } else if(uri.startsWith(PREFIX2_URI)) {
@@ -119,6 +117,8 @@ object DefaultDisplayer extends URIDisplayer {
       "%s:%s" format (PREFIX8_QN, uri.drop(PREFIX8_URI.size))
     } else if(uri.startsWith(PREFIX9_URI)) {
       "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
+    } else if(uri.startsWith(BASE_NAME)) {
+      "%s" format (uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(RDF.getURI())) {
       uri.drop(RDF.getURI().size)
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -160,8 +160,6 @@ object PrettyDisplayer extends URIDisplayer {
   def uriToStr(uri : String) = {
     if(PROP_NAMES.contains(uri)) {
       PROP_NAMES(uri)
-    } else if(uri.startsWith(BASE_NAME)) {
-      magicString(uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       magicString(uri.drop(PREFIX1_URI.size))
     } else if(uri.startsWith(PREFIX2_URI)) {
@@ -180,6 +178,8 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(PREFIX8_URI.size))
     } else if(uri.startsWith(PREFIX9_URI)) {
       magicString(uri.drop(PREFIX9_URI.size))
+    } else if(uri.startsWith(BASE_NAME)) {
+      magicString(uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(RDF.getURI())) {
       magicString(uri.drop(RDF.getURI().size))
     } else if(uri.startsWith(RDFS.getURI())) {
