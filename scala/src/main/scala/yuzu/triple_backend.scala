@@ -502,7 +502,7 @@ class TripleBackend(db : String) extends Backend {
                           WHERE property=$prop AND head=1
                           GROUP BY oid ORDER BY count(*) DESC 
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
-     (results.size > limit,
+     (results.size > limit2,
       results.map {
         case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
         case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
