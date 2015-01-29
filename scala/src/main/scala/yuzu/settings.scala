@@ -418,7 +418,8 @@ object YuzuSettings {
 "http://babelnet.org/rdf/s03655374n" -> "Text simplification",
 "http://babelnet.org/rdf/s03692686n" -> "Lexical analysis",
 "http://babelnet.org/rdf/s03829842n" -> "Web service",
-"http://babelnet.org/rdf/s03884071n" -> "N-gram"
+"http://babelnet.org/rdf/s03884071n" -> "N-gram",
+"http://babelnet.org/rdf/page/s00059034n" -> "Ontology"
   )
   // Linked datasets (this is only used for metadata but is created
   // on DB load). Not linked indicates URI starts which are not to 
