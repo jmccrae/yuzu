@@ -265,6 +265,7 @@ object YuzuSettings {
 "http://www.lexvo.org/id/iso639-3/tah" -> "Tahitian",
 "http://www.lexvo.org/id/iso639-3/uig" -> "Uyghur",
 "http://www.lexvo.org/id/iso639-3/ukr" -> "Ukrainian",
+"http://www.lexvo.org/id/iso639-3/und" -> "Undefined",
 "http://www.lexvo.org/id/iso639-3/urd" -> "Urdu",
 "http://www.lexvo.org/id/iso639-3/uzb" -> "Uzbek",
 "http://www.lexvo.org/id/iso639-3/ven" -> "Venda",
@@ -419,7 +420,7 @@ object YuzuSettings {
 "http://babelnet.org/rdf/s03692686n" -> "Lexical analysis",
 "http://babelnet.org/rdf/s03829842n" -> "Web service",
 "http://babelnet.org/rdf/s03884071n" -> "N-gram",
-"http://babelnet.org/rdf/page/s00059034n" -> "Ontology"
+"http://babelnet.org/rdf/s00059034n" -> "Ontology"
   )
   // Linked datasets (this is only used for metadata but is created
   // on DB load). Not linked indicates URI starts which are not to 
