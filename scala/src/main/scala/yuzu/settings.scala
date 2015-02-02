@@ -76,6 +76,8 @@ object YuzuSettings {
     //Map("uri" -> "http://purl.org/dc/elements/1.1/issued", "label" -> "Date Issued"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/creator", "label" -> "Creator"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/source", "label" -> "Source"),
+    Map("uri" -> "http://purl.org/dc/elements/1.1/contributor", "label" -> "Contributor"),
+    Map("uri" -> "http://purl.org/dc/elements/1.1/subject", "label" -> "Subject"),
     Map("uri" -> "http://purl.org/dc/elements/1.1/description", "label" -> "Description", "list" -> false),
     //Map("uri" -> "http://www.w3.org/ns/dcat#downloadURL", "label" -> "Download URL"),
     Map("uri" -> "http://www.w3.org/ns/dcat#accessURL", "label" -> "Access URL", "list" -> false),
