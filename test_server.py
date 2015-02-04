@@ -171,6 +171,8 @@ class ServerTest(unittest.TestCase):
         content = str(conn.getresponse().read())
         self.assertIn("href=\"/data/example2\"", content)
         self.assertNotIn("No Results", content)
+        self.assertNotIn("href='/search/?offset=20&amp;query=test' "
+                         "class='btn btn-default  disabled'", content)
         conn.close()
 
     def test_search2(self):
