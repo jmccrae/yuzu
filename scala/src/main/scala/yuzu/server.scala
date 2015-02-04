@@ -618,7 +618,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       "prev" -> prev,
       "has_prev" -> hasPrev,
       "next" -> next,
-      "hasNext" -> hasNext,
+      "has_next" -> hasNext,
       "pages" -> pages,
       "query" -> qs
     )

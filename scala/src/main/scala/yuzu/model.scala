@@ -265,6 +265,10 @@ object QueryElement {
         case null => null
         case st => st.getObject()
       }
+
+      if(classOf != null) {
+        model.remove(elem, RDF.`type`, classOf) }
+
       val label = (LABELS.flatMap { prop =>
         Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
         }).headOption.map({ stat =>
@@ -284,6 +288,10 @@ object QueryElement {
       s = nextSubject(model, classOf)
       i -= 1
     } 
+
+    if(i <= 0)  {
+      System.err.println(s"Failed on $query") }
+
     new ElementList(rv.toList)
   }
 

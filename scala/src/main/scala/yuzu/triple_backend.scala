@@ -514,21 +514,34 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
-                JOIN ids AS subj ON free_text.sid=subj.id
+          sql"""SELECT DISTINCT page FROM free_text
+                JOIN tripids ON free_text.sid=tripids.sid 
+                             AND free_text.pid=tripids.pid
                 JOIN ids AS prop ON free_text.pid=prop.id
-                WHERE prop.n3=$p and object match $query 
-                LIMIT $limit OFFSET $offset""".as2[String, String]
+                WHERE prop.n3=$p AND object MATCH $query
+                LIMIT $limit OFFSET $offset""".as1[String]
+//          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+//                JOIN ids AS subj ON free_text.sid=subj.id
+//                JOIN ids AS prop ON free_text.pid=prop.id
+//                WHERE prop.n3=$p and object match $query 
+//                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
-          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
-                JOIN ids AS subj ON free_text.sid=subj.id
-                WHERE object match $query
-                LIMIT $limit OFFSET $offset""".as2[String, String] }
+          sql"""SELECT DISTINCT page FROM free_text
+                JOIN tripids ON free_text.sid=tripids.sid
+                WHERE object MATCH $query
+                LIMIT $limit OFFSET $offset""".as1[String]}
+//          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+//                JOIN ids AS subj ON free_text.sid=subj.id
+//                WHERE object match $query
+//                LIMIT $limit OFFSET $offset""".as2[String, String] }
+      
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
-      result.toVector.map {
-        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
-        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l), n32page(s)) }}}
+      result.toVector.map { page =>
+        val n3 = "<%s%s>" format (BASE_NAME, page)
+        sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption match {
+          case Some("") => SearchResult(CONTEXT + "/" + page, page, page)
+          case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
+          case None => SearchResult(CONTEXT + "/" + page, page, page) }}}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>
