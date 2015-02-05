@@ -224,7 +224,7 @@ object QueryElement {
         case (p, ss) => 
           model.removeAll(elem, p, null)
           new TripleFrag(fromNode(p, elem :: stack, model), 
-                         ss.map(s => fromNode(s.getObject(), elem :: stack, model)))
+                         ss.toList.map(s => fromNode(s.getObject(), elem :: stack, model)))
       } sortBy(_.prop.display)).toList
     } else {
       Nil
@@ -241,9 +241,10 @@ object QueryElement {
       stat.getPredicate()
     }).toList.map {
       case (p, ss) =>
+        val ssList = ss.toList
         model.remove(ss) 
         new TripleFrag(fromNode(p, Nil, model), 
-                       ss.map(s => fromNode(s.getSubject(), Nil, model)))
+                       ssList.map(s => fromNode(s.getSubject(), Nil, model)))
     } sortBy(_.prop.display)).toList
   }
 
