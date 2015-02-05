@@ -85,6 +85,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val mockRequest = mock[HttpServletRequest]
     val out = new StringWriter()
     when(mockRequest.getRequestURI()) thenReturn SPARQL_PATH
+    when(mockRequest.getContextPath()) thenReturn ""
     when(mockRequest.getQueryString()) thenReturn "not null"
     val paramMap = new java.util.HashMap[String, Array[String]]()
     paramMap.put("query", Array("select * { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?o }"))
@@ -126,6 +127,7 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val mockRequest = mock[HttpServletRequest]
     val out = new StringWriter()
     when(mockRequest.getRequestURI()) thenReturn "/test_resource"
+    when(mockRequest.getContextPath()) thenReturn ""
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
     when(mockRequest.getRequestURL()) thenReturn (new StringBuffer(BASE_NAME))
     rdfServer.service(mockRequest, mockResponse)

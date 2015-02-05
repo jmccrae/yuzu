@@ -348,9 +348,9 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
   }
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
-    //val uri2 = UnicodeEscape.safeURI(req.getRequestURI())
-    //val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
-    val uri = req.getPathInfo()
+    val uri2 = UnicodeEscape.safeURI(req.getRequestURI().substring(req.getContextPath().length))
+    val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
+    //val uri = req.getPathInfo()
     val isTest = req.getRequestURL().toString() == (BASE_NAME + uri)
     var mime = if(uri.matches(".*\\.html")) {
       html
