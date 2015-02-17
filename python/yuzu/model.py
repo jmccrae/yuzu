@@ -2,7 +2,11 @@ from rdflib.term import Literal, URIRef, BNode
 from rdflib.namespace import RDF
 from yuzu.settings import CONTEXT
 from yuzu.displayer import DISPLAYER
-import json
+import sys
+if sys.version_info[0] < 3:
+    from urllib import quote_plus
+else:
+    from urllib.parse import quote_plus
 
 
 def next_subject(graph, class_of):
@@ -27,7 +31,9 @@ def from_model(graph, query):
         graph.remove((elem, None, None))
         model = {
             'display': DISPLAYER.apply(elem),
+            'literal_encode': quote_plus(str(elem)),
             'uri': query,
+            'uri_encode': quote_plus(query),
             'triples': triples,
             'has_triples': len(triples) > 0,
             'classOf': class_of,
@@ -117,6 +123,7 @@ def from_node(graph, node, stack, recurse=True, query=None):
             return {
                 'display': DISPLAYER.apply(node),
                 'uri': str(node),
+                'uri_encode': quote_plus(str(node)),
                 'triples': triples,
                 'has_triples': len(triples) > 0,
                 'context': CONTEXT,
@@ -126,6 +133,7 @@ def from_node(graph, node, stack, recurse=True, query=None):
             return {
                 'display': DISPLAYER.apply(node),
                 'uri': str(node),
+                'uri_encode': quote_plus(str(node)),
                 'triples': [],
                 'has_triples': False,
                 'context': CONTEXT,
@@ -145,6 +153,7 @@ def from_node(graph, node, stack, recurse=True, query=None):
         return {
             'display': str(node),
             'literal': True,
+            'literal_encode': quote_plus(str(node)),
             'lang': node.language,
             'datatype': from_dt(node.datatype),
             'has_triples': False,
