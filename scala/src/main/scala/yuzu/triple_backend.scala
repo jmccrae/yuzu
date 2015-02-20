@@ -359,15 +359,16 @@ class TripleBackend(db : String) extends Backend {
                       linkCounts(target) = 1 }}}
                 catch {
                   case x : Exception => // oh well 
-                }}}}
-                
+                }}}
+
+            if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
+                !NO_INVERSE.contains(subj.getURI())) {
+              val page = node2page(obj)
+
+              insertTriples(sid, pid, oid, page, false) }}
           else {
             insertTriples(sid, pid, oid, "<BLANK>", false) }
 
-          if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
-            val page = node2page(obj)
-
-            insertTriples(sid, pid, oid, page, false) }
           
           n += 1
           if(n % 100000 == 0) {
@@ -537,11 +538,19 @@ class TripleBackend(db : String) extends Backend {
       
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
       result.toVector.map { page =>
-        val n3 = "<%s%s>" format (BASE_NAME, page)
-        sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption match {
+        getLabel(page) match {
           case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
           case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
           case None => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page) }}}}
+
+  def label(page : String) = withSession(conn) { implicit session =>
+    getLabel(page)
+  }
+
+  def getLabel(page : String)(implicit session : Session) = { 
+    val n3 = "<%s%s>" format (BASE_NAME, page)
+    sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption
+  }
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>
