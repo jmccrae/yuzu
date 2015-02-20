@@ -80,6 +80,10 @@ class ServerTest(unittest.TestCase):
         self.assertIn("Creator", content)
         self.assertIn("Title", content)
         self.assertIn("McCrae", content)
+        self.assertIn("select+distinct+%2a"
+                      "+%7b+%3fResource+%3Chttp%3A%2F%2Fpurl.org%2Fdc%2Felemen"
+                      "ts%2F1.1%2Ftitle%3e+%22John+McCrae%22+%7d",
+                      content)
         conn.close()
 
     def test_rdf(self):

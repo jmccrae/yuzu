@@ -29,6 +29,8 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
+  def uri_encode = java.net.URLEncoder.encode(uri, "UTF-8")
+  def literal_encode = java.net.URLEncoder.encode(display, "UTF-8")
   def superCleanURI(_uri : String) = {
     // This is slow if we have to make a lot of changes
     // A stringbuffer would the be quicker, but I assume
