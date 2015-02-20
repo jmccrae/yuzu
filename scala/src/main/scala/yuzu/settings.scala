@@ -25,7 +25,7 @@ object YuzuSettings {
   val PREFIX1_QN = "wn"
   val PREFIX2_URI = "http://lemon-model.net/lemon#"
   val PREFIX2_QN = "lemon"
-  val PREFIX3_URI = "http://wordnet-rdf.princeton.edu/wn31/"
+  val PREFIX3_URI = "http://www.example.com/"
   val PREFIX3_QN = "wn31"
   val PREFIX4_URI = "http://www.w3.org/2006/03/wn/wn20/instances/"
   val PREFIX4_QN = "w3cwn"
@@ -100,7 +100,7 @@ object YuzuSettings {
     "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/")
   // Never show inverse links on the following pages
   val NO_INVERSE = List(
-    "http://localhost:8080/ontology"
+    "http://wordnet-rdf.princeton.edu/ontology"
   )
   // The minimum number of links to another dataset to be included in metadata
   val MIN_LINKS = 1
