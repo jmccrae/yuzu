@@ -539,9 +539,9 @@ class TripleBackend(db : String) extends Backend {
       result.toVector.map { page =>
         val n3 = "<%s%s>" format (BASE_NAME, page)
         sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption match {
-          case Some("") => SearchResult(CONTEXT + "/" + page, page, page)
+          case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
           case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
-          case None => SearchResult(CONTEXT + "/" + page, page, page) }}}}
+          case None => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page) }}}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>
