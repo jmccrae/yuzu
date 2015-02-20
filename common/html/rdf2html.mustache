@@ -1,4 +1,5 @@
 <div class="rdf_header">
+{{#head}}
 <h1 style="word-wrap:break-word;display:inline;">{{display}}</h1>
 <!--<img src="{{context}}/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/></h1>-->
 <ul class="nav nav-tabs pull-right">
@@ -67,4 +68,60 @@
             {{/obj}}
     {{/has_triples}}
 {{/triples}}
-            
+{{/head}}
+{{#tail}}
+ <h3 class="rdf_subheader rdf_subsection">{{display}}</h3>
+{{#classOf}}
+    <h5 class="rdf_classof">Instance of: <a href="{{uri}}" class="rdf_link">{{display}}</a></h5>
+{{/classOf}}
+<table class="rdf_table" resource="">
+    {{#triples}}
+        {{^has_triples}}
+            {{> triple}}
+        {{/has_triples}}
+    {{/triples}}
+    {{#inverses}}
+    <tr>
+        <td class="rdf_prop rdf_first_value">
+            {{#prop}}
+                Is <a href="{{uri}}" class="rdf_link">{{display}}</a> of
+            {{/prop}}
+        </td>
+        <td class="rdf_value">
+        {{#obj}}
+                {{#elem}}
+                    <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" resource="" class="rdf_link rdf_prop">{{display}}</a>
+                {{/elem}}
+            {{^last}}
+    </td>
+</tr>
+<tr>
+    <td></td>
+    <td class="rdf_value rdf_rest_value">
+            {{/last}}
+        {{/obj}}
+    </td>
+</tr>                
+    {{/inverses}}
+        
+</table>
+
+{{#triples}}
+    {{#has_triples}}
+        {{#prop}}
+            <h3 class="rdf_subheader"><a href="{{uri}}" class="rdf_link rdf_prop">{{display}}</a></h3>
+        {{/prop}}
+            {{#obj}}
+        <span property="{{#prop}}{{uri}}{{/prop}}" resource="{{#elem}}{{uri}}{{/elem}}"></span>
+        <a class="anchor" id="{{#elem}}{{fragment}}{{/elem}}"></a>
+        <table class="rdf_table" resource="{{#elem}}{{uri}}{{/elem}}">
+                {{#elem}}
+                    {{#triples}}
+                        {{> triple}}
+                    {{/triples}}
+                {{/elem}}
+        </table>
+            {{/obj}}
+    {{/has_triples}}
+{{/triples}}
+{{/tail}}

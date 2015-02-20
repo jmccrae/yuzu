@@ -7,6 +7,16 @@ import com.hp.hpl.jena.vocabulary._
 import java.util.{List=>JList}
 import scala.collection.JavaConversions._
 
+class ElementList(elements : List[Element]) {
+  def ::(e : Element) = new ElementList(e :: elements)
+  val head = if(elements.isEmpty) { null } else { elements.head }
+  val tail = seqAsJavaList(if(elements.isEmpty) { Nil } else { elements.tail })
+}
+
+object ElementList {
+  def apply(e : Element*) = new ElementList(List(e:_*)) 
+}
+
 case class Element(val display : String, 
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
@@ -19,6 +29,8 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
+  def uri_encode = java.net.URLEncoder.encode(uri, "UTF-8")
+  def literal_encode = java.net.URLEncoder.encode(display, "UTF-8")
   def superCleanURI(_uri : String) = {
     // This is slow if we have to make a lot of changes
     // A stringbuffer would the be quicker, but I assume
@@ -87,10 +99,8 @@ trait URIDisplayer {
 object DefaultDisplayer extends URIDisplayer {
   import YuzuSettings._
   def uriToStr(uri : String) = {
-    if(PROP_NAMES.contains(uri)) {
+    val label = if(PROP_NAMES.contains(uri)) {
       PROP_NAMES(uri)
-    } else if(uri.startsWith(BASE_NAME)) {
-      "%s" format (uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       "%s:%s" format (PREFIX1_QN, uri.drop(PREFIX1_URI.size))
     } else if(uri.startsWith(PREFIX2_URI)) {
@@ -109,6 +119,8 @@ object DefaultDisplayer extends URIDisplayer {
       "%s:%s" format (PREFIX8_QN, uri.drop(PREFIX8_URI.size))
     } else if(uri.startsWith(PREFIX9_URI)) {
       "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
+    } else if(uri.startsWith(BASE_NAME)) {
+      "%s" format (uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(RDF.getURI())) {
       uri.drop(RDF.getURI().size)
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -136,22 +148,25 @@ object DefaultDisplayer extends URIDisplayer {
      } else {
       uri
     }
+    if(label != "") {
+      label
+    } else {
+      uri
+    }
   }
 }
 
 object PrettyDisplayer extends URIDisplayer {
   import YuzuSettings._
   def magicString(text : String) = {
-    val s = text.replaceAll("([a-z])([A-Z])","$1 $2").
-      replaceAll("_"," ")
+    val s = java.net.URLDecoder.decode(text.replaceAll("([a-z])([A-Z])","$1 $2").
+      replaceAll("_"," "), "UTF-8")
     s.take(1).toUpperCase + s.drop(1)
   }
 
   def uriToStr(uri : String) = {
-    if(PROP_NAMES.contains(uri)) {
+    val label = if(PROP_NAMES.contains(uri)) {
       PROP_NAMES(uri)
-    } else if(uri.startsWith(BASE_NAME)) {
-      magicString(uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       magicString(uri.drop(PREFIX1_URI.size))
     } else if(uri.startsWith(PREFIX2_URI)) {
@@ -170,6 +185,8 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(PREFIX8_URI.size))
     } else if(uri.startsWith(PREFIX9_URI)) {
       magicString(uri.drop(PREFIX9_URI.size))
+    } else if(uri.startsWith(BASE_NAME)) {
+      magicString(uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(RDF.getURI())) {
       magicString(uri.drop(RDF.getURI().size))
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -197,12 +214,18 @@ object PrettyDisplayer extends URIDisplayer {
     } else {
       uri
     }
+    if(label != "") {
+      label
+    } else {
+      uri
+    }
   }
 }
 
 object QueryElement {
   import YuzuSettings._
-  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode) = {
+  def tripleFrags(elem : Resource, stack : List[RDFNode], classOf : RDFNode,
+                  model : Model) = {
     if(!stack.contains(elem)) {
       ((elem.listProperties().toSeq.filter { stat =>
         stat.getPredicate() != RDF.`type` ||
@@ -211,7 +234,9 @@ object QueryElement {
         stat.getPredicate()
       }).toList.map {
         case (p, ss) => 
-          new TripleFrag(fromNode(p, elem :: stack), ss.map(s => fromNode(s.getObject(), elem :: stack)))
+          model.removeAll(elem, p, null)
+          new TripleFrag(fromNode(p, elem :: stack, model), 
+                         ss.toList.map(s => fromNode(s.getObject(), elem :: stack, model)))
       } sortBy(_.prop.display)).toList
     } else {
       Nil
@@ -228,39 +253,68 @@ object QueryElement {
       stat.getPredicate()
     }).toList.map {
       case (p, ss) =>
-        new TripleFrag(fromNode(p, Nil), ss.map(s => fromNode(s.getSubject(), Nil)))
+        val ssList = ss.toList
+        model.remove(ss) 
+        new TripleFrag(fromNode(p, Nil, model), 
+                       ssList.map(s => fromNode(s.getSubject(), Nil, model)))
     } sortBy(_.prop.display)).toList
   }
 
-  def fromModel(model : Model, query : String) : Element = {
-    val elem = model.createResource(query)
-    val classOf = elem.getProperty(RDF.`type`) match {
-      case null => null
-      case st => st.getObject()
-    }
-    val label = (LABELS.flatMap { prop =>
-      Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
-      }).headOption.map({ stat =>
-        val node = stat.getObject()
-        if(node.isLiteral()) {
-          node.asLiteral().getLexicalForm()
-        } else {
-          node.toString()
-        }
-    }).getOrElse(DISPLAYER.apply(elem))
-    Element(label,
-      uri=elem.getURI(),
-      triples=tripleFrags(elem, Nil, classOf),
-      classOf=fromNode(classOf),
-      inverses=inverseTripleFrags(model, elem, query))
+  private def nextSubject(model : Model, classOf : RDFNode) : Option[String] = {
+    (model.listStatements().filter { stat =>
+      (stat.getPredicate() != RDF.`type` ||
+       stat.getObject() != classOf) &&
+      stat.getSubject().isURIResource() } map { stat =>
+      stat.getSubject().getURI() }).toSeq.headOption }
+
+  def fromModel(model : Model, query : String) : ElementList = {
+    var s : Option[String] = Some(query)
+    var rv = collection.mutable.ListBuffer[Element]()
+    // This is a horrible hack but at least the server will stop crashing
+    var i = 1000
+    while(s != None && i > 0) {
+      val elem = model.createResource(s.get)
+      val classOf = elem.getProperty(RDF.`type`) match {
+        case null => null
+        case st => st.getObject()
+      }
+
+      if(classOf != null) {
+        model.remove(elem, RDF.`type`, classOf) }
+
+      val label = (LABELS.flatMap { prop =>
+        Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
+        }).headOption.map({ stat =>
+          val node = stat.getObject()
+          if(node.isLiteral()) {
+            node.asLiteral().getLexicalForm()
+          } else {
+            node.toString()
+          }
+      }).getOrElse(DISPLAYER.apply(elem))
+      val head = Element(label,
+        uri=elem.getURI(),
+        triples=tripleFrags(elem, Nil, classOf, model),
+        classOf=fromNode(classOf, Nil, model),
+        inverses=inverseTripleFrags(model, elem, s.get))
+      rv.append(head)
+      s = nextSubject(model, classOf)
+      i -= 1
+    } 
+
+    if(i <= 0)  {
+      System.err.println(s"Failed on $query") }
+
+    new ElementList(rv.toList)
   }
 
-  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil) : Element = node match {
+  def fromNode(node : RDFNode, stack : List[RDFNode] = Nil,
+               model : Model) : Element = node match {
     case null => null
     case r : Resource =>
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
-        triples=tripleFrags(r, stack, null),
+        triples=tripleFrags(r, stack, null, model),
         bnode=(!r.isURIResource()))
     case l : Literal =>
       Element(DISPLAYER.apply(l), 

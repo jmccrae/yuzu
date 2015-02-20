@@ -21,16 +21,16 @@ object UnicodeEscape {
   /** Fix unicode escape characters */
   def unescape(str : String) : String = {
     val sb = new StringBuilder(str)
-    var i = 0
-    while(i < sb.length) {
+    var i = sb.indexOf('\\')
+    while(i >= 0 && i < sb.length - 5) {
       if(sb.charAt(i) == '\\' && sb.charAt(i+1) == 'u') {
-      try {
-        sb.replace(i,i+6, 
-          Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
-      catch {
-      case x : NumberFormatException =>
-        System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
-      i += 1 }
+        try {
+          sb.replace(i,i+6, 
+            Integer.parseInt(sb.slice(i+2,i+6).toString, 16).toChar.toString) }
+        catch {
+        case x : NumberFormatException =>
+          System.err.println("Bad unicode string %s" format sb.slice(i,i+6)) }}
+      i = sb.indexOf('\\', i + 1) }
     sb.toString }
 
 
@@ -233,7 +233,8 @@ class TripleBackend(db : String) extends Backend {
         System.err.println(s)
         throw x }}
 
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) {
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean, 
+           maxCache : Int = 1000000) {
     val c = conn
     c.setAutoCommit(false)
     withSession(c) { implicit session =>
@@ -245,7 +246,7 @@ class TripleBackend(db : String) extends Backend {
       var oldOutFile : Option[File] = None
       var outFile : File = null
       var eof = true
-      val max = 1000000
+      var first = true
 
       do {
         eof = true
@@ -257,7 +258,7 @@ class TripleBackend(db : String) extends Backend {
         for(line <- io.Source.fromInputStream(stream).getLines()) {
           try {
             read += 1 
-            if(read < skip || !eof) {
+            if(read < skip) {
               out.println(line) }
             else {
               val elems = line.split(" ")
@@ -268,10 +269,10 @@ class TripleBackend(db : String) extends Backend {
               for(e <- Seq(subj, prop, obj)) {
                 e match {
                   case Left(n2) => 
-                    val n = fixURI(n2)
+                    val n = if(first) { fixURI(n2) } else { n2 }
                     known.get(n) match {
                     case Some(i) => out.print("%d=%s" format(i, toN3(n)))
-                    case None => if(known.size < max) {
+                    case None => if(known.size < maxCache) {
                         val v = offset + known.size
                         known.put(n, v)
                         out.print("%d=%s" format(v, toN3(n))) }
@@ -305,6 +306,7 @@ class TripleBackend(db : String) extends Backend {
         offset += known.size
         dumpMap(known.toMap)
         c.commit()
+        first = false
       } while(!eof) 
       System.err.println("Preprocessing done")
 
@@ -486,19 +488,21 @@ class TripleBackend(db : String) extends Backend {
       val results2 = results.toVector
       (results2.size > limit,
        results2.map {
-         case (s, null) => SearchResult(CONTEXT + "/" + s, s, s)
-         case (s, "") => SearchResult(CONTEXT + "/" + s, s, s)
+         case (s, null) => SearchResult(CONTEXT + "/" + s, 
+           DISPLAYER.uriToStr(BASE_NAME + s), s)
+         case (s, "") => SearchResult(CONTEXT + "/" + s, 
+           DISPLAYER.uriToStr(BASE_NAME + s), s)
          case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l), s) })}}
 
   /** List all pages by value */
-  def listValues(offset : Int , limit : Int, prop : String) = {
+  def listValues(offset : Int , limit2 : Int, prop : String) = {
     withSession(conn) { implicit session => 
-      val limit2 = limit + 1
+      val limit = limit2 + 1
       val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
                           WHERE property=$prop AND head=1
                           GROUP BY oid ORDER BY count(*) DESC 
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
-     (results.size > limit,
+     (results.size > limit2,
       results.map {
         case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
         case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
@@ -510,21 +514,34 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
-                JOIN ids AS subj ON free_text.sid=subj.id
+          sql"""SELECT DISTINCT page FROM free_text
+                JOIN tripids ON free_text.sid=tripids.sid 
+                             AND free_text.pid=tripids.pid
                 JOIN ids AS prop ON free_text.pid=prop.id
-                WHERE prop.n3=$p and object match $query 
-                LIMIT $limit OFFSET $offset""".as2[String, String]
+                WHERE prop.n3=$p AND object MATCH $query
+                LIMIT $limit OFFSET $offset""".as1[String]
+//          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+//                JOIN ids AS subj ON free_text.sid=subj.id
+//                JOIN ids AS prop ON free_text.pid=prop.id
+//                WHERE prop.n3=$p and object match $query 
+//                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
-          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
-                JOIN ids AS subj ON free_text.sid=subj.id
-                WHERE object match $query
-                LIMIT $limit OFFSET $offset""".as2[String, String] }
+          sql"""SELECT DISTINCT page FROM free_text
+                JOIN tripids ON free_text.sid=tripids.sid
+                WHERE object MATCH $query
+                LIMIT $limit OFFSET $offset""".as1[String]}
+//          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+//                JOIN ids AS subj ON free_text.sid=subj.id
+//                WHERE object match $query
+//                LIMIT $limit OFFSET $offset""".as2[String, String] }
+      
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
-      result.toVector.map {
-        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
-        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l), n32page(s)) }}}
+      result.toVector.map { page =>
+        val n3 = "<%s%s>" format (BASE_NAME, page)
+        sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption match {
+          case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
+          case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
+          case None => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page) }}}}
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>

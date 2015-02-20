@@ -25,7 +25,8 @@ class DummyBackend extends Backend {
   def listValues(offset : Int, limit : Int, prop : String) = (false, Nil)
   //def list(subj : Option[String], prop : Option[String], obj : Option[String], offset : Int = 0, limit : Int = 20) : (Boolean,Seq[Triple])
   def search(query : String, property : Option[String], offset : Int, limit : Int) = Nil
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) { }
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean,
+           maxCache : Int) { }
   def tripleCount = 0
   def linkCounts = Nil
 }
@@ -83,7 +84,8 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val mockResponse = mock[HttpServletResponse]
     val mockRequest = mock[HttpServletRequest]
     val out = new StringWriter()
-    when(mockRequest.getPathInfo()) thenReturn SPARQL_PATH
+    when(mockRequest.getRequestURI()) thenReturn SPARQL_PATH
+    when(mockRequest.getContextPath()) thenReturn ""
     when(mockRequest.getQueryString()) thenReturn "not null"
     val paramMap = new java.util.HashMap[String, Array[String]]()
     paramMap.put("query", Array("select * { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?o }"))
@@ -124,7 +126,8 @@ class ServerTests extends FlatSpec with BeforeAndAfterAll with MockitoSugar with
     val mockResponse = mock[HttpServletResponse]
     val mockRequest = mock[HttpServletRequest]
     val out = new StringWriter()
-    when(mockRequest.getPathInfo()) thenReturn "/test_resource"
+    when(mockRequest.getRequestURI()) thenReturn "/test_resource"
+    when(mockRequest.getContextPath()) thenReturn ""
     when(mockResponse.getWriter()) thenReturn new PrintWriter(out)
     when(mockRequest.getRequestURL()) thenReturn (new StringBuffer(BASE_NAME))
     rdfServer.service(mockRequest, mockResponse)

@@ -18,7 +18,7 @@ else:
     from urllib.parse import urlparse, unquote
 
 import yuzu.displayer
-from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, 
+from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE,
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
                            LINKED_SETS, MIN_LINKS, YUZUQL_LIMIT,
                            PREFIX1_URI, PREFIX1_QN,
@@ -177,6 +177,17 @@ class RDFBackend(Store):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
 
+    def get_label(self, uri, conn):
+        cursor = conn.cursor()
+        cursor.execute("""select label from ids where n3=?""",
+                       ("<%s>" % uri,))
+        row = cursor.fetchone()
+        if row:
+            label, = row
+            return label
+        else:
+            return yuzu.displayer.DISPLAYER.uri_to_str(uri)
+
     def search(self, query, prop, offset, limit=20):
         """Search for pages with the appropriate property
         @param query The value to query for
@@ -188,21 +199,24 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("""select distinct sids.n3, sids.label from
-            free_text join ids as pids on free_text.pid = pids.id
-            join ids as sids on free_text.sid = sids.id
-            where pids.n3=? and object match ? limit ? offset ?""",
+            cursor.execute("""select distinct page from
+            free_text join tripids on free_text.sid=tripids.sid
+            and free_text.pid=tripids.pid join ids as prop on
+            free_text.pid=prop.id where prop.n3=? and object match ?
+            limit ? offset ?""",
                            ("<%s>" % prop, query, limit + 1, offset))
         else:
-            cursor.execute("""select distinct sids.n3, sids.label from
-            free_text join ids as sids on free_text.sid = sids.id
+            cursor.execute("""select distinct page from
+            free_text join tripids on free_text.sid=tripids.sid
             where object match ? limit ? offset ?""",
                            (query, limit + 1, offset))
         rows = cursor.fetchall()
+        results = [{'link': CONTEXT + "/" + page,
+                    'label': self.get_label(BASE_NAME + page, conn),
+                    'id': page}
+                   for page, in rows]
         conn.close()
-        return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
-                 'label': label, 'id': uri[len(BASE_NAME) + 1:-1]}
-                for uri, label in rows]
+        return results
 
     def summarize(self, id):
         """Summarize an id
@@ -305,7 +319,7 @@ class RDFBackend(Store):
 #                                        'count': count})
 #                else:
                     results.append({'link': obj,
-                                    'label': yuzu.displyer.DISPLAYER.apply(
+                                    'label': yuzu.displayer.DISPLAYER.apply(
                                         str(n3)),
                                     'count': count})
             n += 1

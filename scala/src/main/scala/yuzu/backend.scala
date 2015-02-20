@@ -49,7 +49,8 @@ trait Backend {
   /**
    * Load the data from an input stream 
    */
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean) : Unit
+  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean,
+           maxCache : Int = 1000000) : Unit
   /**
    * Return the total number of triples in the model
    */
@@ -180,13 +181,14 @@ object ResultSet {
 
 object RDFBackend {
   def main(args : Array[String]) {
-    val getopt = new Getopt("yuzubackend", args, "d:f:e")
+    val getopt = new Getopt("yuzubackend", args, "d:f:m:e")
     var opts = collection.mutable.Map[String, String]()
     var c = 0
     while({c = getopt.getopt(); c } != -1) {
       c match {
         case 'd' => opts("-d") = getopt.getOptarg()
         case 'f' => opts("-f") = getopt.getOptarg()
+        case 'm' => opts("-m") = getopt.getOptarg()
         case 'e' => opts("-e") = "true"
       }
     }
@@ -196,7 +198,8 @@ object RDFBackend {
       case file @ endsGZ() => new GZIPInputStream(new FileInputStream(file))
       case file => new FileInputStream(file)
     }
-    backend.load(inputStream, opts contains "-e")
+    backend.load(inputStream, opts contains "-e", 
+                 opts.getOrElse("-m", "1000000").toInt)
     //backend.close()
   }
 }

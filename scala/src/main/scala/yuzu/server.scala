@@ -209,13 +209,21 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       val pd = cls.getProtectionDomain()
       val cs = pd.getCodeSource()
       val loc = cs.getLocation()
-      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()
+          && new File(loc.getPath() + fname).exists) {
         new URL("file:"+loc.getPath() + fname)
       } else {
         if(new File(fname).exists) {
           new URL("file:"+fname)
-        } else {
+        } else if(new File("../" + fname).exists) {
           new URL("file:../" + fname)
+        // This is a 'hack' for sbt container:launch
+        } else if(new File("../../" + fname).exists) {
+          new URL("file:../../" + fname)
+        } else {
+          System.err.println("Could not locate %s from %s" format (
+            fname, System.getProperty("user.dir")))
+          new URL("file:"+fname)
         }
       }
     }
@@ -340,7 +348,9 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
   }
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
-    val uri = req.getPathInfo()
+    val uri2 = UnicodeEscape.safeURI(req.getRequestURI().substring(req.getContextPath().length))
+    val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
+    //val uri = req.getPathInfo()
     val isTest = req.getRequestURL().toString() == (BASE_NAME + uri)
     var mime = if(uri.matches(".*\\.html")) {
       html
@@ -480,10 +490,11 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
         out => out.print(content)
       }
-    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
+    } else if(resolve("html/%s.html" format uri.replaceAll("/$", "")).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(), isTest))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(
+            "dump_uri" -> DUMP_URI), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
@@ -548,7 +559,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
                   "count" -> v.count.toString,
                   "offset" -> obj_offset.getOrElse(0).toString
                 )},
-          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0)+20) } else { None }))
+          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
       } else {
         facet + ("uri_enc" -> uri_enc)
       }
@@ -567,7 +578,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         "title" -> result.label,
         "link" -> result.link,
         "model" -> QueryElement.fromModel(backend.summarize(result.id),
-                                          BASE_NAME + result.id)) }
+                                          BASE_NAME + result.id).head) }
                             
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, 
@@ -603,13 +614,13 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         "title" -> result.label,
         "link" -> result.link,
         "model" -> QueryElement.fromModel(backend.summarize(result.id),
-                                          BASE_NAME + result.id)) }
+                                          BASE_NAME + result.id).head) }
     val page = mustache(resolve("html/search.html")).substitute(
       "results" -> results2.take(limit),
       "prev" -> prev,
       "has_prev" -> hasPrev,
       "next" -> next,
-      "hasNext" -> hasNext,
+      "has_next" -> hasNext,
       "pages" -> pages,
       "query" -> qs
     )
