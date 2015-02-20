@@ -515,11 +515,11 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT page FROM free_text
-                JOIN tripids ON free_text.sid=tripids.sid 
-                             AND free_text.pid=tripids.pid
+          sql"""SELECT DISTINCT subj.n3 FROM free_text
+                JOIN ids AS subj ON free_text.sid=prop.sid
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p AND object MATCH $query
+                ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
@@ -527,9 +527,10 @@ class TripleBackend(db : String) extends Backend {
 //                WHERE prop.n3=$p and object match $query 
 //                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
-          sql"""SELECT DISTINCT page FROM free_text
-                JOIN tripids ON free_text.sid=tripids.sid
+          sql"""SELECT DISTINCT subj.n3 FROM free_text
+                JOIN ids AS subj ON free_text.sid=prop.sid
                 WHERE object MATCH $query
+                ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]}
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
@@ -537,7 +538,8 @@ class TripleBackend(db : String) extends Backend {
 //                LIMIT $limit OFFSET $offset""".as2[String, String] }
       
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
-      result.toVector.map { page =>
+      result.toVector.map { n3 =>
+        val page = n32page(n3)
         getLabel(page) match {
           case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
           case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
