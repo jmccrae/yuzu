@@ -10,7 +10,7 @@ object YuzuSettings {
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
-  val CONTEXT = "/"
+  val CONTEXT = ""
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/wn31.nt.gz"
   // The local path to the data
@@ -25,14 +25,14 @@ object YuzuSettings {
   val PREFIX1_QN = "wn"
   val PREFIX2_URI = "http://lemon-model.net/lemon#"
   val PREFIX2_QN = "lemon"
-  val PREFIX3_URI = "http://www.example.com/"
-  val PREFIX3_QN = "ex3"
-  val PREFIX4_URI = "http://www.example.com/"
-  val PREFIX4_QN = "ex4"
-  val PREFIX5_URI = "http://www.example.com/"
-  val PREFIX5_QN = "ex5"
-  val PREFIX6_URI = "http://www.example.com/"
-  val PREFIX6_QN = "ex6"
+  val PREFIX3_URI = "http://wordnet-rdf.princeton.edu/wn31/"
+  val PREFIX3_QN = "wn31"
+  val PREFIX4_URI = "http://www.w3.org/2006/03/wn/wn20/instances/"
+  val PREFIX4_QN = "w3cwn"
+  val PREFIX5_URI = "http://lemon-model.net/lexica/uby/wn/"
+  val PREFIX5_QN = "ubywn"
+  val PREFIX6_URI = "http://www.lexvo.org/page/wordnet/30/"
+  val PREFIX6_QN = "lexvo"
   val PREFIX7_URI = "http://www.example.com/"
   val PREFIX7_QN = "ex7"
   val PREFIX8_URI = "http://www.example.com/"
@@ -69,7 +69,11 @@ object YuzuSettings {
 
   // Properties to use as facets
   val FACETS = Seq(
-    Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label", "list" -> true)
+    Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label", "list" -> false),
+    Map("uri" -> "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "label" -> "Type", "list" -> true),
+    Map("uri" -> "http://wordnet-rdf.princeton.edu/ontology#gloss", "label" -> "Gloss", "list" -> false),
+    Map("uri" -> "http://wordnet-rdf.princeton.edu/ontology#part_of_speech", "label" -> "Part Of Speech", "list" -> true)
+
   )
   // Properties to use as labels
   val LABELS = Set(
@@ -84,7 +88,8 @@ object YuzuSettings {
   
   // Any forced names on properties
   val PROP_NAMES = Map(
-   "http://localhost:8080/ontology#link" -> "Link property"
+    "http://www.w3.org/2000/01/rdf-schema#label" -> "Lemma",
+    "http://lemon-model.net/lemon#sense" -> "Senses"
   )
   // Linked datasets (this is only used for metadata but is created
   // on DB load). Not linked indicates URI starts which are not to 

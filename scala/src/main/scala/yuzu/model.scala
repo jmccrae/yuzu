@@ -236,7 +236,8 @@ object QueryElement {
         case (p, ss) => 
           model.removeAll(elem, p, null)
           new TripleFrag(fromNode(p, elem :: stack, model), 
-                         ss.toList.map(s => fromNode(s.getObject(), elem :: stack, model)))
+                         ss.toList.map(s => fromNode(s.getObject(), elem :: stack, model, 
+                          p.getURI() != "http://wordnet-rdf.princeton.edu/ontology#derivation")))
       } sortBy(_.prop.display)).toList
     } else {
       Nil
@@ -309,12 +310,12 @@ object QueryElement {
   }
 
   def fromNode(node : RDFNode, stack : List[RDFNode] = Nil,
-               model : Model) : Element = node match {
+               model : Model, recurse : Boolean = true) : Element = node match {
     case null => null
     case r : Resource =>
       Element(DISPLAYER.apply(r), 
         uri=r.getURI(), 
-        triples=tripleFrags(r, stack, null, model),
+        triples=(if(recurse) { tripleFrags(r, stack, null, model) } else { Nil }),
         bnode=(!r.isURIResource()))
     case l : Literal =>
       Element(DISPLAYER.apply(l), 

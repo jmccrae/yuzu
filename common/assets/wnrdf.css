@@ -134,6 +134,10 @@ fieldset[disabled] .btn {
   position: relative;
   float: left;
   margin:0px;
+  width: 129px;
+}
+.pager > .btn {
+    width: 40px;
 }
 .nav-tabs > li {
   float: left;
@@ -148,6 +152,7 @@ fieldset[disabled] .btn {
 }
 a.rdf_link {
     text-decoration: none;
+  line-height: 1.42857143;
 }
 a.btn-default {
     text-decoration: none;
@@ -160,4 +165,9 @@ a.btn-secondary {
 }
 .list-by {
     margin-bottom: 25px;
+}
+
+.more img {
+    height: 16px;
+    padding-left: 2px;
 }
