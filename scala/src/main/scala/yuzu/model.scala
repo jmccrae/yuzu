@@ -120,7 +120,8 @@ object DefaultDisplayer extends URIDisplayer {
     } else if(uri.startsWith(PREFIX9_URI)) {
       "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
     } else if(uri.startsWith(BASE_NAME)) {
-      "%s" format (uri.drop(BASE_NAME.size))
+      val page = uri.drop(BASE_NAME.size)
+      new TripleBackend(DB_FILE).label(page).getOrElse(page)
     } else if(uri.startsWith(RDF.getURI())) {
       uri.drop(RDF.getURI().size)
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -186,7 +187,8 @@ object PrettyDisplayer extends URIDisplayer {
     } else if(uri.startsWith(PREFIX9_URI)) {
       magicString(uri.drop(PREFIX9_URI.size))
     } else if(uri.startsWith(BASE_NAME)) {
-      magicString(uri.drop(BASE_NAME.size))
+      val page = uri.drop(BASE_NAME.size)
+      new TripleBackend(DB_FILE).label(page).getOrElse(magicString(page))
     } else if(uri.startsWith(RDF.getURI())) {
       magicString(uri.drop(RDF.getURI().size))
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -228,8 +230,9 @@ object QueryElement {
                   model : Model) = {
     if(!stack.contains(elem)) {
       ((elem.listProperties().toSeq.filter { stat =>
-        stat.getPredicate() != RDF.`type` ||
-        stat.getObject() != classOf
+        (stat.getPredicate() != RDF.`type` ||
+        stat.getObject() != classOf) &&
+        !stack.contains(stat.getObject())
       } groupBy { stat =>
         stat.getPredicate()
       }).toList.map {

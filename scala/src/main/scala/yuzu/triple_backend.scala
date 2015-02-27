@@ -359,15 +359,16 @@ class TripleBackend(db : String) extends Backend {
                       linkCounts(target) = 1 }}}
                 catch {
                   case x : Exception => // oh well 
-                }}}}
-                
+                }}}
+
+            if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
+                !NO_INVERSE.contains(subj.getURI())) {
+              val page = node2page(obj)
+
+              insertTriples(sid, pid, oid, page, false) }}
           else {
             insertTriples(sid, pid, oid, "<BLANK>", false) }
 
-          if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
-            val page = node2page(obj)
-
-            insertTriples(sid, pid, oid, page, false) }
           
           n += 1
           if(n % 100000 == 0) {
@@ -514,11 +515,11 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT page FROM free_text
-                JOIN tripids ON free_text.sid=tripids.sid 
-                             AND free_text.pid=tripids.pid
+          sql"""SELECT DISTINCT subj.n3 FROM free_text
+                JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p AND object MATCH $query
+                ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
@@ -526,9 +527,10 @@ class TripleBackend(db : String) extends Backend {
 //                WHERE prop.n3=$p and object match $query 
 //                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
-          sql"""SELECT DISTINCT page FROM free_text
-                JOIN tripids ON free_text.sid=tripids.sid
+          sql"""SELECT DISTINCT subj.n3 FROM free_text
+                JOIN ids AS subj ON free_text.sid=subj.id
                 WHERE object MATCH $query
+                ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]}
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
@@ -536,12 +538,21 @@ class TripleBackend(db : String) extends Backend {
 //                LIMIT $limit OFFSET $offset""".as2[String, String] }
       
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
-      result.toVector.map { page =>
-        val n3 = "<%s%s>" format (BASE_NAME, page)
-        sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption match {
+      result.toVector.map { n3 =>
+        val page = n32page(n3)
+        getLabel(page) match {
           case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
           case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
           case None => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page) }}}}
+
+  def label(page : String) = withSession(conn) { implicit session =>
+    getLabel(page)
+  }
+
+  def getLabel(page : String)(implicit session : Session) = { 
+    val n3 = "<%s%s>" format (BASE_NAME, page)
+    sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption
+  }
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>

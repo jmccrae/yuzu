@@ -22,20 +22,20 @@
                     <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
                      {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
                     {{#lang}}
-                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%22{{literal_encode}}%22%40{{lang}}+%7d" class="more pull-right">
+                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%22{{literal_encode}}%22%40{{lang}}+%7d+limit+100" class="more pull-right">
                             <img src="{{context}}/assets/more.png" title="Resources with this property"/>
                         </a>
                         <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
                     {{/lang}}
                     {{#datatype}}
-                        <span class="pull-right rdf_datatype"><a href="{{uri}}" class="rdf_link">{{display}}</a></span>
-                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%22{{literal_encode}}%22%5e%5e{{uri_encode}}+%7d" class="more pull-right">
+                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%22{{literal_encode}}%22%5e%5e%3c{{uri_encode}}%3e+%7d+limit+100" class="more pull-right">
                             <img src="{{context}}/assets/more.png" title="Resources with this property"/>
                         </a>
+                        <span class="pull-right rdf_datatype"><a href="{{uri}}" class="rdf_link">{{display}}</a></span>
                     {{/datatype}}
                     {{^lang}}
                         {{^datatype}}
-                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%22{{literal_encode}}%22+%7d" class="more pull-right">
+                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%22{{literal_encode}}%22+%7d+limit+100" class="more pull-right">
                             <img src="{{context}}/assets/more.png" title="Resources with this property"/>
                         </a>
                         {{/datatype}}
@@ -47,7 +47,7 @@
                     {{/bnode}}
                     {{^bnode}}
                         <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" class="rdf_link rdf_prop">{{display}}</a>
-                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%3c{{uri_encode}}%3e+%7d" class="more pull-right">
+                        <a href="{{context}}/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C{{#prop}}{{uri_encode}}{{/prop}}%3e+%3c{{uri_encode}}%3e+%7d+limit+100" class="more pull-right">
                             <img src="{{context}}/assets/more.png" title="Resources with this property"/>
                         </a>
                     {{/bnode}}
