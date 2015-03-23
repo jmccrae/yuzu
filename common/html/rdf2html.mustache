@@ -1,5 +1,12 @@
+
 <div class="rdf_header">
 {{#head}}
+{{#replacement}}
+<div class="alert alert-danger">
+This dataset entry has been marked as a duplicate. The current entry is at
+<a href="{{replacement}}">{{replacement}}</a>.
+</div>
+{{/replacement}}
 <h1 style="word-wrap:break-word;display:inline;">{{display}}</h1>
 <!--<img src="{{context}}/assets/rdf_w3c_icon.48.gif" height="28px" onclick="toggle_rdf_format_list();" style="float:right;"/></h1>-->
 <ul class="nav nav-tabs pull-right">

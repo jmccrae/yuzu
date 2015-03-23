@@ -21,7 +21,8 @@ case class Element(val display : String,
   val uri : String = null, val classOf : Element = null,
   val literal : Boolean = false, val lang : String = null,
   val triples : JList[TripleFrag] = null, val datatype : Element = null,
-  val bnode : Boolean = false, val inverses : JList[TripleFrag] = null) {
+  val bnode : Boolean = false, val inverses : JList[TripleFrag] = null,
+  val replacement : String = null) {
     override def toString = display + Option(triples).map({ ts => 
       " [" + (ts.map({ t =>
         t.prop.display + " " + t.obj.mkString(",")
@@ -270,6 +271,20 @@ object QueryElement {
       stat.getSubject().isURIResource() } map { stat =>
       stat.getSubject().getURI() }).toSeq.headOption }
 
+  def isDeprecated(model : Model, elem : Resource) =  {
+    val elems = model.listObjectsOfProperty(
+      elem,
+      model.createProperty("http://purl.org/dc/terms/isReplacedBy"))
+    if(elems.hasNext()) {
+      val e = elems.next()
+      if(e.isURIResource()) {
+        e.asResource().getURI() }
+      else {
+        null }}
+    else {
+      null }
+  }
+
   def fromModel(model : Model, query : String) : ElementList = {
     var s : Option[String] = Some(query)
     var rv = collection.mutable.ListBuffer[Element]()
@@ -277,6 +292,7 @@ object QueryElement {
     var i = 1000
     while(s != None && i > 0) {
       val elem = model.createResource(s.get)
+      val replacement = isDeprecated(model, elem)
       val classOf = elem.getProperty(RDF.`type`) match {
         case null => null
         case st => st.getObject()
@@ -299,7 +315,8 @@ object QueryElement {
         uri=elem.getURI(),
         triples=tripleFrags(elem, Nil, classOf, model),
         classOf=fromNode(classOf, Nil, model),
-        inverses=inverseTripleFrags(model, elem, s.get))
+        inverses=inverseTripleFrags(model, elem, s.get),
+        replacement=replacement)
       rv.append(head)
       s = nextSubject(model, classOf)
       i -= 1

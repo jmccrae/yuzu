@@ -160,7 +160,8 @@ class TripleBackend(db : String) extends Backend {
   private def createTables(implicit session : Session) = {
     sql"""CREATE TABLE IF NOT EXISTS ids (id integer primary key,
                                           n3 text not null,
-                                          label text, unique(n3))""".execute
+                                          label text, 
+                                          deprecated boolean default 0, unique(n3))""".execute
     sql"""CREATE INDEX n3s on ids (n3)""".execute
     sql"""CREATE TABLE IF NOT EXISTS tripids (sid integer not null,
                                               pid integer not null,
@@ -177,7 +178,8 @@ class TripleBackend(db : String) extends Backend {
     sql"""CREATE VIEW triples AS SELECT page, sid, pid, oid,
               subj.n3 AS subject, subj.label AS subj_label,
               prop.n3 AS property, prop.label AS prop_label,
-              obj.n3 AS object, obj.label AS obj_label, head
+              obj.n3 AS object, obj.label AS obj_label, head,
+              subj.deprecated AS dep
               FROM tripids 
               JOIN ids AS subj ON tripids.sid=subj.id
               JOIN ids AS prop ON tripids.pid=prop.id
@@ -316,6 +318,8 @@ class TripleBackend(db : String) extends Backend {
         insert3[Int, Int, String]
       val updateLabel = sql"""UPDATE ids SET label=? WHERE id=?""".
         insert2[String, Int]
+      val updateDeprecation = sql"""UPDATE ids SET deprecated=? WHERE id=?""".
+        insert2[Boolean, Int]
       var linkCounts = collection.mutable.Map[String, Int]()
       var n = 0
   
@@ -339,6 +343,9 @@ class TripleBackend(db : String) extends Backend {
               
               if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
                 updateLabel(obj.getLiteralLexicalForm(), sid) }
+
+              if(prop.getURI() == "http://purl.org/dc/terms/isReplacedBy") {
+                updateDeprecation(true, sid) }
 
               if(obj.isURI()) {
                 try {
@@ -376,7 +383,8 @@ class TripleBackend(db : String) extends Backend {
             System.err.flush() 
             insertTriples.execute
             insertFreeText.execute
-            updateLabel.execute }}
+            updateLabel.execute 
+            updateDeprecation.execute }}
         catch {
           case x : Exception =>
             if(ignoreErrors) {
@@ -388,6 +396,7 @@ class TripleBackend(db : String) extends Backend {
     insertTriples.execute
     insertFreeText.execute
     updateLabel.execute
+    updateDeprecation.execute
     c.commit()
 
     System.err.println("")
@@ -475,16 +484,16 @@ class TripleBackend(db : String) extends Backend {
             case Some(o) => 
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND object=$o AND page!="<BLANK>"
-                    AND head=1
+                    AND head=1 AND dep=0
                     LIMIT $limit2 OFFSET $offset""".as2[String, String]
             case None =>
               sql"""SELECT DISTINCT page, subj_label FROM triples
                     WHERE property=$p AND page!="<BLANK>"
-                    AND head=1
+                    AND head=1 AND dep=0
                     LIMIT $limit2 OFFSET $offset""".as2[String, String] }
         case None =>
           sql"""SELECT DISTINCT page, subj_label FROM triples
-                WHERE page!="<BLANK>" AND head=1
+                WHERE page!="<BLANK>" AND head=1 AND dep=0
                 LIMIT $limit2 OFFSET $offset""".as2[String, String] }
       val results2 = results.toVector
       (results2.size > limit,
@@ -500,7 +509,7 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val limit = limit2 + 1
       val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
-                          WHERE property=$prop AND head=1
+                          WHERE property=$prop AND head=1 AND dep=0
                           GROUP BY oid ORDER BY count(*) DESC 
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit2,
@@ -519,6 +528,7 @@ class TripleBackend(db : String) extends Backend {
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p AND object MATCH $query
+                AND subj.deprecated=0
                 ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
@@ -530,6 +540,7 @@ class TripleBackend(db : String) extends Backend {
           sql"""SELECT DISTINCT subj.n3 FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 WHERE object MATCH $query
+                AND subj.deprecated=0
                 ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]}
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
