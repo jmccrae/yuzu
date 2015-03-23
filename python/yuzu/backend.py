@@ -70,6 +70,13 @@ class SPARQLExecutor(multiprocessing.Process):
             self.pipe.send(('error', YZ_BAD_MIME))
 
 
+def mainN3(n3):
+    if n3.startswith("<") and "#" in n3:
+        return n3[:n3.index("#")] + ">"
+    else:
+        return n3
+
+
 class LoadCache:
     def __init__(self, cursor):
         self.values = {}
@@ -84,7 +91,8 @@ class LoadCache:
             row = self.cursor.fetchone()
             if not row:
                 self.cursor.execute(
-                    "insert into ids (n3) values (?)", (key,))
+                    "insert into ids (n3, main) values (?, ?)",
+                    (key, mainN3(key)))
                 self.cursor.execute(
                     "select id from ids where n3=?", (key,))
                 row = self.cursor.fetchone()
@@ -199,21 +207,24 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("""select distinct page from
-            free_text join tripids on free_text.sid=tripids.sid
-            and free_text.pid=tripids.pid join ids as prop on
-            free_text.pid=prop.id where prop.n3=? and object match ?
+            cursor.execute("""select distinct subj.main from free_text
+            join ids as subj on free_text.sid=subj.id
+            join ids as prop on free_text.pid=prop.id
+            where prop.n3=? and object match ?
+            order by length(object) asc
             limit ? offset ?""",
                            ("<%s>" % prop, query, limit + 1, offset))
         else:
-            cursor.execute("""select distinct page from
-            free_text join tripids on free_text.sid=tripids.sid
-            where object match ? limit ? offset ?""",
+            cursor.execute("""select distinct subj.main from free_text
+            join ids as subj on free_text.sid=subj.id
+            where object match ?
+            order by length(object) asc
+            limit ? offset ?""",
                            (query, limit + 1, offset))
         rows = cursor.fetchall()
-        results = [{'link': CONTEXT + "/" + page,
-                    'label': self.get_label(BASE_NAME + page, conn),
-                    'id': page}
+        results = [{'link': page[1:-1],
+                    'label': self.get_label(page[1:-1], conn),
+                    'id': page[1 + len(BASE_NAME):-1]}
                    for page, in rows]
         conn.close()
         return results
@@ -423,6 +434,7 @@ class RDFBackend(Store):
         cursor.execute("""CREATE TABLE IF NOT EXISTS ids
                           (id integer primary key,
                            n3 text not null,
+                           main text not null,
                            label text, unique(n3))""")
         cursor.execute("""CREATE INDEX n3s on ids (n3)""")
         cursor.execute("""CREATE TABLE IF NOT EXISTS tripids
