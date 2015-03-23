@@ -215,7 +215,7 @@ class TripleBackend(db : String) extends Backend {
 
   def pageN3(n3 : String) = {
     if(n3.startsWith("<") && n3.contains("#")) {
-      n3.drop(n3.indexOf("#")) + ">" }
+      n3.take(n3.indexOf("#")) + ">" }
     else {
       n3 }}
 
