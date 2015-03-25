@@ -14,7 +14,7 @@ object YuzuSettings {
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/wn31.nt.gz"
   // The local path to the data
-  val DUMP_FILE = "../wn31.mini.nt.gz"
+  val DUMP_FILE = "../wn31.nt.gz"
   // Where the database should appear
   val DB_FILE = "wn31.db"
   // The name of the server
