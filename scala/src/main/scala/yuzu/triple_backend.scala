@@ -185,7 +185,11 @@ class TripleBackend(db : String) extends Backend {
               JOIN ids AS obj ON tripids.oid=obj.id""".execute
     sql"""CREATE VIRTUAL TABLE free_text USING fts4(sid integer, pid integer, 
                                                     object TEXT NOT NULL)""".execute 
-    sql"""CREATE TABLE links (count integer, target text)""".execute }
+    sql"""CREATE TABLE links (count integer, target text)""".execute 
+    sql"""CREATE TABLE value_cache (object text not null,
+                                    obj_label text,
+                                    count int,
+                                    property text not null)""".execute }
 
   /** Work out the page for a node (assuming the node is in the base namespace */
   def node2page(n : Node) = uri2page(n.getURI())
@@ -240,6 +244,12 @@ class TripleBackend(db : String) extends Backend {
       case x : Exception => {
         System.err.println(s)
         throw x }}
+
+  def removeFrag(uriStr : String) = {
+    val uri = URI.create(uriStr)
+    new URI(uri.getScheme(), uri.getHost(),
+            uri.getPath(), null)
+  }
 
   def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean, 
            maxCache : Int = 1000000) {
@@ -371,7 +381,7 @@ class TripleBackend(db : String) extends Backend {
                 }}}
 
             if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
-                !NO_INVERSE.contains(subj.getURI())) {
+                !NO_INVERSE.contains(removeFrag(subj.getURI()))) {
               val page = node2page(obj)
 
               insertTriples(sid, pid, oid, page, false) }}
@@ -405,6 +415,10 @@ class TripleBackend(db : String) extends Backend {
     linkCounts.foreach { case (target, count) => if(count >= MIN_LINKS) { 
       insertLinkCount(count, target) }}
     insertLinkCount.execute
+
+    sql"""INSERT INTO value_cache 
+          SELECT DISTINCT object, obj_label, count(*), property FROM triples
+          WHERE head=1 GROUP BY oid""".execute
 
     c.commit() } }
 
@@ -508,9 +522,13 @@ class TripleBackend(db : String) extends Backend {
   def listValues(offset : Int , limit2 : Int, prop : String) = {
     withSession(conn) { implicit session => 
       val limit = limit2 + 1
-      val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
-                          WHERE property=$prop AND head=1
-                          GROUP BY oid ORDER BY count(*) DESC 
+      //val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
+      //                    WHERE property=$prop AND head=1
+      //                    GROUP BY oid ORDER BY count(*) DESC 
+      //                    LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
+      val results = sql"""SELECT object, obj_label, count FROM value_cache
+                          WHERE property=$prop
+                          ORDER BY count DESC
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
      (results.size > limit2,
       results.map {
