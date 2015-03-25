@@ -355,7 +355,7 @@ class TripleBackend(db : String) extends Backend {
               insertTriples(sid, pid, oid, page, !subj.getURI().contains("#"))
 
               //if(FACETS.exists(_("uri") == prop.getURI())) {
-                if(obj.isLiteral()) {
+                if(obj.isLiteral() && obj.getLiteralLanguage() == "en") {
                   insertFreeText(sid, pid, obj.getLiteralLexicalForm())  }
                 else {
                   insertFreeText(sid, pid, obj.toString) }//}
@@ -550,7 +550,7 @@ class TripleBackend(db : String) extends Backend {
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p AND object MATCH $query 
-                ORDER BY length(subj.label) asc
+                ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
@@ -561,7 +561,7 @@ class TripleBackend(db : String) extends Backend {
           sql"""SELECT DISTINCT subj.main FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 WHERE object MATCH $query 
-                ORDER BY length(subj.label) asc
+                ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]}
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
