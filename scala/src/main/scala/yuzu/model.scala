@@ -11,6 +11,7 @@ class ElementList(elements : List[Element]) {
   def ::(e : Element) = new ElementList(e :: elements)
   val head = if(elements.isEmpty) { null } else { elements.head }
   val tail = seqAsJavaList(if(elements.isEmpty) { Nil } else { elements.tail })
+  val has_tail = !tail.isEmpty
 }
 
 object ElementList {
@@ -96,66 +97,66 @@ trait URIDisplayer {
 
 }
 
-object DefaultDisplayer extends URIDisplayer {
-  import YuzuSettings._
-  def uriToStr(uri : String) = {
-    val label = if(PROP_NAMES.contains(uri)) {
-      PROP_NAMES(uri)
-    } else if(uri.startsWith(PREFIX1_URI)) {
-      "%s:%s" format (PREFIX1_QN, uri.drop(PREFIX1_URI.size))
-    } else if(uri.startsWith(PREFIX2_URI)) {
-      "%s:%s" format (PREFIX2_QN, uri.drop(PREFIX2_URI.size))
-    } else if(uri.startsWith(PREFIX3_URI)) {
-      "%s:%s" format (PREFIX3_QN, uri.drop(PREFIX3_URI.size))
-    } else if(uri.startsWith(PREFIX4_URI)) {
-      "%s:%s" format (PREFIX4_QN, uri.drop(PREFIX4_URI.size))
-    } else if(uri.startsWith(PREFIX5_URI)) {
-      "%s:%s" format (PREFIX5_QN, uri.drop(PREFIX5_URI.size))
-    } else if(uri.startsWith(PREFIX6_URI)) {
-      "%s:%s" format (PREFIX6_QN, uri.drop(PREFIX6_URI.size))
-    } else if(uri.startsWith(PREFIX7_URI)) {
-      "%s:%s" format (PREFIX7_QN, uri.drop(PREFIX7_URI.size))
-    } else if(uri.startsWith(PREFIX8_URI)) {
-      "%s:%s" format (PREFIX8_QN, uri.drop(PREFIX8_URI.size))
-    } else if(uri.startsWith(PREFIX9_URI)) {
-      "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
-    } else if(uri.startsWith(BASE_NAME)) {
-      val page = uri.drop(BASE_NAME.size)
-      new TripleBackend(DB_FILE).label(page).getOrElse(page)
-    } else if(uri.startsWith(RDF.getURI())) {
-      uri.drop(RDF.getURI().size)
-    } else if(uri.startsWith(RDFS.getURI())) {
-      uri.drop(RDFS.getURI().size)
-    } else if(uri.startsWith(OWL.getURI())) {
-      uri.drop(OWL.getURI().size)
-    } else if(uri.startsWith(DC_11.getURI())) {
-      uri.drop(DC_11.getURI().size)
-    } else if(uri.startsWith(DCTerms.getURI())) {
-      uri.drop(DCTerms.getURI().size)
-    } else if(uri.startsWith(XSD.getURI())) {
-      uri.drop(XSD.getURI().size)
-    } else if(uri.startsWith(DCAT)) {
-      "dcat:" + uri.drop(DCAT.size)
-    } else if(uri.startsWith(VOID)) {
-      "void:" + uri.drop(VOID.size)
-    } else if(uri.startsWith(DATAID)) {
-      "dataid:" + uri.drop(DATAID.size)
-    } else if(uri.startsWith(FOAF)) {
-      "foaf:" + uri.drop(FOAF.size)
-    } else if(uri.startsWith(ODRL)) {
-      "odrl:" + uri.drop(ODRL.size)
-    } else if(uri.startsWith(PROV)) {
-      "prov:" + uri.drop(PROV.size)
-     } else {
-      uri
-    }
-    if(label != "") {
-      label
-    } else {
-      uri
-    }
-  }
-}
+//object DefaultDisplayer extends URIDisplayer {
+//  import YuzuSettings._
+//  def uriToStr(uri : String) = {
+//    val label = if(PROP_NAMES.contains(uri)) {
+//      PROP_NAMES(uri)
+//    } else if(uri.startsWith(PREFIX1_URI)) {
+//      "%s:%s" format (PREFIX1_QN, uri.drop(PREFIX1_URI.size))
+//    } else if(uri.startsWith(PREFIX2_URI)) {
+//      "%s:%s" format (PREFIX2_QN, uri.drop(PREFIX2_URI.size))
+//    } else if(uri.startsWith(PREFIX3_URI)) {
+//      "%s:%s" format (PREFIX3_QN, uri.drop(PREFIX3_URI.size))
+//    } else if(uri.startsWith(PREFIX4_URI)) {
+//      "%s:%s" format (PREFIX4_QN, uri.drop(PREFIX4_URI.size))
+//    } else if(uri.startsWith(PREFIX5_URI)) {
+//      "%s:%s" format (PREFIX5_QN, uri.drop(PREFIX5_URI.size))
+//    } else if(uri.startsWith(PREFIX6_URI)) {
+//      "%s:%s" format (PREFIX6_QN, uri.drop(PREFIX6_URI.size))
+//    } else if(uri.startsWith(PREFIX7_URI)) {
+//      "%s:%s" format (PREFIX7_QN, uri.drop(PREFIX7_URI.size))
+//    } else if(uri.startsWith(PREFIX8_URI)) {
+//      "%s:%s" format (PREFIX8_QN, uri.drop(PREFIX8_URI.size))
+//    } else if(uri.startsWith(PREFIX9_URI)) {
+//      "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
+//    } else if(uri.startsWith(BASE_NAME)) {
+//      val page = uri.drop(BASE_NAME.size)
+//      new TripleBackend(DB_FILE).label(page).getOrElse(page)
+//    } else if(uri.startsWith(RDF.getURI())) {
+//      uri.drop(RDF.getURI().size)
+//    } else if(uri.startsWith(RDFS.getURI())) {
+//      uri.drop(RDFS.getURI().size)
+//    } else if(uri.startsWith(OWL.getURI())) {
+//      uri.drop(OWL.getURI().size)
+//    } else if(uri.startsWith(DC_11.getURI())) {
+//      uri.drop(DC_11.getURI().size)
+//    } else if(uri.startsWith(DCTerms.getURI())) {
+//      uri.drop(DCTerms.getURI().size)
+//    } else if(uri.startsWith(XSD.getURI())) {
+//      uri.drop(XSD.getURI().size)
+//    } else if(uri.startsWith(DCAT)) {
+//      "dcat:" + uri.drop(DCAT.size)
+//    } else if(uri.startsWith(VOID)) {
+//      "void:" + uri.drop(VOID.size)
+//    } else if(uri.startsWith(DATAID)) {
+//      "dataid:" + uri.drop(DATAID.size)
+//    } else if(uri.startsWith(FOAF)) {
+//      "foaf:" + uri.drop(FOAF.size)
+//    } else if(uri.startsWith(ODRL)) {
+//      "odrl:" + uri.drop(ODRL.size)
+//    } else if(uri.startsWith(PROV)) {
+//      "prov:" + uri.drop(PROV.size)
+//     } else {
+//      uri
+//    }
+//    if(label != "") {
+//      label
+//    } else {
+//      uri
+//    }
+//  }
+//}
 
 object PrettyDisplayer extends URIDisplayer {
   import YuzuSettings._
@@ -164,6 +165,8 @@ object PrettyDisplayer extends URIDisplayer {
       replaceAll("_"," "), "UTF-8")
     s.take(1).toUpperCase + s.drop(1)
   }
+
+  private val senseRegex = "^.*/([^/]+)-[nvarps]#(\\d+)-[nvarps]$".r
 
   def uriToStr(uri : String) = {
     val label = if(PROP_NAMES.contains(uri)) {
@@ -187,8 +190,13 @@ object PrettyDisplayer extends URIDisplayer {
     } else if(uri.startsWith(PREFIX9_URI)) {
       magicString(uri.drop(PREFIX9_URI.size))
     } else if(uri.startsWith(BASE_NAME)) {
-      val page = uri.drop(BASE_NAME.size)
-      new TripleBackend(DB_FILE).label(page).getOrElse(magicString(page))
+      uri match {
+        case senseRegex(lemma, id) =>
+          "%s (Sense %s)" format (magicString(lemma), id)
+        case _ =>
+          val page = uri.drop(BASE_NAME.size)
+          new TripleBackend(DB_FILE).label(page).getOrElse(magicString(page))
+      }
     } else if(uri.startsWith(RDF.getURI())) {
       magicString(uri.drop(RDF.getURI().size))
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -213,7 +221,7 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(ODRL.size))
     } else if(uri.startsWith(PROV)) {
       magicString(uri.drop(PROV.size))
-    } else {
+    } else  {
       uri
     }
     if(label != "") {
