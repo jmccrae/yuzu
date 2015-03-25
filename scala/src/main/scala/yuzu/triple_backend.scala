@@ -153,13 +153,14 @@ class TripleBackend(db : String) extends Backend {
           case Some(id) => 
             id
           case None =>
-            sql"""INSERT INTO ids (n3) VALUES (?)""".insert(key)
+            sql"""INSERT INTO ids (n3, main) VALUES (?)""".insert(key, pageN3(key))
             sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].head }}}}
       
   /** The database schema */
   private def createTables(implicit session : Session) = {
     sql"""CREATE TABLE IF NOT EXISTS ids (id integer primary key,
                                           n3 text not null,
+                                          main text not null,
                                           label text, unique(n3))""".execute
     sql"""CREATE INDEX n3s on ids (n3)""".execute
     sql"""CREATE TABLE IF NOT EXISTS tripids (sid integer not null,
@@ -210,12 +211,19 @@ class TripleBackend(db : String) extends Backend {
           else {
             throw x }}}}
 
+  def pageN3(n3 : String) = {
+    if(n3.startsWith("<") && n3.contains("#")) {
+      n3.take(n3.indexOf("#")) + ">" }
+    else {
+      n3 }}
+
+
   def dumpMap(map : Map[Node, Int])(implicit session : Session) {
     val keys = map.keys.toSeq.sortBy(map(_))
-    val insertKey = sql"""INSERT OR IGNORE INTO ids (n3) VALUES (?)""".
-        insert1[String]
+    val insertKey = sql"""INSERT OR IGNORE INTO ids (n3, main) VALUES (?, ?)""".
+        insert2[String, String]
     for(key <- keys) {
-      insertKey(toN3(key)) }
+      insertKey(toN3(key), pageN3(toN3(key))) }
     insertKey.execute }
 
   def fromN3orInt(s : String) = if(s.startsWith("<") || s.startsWith("_") || 
@@ -515,10 +523,10 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT subj.n3 FROM free_text
+          sql"""SELECT DISTINCT subj.main FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
-                WHERE prop.n3=$p AND object MATCH $query
+                WHERE prop.n3=$p AND object MATCH $query 
                 ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
@@ -527,9 +535,9 @@ class TripleBackend(db : String) extends Backend {
 //                WHERE prop.n3=$p and object match $query 
 //                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
-          sql"""SELECT DISTINCT subj.n3 FROM free_text
+          sql"""SELECT DISTINCT subj.main FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
-                WHERE object MATCH $query
+                WHERE object MATCH $query 
                 ORDER BY length(object) asc
                 LIMIT $limit OFFSET $offset""".as1[String]}
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
