@@ -248,7 +248,7 @@ class TripleBackend(db : String) extends Backend {
   def removeFrag(uriStr : String) = try {
     val uri = URI.create(uriStr)
     new URI(uri.getScheme(), uri.getHost(),
-            uri.getPath(), null)
+            uri.getPath(), null).toString
   } catch {
     case x : IllegalArgumentException =>
       System.err.println("Bad uri: " + uriStr)
@@ -385,7 +385,7 @@ class TripleBackend(db : String) extends Backend {
                 }}}
 
             if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
-                !NO_INVERSE.contains(removeFrag(subj.getURI()))) {
+                !NO_INVERSE.contains(removeFrag(obj.getURI()))) {
               val page = node2page(obj)
 
               insertTriples(sid, pid, oid, page, false) }}
