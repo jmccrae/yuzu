@@ -245,10 +245,14 @@ class TripleBackend(db : String) extends Backend {
         System.err.println(s)
         throw x }}
 
-  def removeFrag(uriStr : String) = {
+  def removeFrag(uriStr : String) = try {
     val uri = URI.create(uriStr)
     new URI(uri.getScheme(), uri.getHost(),
             uri.getPath(), null)
+  } catch {
+    case x : IllegalArgumentException =>
+      System.err.println("Bad uri: " + uriStr)
+      uriStr 
   }
 
   def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean, 
