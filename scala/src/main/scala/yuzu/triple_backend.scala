@@ -561,6 +561,7 @@ class TripleBackend(db : String) extends Backend {
         val page = n32page(n3)
         getLabel(page) match {
           case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
+          case Some(null) => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
           case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
           case None => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page) }}}}
 
