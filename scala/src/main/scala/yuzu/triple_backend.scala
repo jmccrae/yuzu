@@ -161,7 +161,7 @@ class TripleBackend(db : String) extends Backend {
     sql"""CREATE TABLE IF NOT EXISTS ids (id integer primary key,
                                           n3 text not null,
                                           main text not null,
-                                          label text, unique(n3))""".execute
+                                          label text default "", unique(n3))""".execute
     sql"""CREATE INDEX n3s on ids (n3)""".execute
     sql"""CREATE TABLE IF NOT EXISTS tripids (sid integer not null,
                                               pid integer not null,
@@ -322,8 +322,9 @@ class TripleBackend(db : String) extends Backend {
         insert5[Int, Int, Int, String, Boolean]
       val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
         insert3[Int, Int, String]
-      val updateLabel = sql"""UPDATE ids SET label=? WHERE id=?""".
-        insert2[String, Int]
+      val updateLabel = sql"""UPDATE ids SET label=(
+        select label || (select case when label != "" then ", " else "" end) || ? from ids 
+        WHERE id =?) WHERE id=?""".insert3[String, Int, Int]
       var linkCounts = collection.mutable.Map[String, Int]()
       var n = 0
   
@@ -346,7 +347,7 @@ class TripleBackend(db : String) extends Backend {
                   insertFreeText(sid, pid, obj.toString) }//}
               
               if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
-                updateLabel(obj.getLiteralLexicalForm(), sid) }
+                updateLabel(obj.getLiteralLexicalForm(), sid, sid) }
 
               if(obj.isURI()) {
                 try {
@@ -527,7 +528,7 @@ class TripleBackend(db : String) extends Backend {
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
                 WHERE prop.n3=$p AND object MATCH $query 
-                ORDER BY length(object) asc
+                ORDER BY length(subj.label) asc
                 LIMIT $limit OFFSET $offset""".as1[String]
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
@@ -538,7 +539,7 @@ class TripleBackend(db : String) extends Backend {
           sql"""SELECT DISTINCT subj.main FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 WHERE object MATCH $query 
-                ORDER BY length(object) asc
+                ORDER BY length(subj.label) asc
                 LIMIT $limit OFFSET $offset""".as1[String]}
 //          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
 //                JOIN ids AS subj ON free_text.sid=subj.id
