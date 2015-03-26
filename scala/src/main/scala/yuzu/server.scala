@@ -497,7 +497,18 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
             "dump_uri" -> DUMP_URI), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
-      val resourceURIRegex(id,_) = uri
+      val resourceURIRegex(id2,_) = uri
+      val id = if(id2.startsWith("/wn20/")) {
+        "wn31/" + WNMapper.wn20(id2.drop("/wn20/".size)).getOrElse(id2)
+      } else if(id2.startsWith("/wn30/")) {
+        "wn31/" + WNMapper.wn30(id2.drop("/wn30/".size)).getOrElse(id2)
+      } else if(id2.startsWith("wn20/")) {
+        "wn31/" + WNMapper.wn20(id2.drop("wn20/".size)).getOrElse(id2)
+      } else if(id2.startsWith("wn30/")) {
+        "wn31/" + WNMapper.wn30(id2.drop("wn30/".size)).getOrElse(id2)
+      } else {
+        id2
+      }
       val modelOption = backend.lookup(id)
       modelOption match {
         case None => send404(resp)
