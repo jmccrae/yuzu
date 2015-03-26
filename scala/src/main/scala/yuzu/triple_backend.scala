@@ -153,13 +153,14 @@ class TripleBackend(db : String) extends Backend {
           case Some(id) => 
             id
           case None =>
-            sql"""INSERT INTO ids (n3) VALUES (?)""".insert(key)
+            sql"""INSERT INTO ids (n3, main) VALUES (?)""".insert(key, pageN3(key))
             sql"""SELECT id FROM ids WHERE n3=$key""".as1[Int].head }}}}
       
   /** The database schema */
   private def createTables(implicit session : Session) = {
     sql"""CREATE TABLE IF NOT EXISTS ids (id integer primary key,
                                           n3 text not null,
+                                          main text not null,
                                           label text, unique(n3))""".execute
     sql"""CREATE INDEX n3s on ids (n3)""".execute
     sql"""CREATE TABLE IF NOT EXISTS tripids (sid integer not null,
@@ -184,7 +185,11 @@ class TripleBackend(db : String) extends Backend {
               JOIN ids AS obj ON tripids.oid=obj.id""".execute
     sql"""CREATE VIRTUAL TABLE free_text USING fts4(sid integer, pid integer, 
                                                     object TEXT NOT NULL)""".execute 
-    sql"""CREATE TABLE links (count integer, target text)""".execute }
+    sql"""CREATE TABLE links (count integer, target text)""".execute 
+    sql"""CREATE TABLE value_cache (object text not null,
+                                    obj_label text,
+                                    count int,
+                                    property text not null)""".execute }
 
   /** Work out the page for a node (assuming the node is in the base namespace */
   def node2page(n : Node) = uri2page(n.getURI())
@@ -210,12 +215,19 @@ class TripleBackend(db : String) extends Backend {
           else {
             throw x }}}}
 
+  def pageN3(n3 : String) = {
+    if(n3.startsWith("<") && n3.contains("#")) {
+      n3.take(n3.indexOf("#")) + ">" }
+    else {
+      n3 }}
+
+
   def dumpMap(map : Map[Node, Int])(implicit session : Session) {
     val keys = map.keys.toSeq.sortBy(map(_))
-    val insertKey = sql"""INSERT OR IGNORE INTO ids (n3) VALUES (?)""".
-        insert1[String]
+    val insertKey = sql"""INSERT OR IGNORE INTO ids (n3, main) VALUES (?, ?)""".
+        insert2[String, String]
     for(key <- keys) {
-      insertKey(toN3(key)) }
+      insertKey(toN3(key), pageN3(toN3(key))) }
     insertKey.execute }
 
   def fromN3orInt(s : String) = if(s.startsWith("<") || s.startsWith("_") || 
@@ -232,6 +244,16 @@ class TripleBackend(db : String) extends Backend {
       case x : Exception => {
         System.err.println(s)
         throw x }}
+
+  def removeFrag(uriStr : String) = try {
+    val uri = URI.create(uriStr)
+    new URI(uri.getScheme(), uri.getHost(),
+            uri.getPath(), null).toString
+  } catch {
+    case x : IllegalArgumentException =>
+      System.err.println("Bad uri: " + uriStr)
+      uriStr 
+  }
 
   def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean, 
            maxCache : Int = 1000000) {
@@ -359,15 +381,16 @@ class TripleBackend(db : String) extends Backend {
                       linkCounts(target) = 1 }}}
                 catch {
                   case x : Exception => // oh well 
-                }}}}
-                
+                }}}
+
+            if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
+                !NO_INVERSE.contains(removeFrag(obj.getURI()))) {
+              val page = node2page(obj)
+
+              insertTriples(sid, pid, oid, page, false) }}
           else {
             insertTriples(sid, pid, oid, "<BLANK>", false) }
 
-          if(obj.isURI() && obj.getURI().startsWith(BASE_NAME)) {
-            val page = node2page(obj)
-
-            insertTriples(sid, pid, oid, page, false) }
           
           n += 1
           if(n % 100000 == 0) {
@@ -395,6 +418,10 @@ class TripleBackend(db : String) extends Backend {
     linkCounts.foreach { case (target, count) => if(count >= MIN_LINKS) { 
       insertLinkCount(count, target) }}
     insertLinkCount.execute
+
+    sql"""INSERT INTO value_cache 
+          SELECT DISTINCT object, obj_label, count(*), property FROM triples
+          WHERE head=1 GROUP BY oid""".execute
 
     c.commit() } }
 
@@ -495,14 +522,18 @@ class TripleBackend(db : String) extends Backend {
          case (s, l) => SearchResult(CONTEXT + "/" + s, UnicodeEscape.unescape(l), s) })}}
 
   /** List all pages by value */
-  def listValues(offset : Int , limit : Int, prop : String) = {
+  def listValues(offset : Int , limit2 : Int, prop : String) = {
     withSession(conn) { implicit session => 
-      val limit2 = limit + 1
-      val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
-                          WHERE property=$prop AND head=1
-                          GROUP BY oid ORDER BY count(*) DESC 
+      val limit = limit2 + 1
+      //val results = sql"""SELECT DISTINCT object, obj_label, count(*) FROM triples
+      //                    WHERE property=$prop AND head=1
+      //                    GROUP BY oid ORDER BY count(*) DESC 
+      //                    LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
+      val results = sql"""SELECT object, obj_label, count FROM value_cache
+                          WHERE property=$prop
+                          ORDER BY count DESC
                           LIMIT $limit OFFSET $offset""".as3[String, String, Int].toVector
-     (results.size > limit,
+     (results.size > limit2,
       results.map {
         case (s, null, c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
         case (s, "", c) => SearchResultWithCount(s, DISPLAYER(fromN3(s)), s, c)
@@ -514,21 +545,45 @@ class TripleBackend(db : String) extends Backend {
     withSession(conn) { implicit session => 
       val result = property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+          sql"""SELECT DISTINCT subj.main FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
                 JOIN ids AS prop ON free_text.pid=prop.id
-                WHERE prop.n3=$p and object match $query 
-                LIMIT $limit OFFSET $offset""".as2[String, String]
+                WHERE prop.n3=$p AND object MATCH $query 
+                ORDER BY length(object) asc
+                LIMIT $limit OFFSET $offset""".as1[String]
+//          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+//                JOIN ids AS subj ON free_text.sid=subj.id
+//                JOIN ids AS prop ON free_text.pid=prop.id
+//                WHERE prop.n3=$p and object match $query 
+//                LIMIT $limit OFFSET $offset""".as2[String, String]
         case None =>
-          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+          sql"""SELECT DISTINCT subj.main FROM free_text
                 JOIN ids AS subj ON free_text.sid=subj.id
-                WHERE object match $query
-                LIMIT $limit OFFSET $offset""".as2[String, String] }
+                WHERE object MATCH $query 
+                ORDER BY length(object) asc
+                LIMIT $limit OFFSET $offset""".as1[String]}
+//          sql"""SELECT DISTINCT subj.n3, subj.label FROM free_text
+//                JOIN ids AS subj ON free_text.sid=subj.id
+//                WHERE object match $query
+//                LIMIT $limit OFFSET $offset""".as2[String, String] }
+      
       def n32page(s : String) = uri2page(s.drop(1).dropRight(1))
-      result.toVector.map {
-        case (s, null) => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
-        case (s, "") => SearchResult(CONTEXT + "/" + n32page(s), n32page(s), n32page(s))
-        case (s, l) => SearchResult(CONTEXT + "/" + n32page(s), UnicodeEscape.unescape(l), n32page(s)) }}}
+      result.toVector.map { n3 =>
+        val page = n32page(n3)
+        getLabel(page) match {
+          case Some("") => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
+          case Some(null) => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page)
+          case Some(l) => SearchResult(CONTEXT + "/" + page, UnicodeEscape.unescape(l), page) 
+          case None => SearchResult(CONTEXT + "/" + page, DISPLAYER.uriToStr(page), page) }}}}
+
+  def label(page : String) = withSession(conn) { implicit session =>
+    getLabel(page)
+  }
+
+  def getLabel(page : String)(implicit session : Session) = { 
+    val n3 = "<%s%s>" format (BASE_NAME, page)
+    sql"""SELECT label FROM ids WHERE n3=$n3""".as1[String].headOption
+  }
 
   /** Get link counts for DataID */
   def linkCounts = withSession(conn) { implicit session =>

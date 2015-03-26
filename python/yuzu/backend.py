@@ -18,7 +18,7 @@ else:
     from urllib.parse import urlparse, unquote
 
 import yuzu.displayer
-from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, 
+from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE,
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
                            LINKED_SETS, MIN_LINKS, YUZUQL_LIMIT,
                            PREFIX1_URI, PREFIX1_QN,
@@ -70,6 +70,13 @@ class SPARQLExecutor(multiprocessing.Process):
             self.pipe.send(('error', YZ_BAD_MIME))
 
 
+def mainN3(n3):
+    if n3.startswith("<") and "#" in n3:
+        return n3[:n3.index("#")] + ">"
+    else:
+        return n3
+
+
 class LoadCache:
     def __init__(self, cursor):
         self.values = {}
@@ -84,7 +91,8 @@ class LoadCache:
             row = self.cursor.fetchone()
             if not row:
                 self.cursor.execute(
-                    "insert into ids (n3) values (?)", (key,))
+                    "insert into ids (n3, main) values (?, ?)",
+                    (key, mainN3(key)))
                 self.cursor.execute(
                     "select id from ids where n3=?", (key,))
                 row = self.cursor.fetchone()
@@ -177,6 +185,17 @@ class RDFBackend(Store):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
 
+    def get_label(self, uri, conn):
+        cursor = conn.cursor()
+        cursor.execute("""select label from ids where n3=?""",
+                       ("<%s>" % uri,))
+        row = cursor.fetchone()
+        if row:
+            label, = row
+            return label
+        else:
+            return yuzu.displayer.DISPLAYER.uri_to_str(uri)
+
     def search(self, query, prop, offset, limit=20):
         """Search for pages with the appropriate property
         @param query The value to query for
@@ -188,21 +207,27 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("""select distinct sids.n3, sids.label from
-            free_text join ids as pids on free_text.pid = pids.id
-            join ids as sids on free_text.sid = sids.id
-            where pids.n3=? and object match ? limit ? offset ?""",
+            cursor.execute("""select distinct subj.main from free_text
+            join ids as subj on free_text.sid=subj.id
+            join ids as prop on free_text.pid=prop.id
+            where prop.n3=? and object match ?
+            order by length(object) asc
+            limit ? offset ?""",
                            ("<%s>" % prop, query, limit + 1, offset))
         else:
-            cursor.execute("""select distinct sids.n3, sids.label from
-            free_text join ids as sids on free_text.sid = sids.id
-            where object match ? limit ? offset ?""",
+            cursor.execute("""select distinct subj.main from free_text
+            join ids as subj on free_text.sid=subj.id
+            where object match ?
+            order by length(object) asc
+            limit ? offset ?""",
                            (query, limit + 1, offset))
         rows = cursor.fetchall()
+        results = [{'link': page[1:-1],
+                    'label': self.get_label(page[1:-1], conn),
+                    'id': page[1 + len(BASE_NAME):-1]}
+                   for page, in rows]
         conn.close()
-        return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
-                 'label': label, 'id': uri[len(BASE_NAME) + 1:-1]}
-                for uri, label in rows]
+        return results
 
     def summarize(self, id):
         """Summarize an id
@@ -305,7 +330,7 @@ class RDFBackend(Store):
 #                                        'count': count})
 #                else:
                     results.append({'link': obj,
-                                    'label': yuzu.displyer.DISPLAYER.apply(
+                                    'label': yuzu.displayer.DISPLAYER.apply(
                                         str(n3)),
                                     'count': count})
             n += 1
@@ -409,6 +434,7 @@ class RDFBackend(Store):
         cursor.execute("""CREATE TABLE IF NOT EXISTS ids
                           (id integer primary key,
                            n3 text not null,
+                           main text not null,
                            label text, unique(n3))""")
         cursor.execute("""CREATE INDEX n3s on ids (n3)""")
         cursor.execute("""CREATE TABLE IF NOT EXISTS tripids

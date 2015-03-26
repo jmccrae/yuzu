@@ -29,6 +29,8 @@ case class Element(val display : String,
     }).getOrElse(".")
   val has_triples = triples != null && !triples.isEmpty
   val context = YuzuSettings.CONTEXT
+  def uri_encode = java.net.URLEncoder.encode(uri, "UTF-8")
+  def literal_encode = java.net.URLEncoder.encode(display, "UTF-8")
   def superCleanURI(_uri : String) = {
     // This is slow if we have to make a lot of changes
     // A stringbuffer would the be quicker, but I assume
@@ -97,10 +99,8 @@ trait URIDisplayer {
 object DefaultDisplayer extends URIDisplayer {
   import YuzuSettings._
   def uriToStr(uri : String) = {
-    if(PROP_NAMES.contains(uri)) {
+    val label = if(PROP_NAMES.contains(uri)) {
       PROP_NAMES(uri)
-    } else if(uri.startsWith(BASE_NAME)) {
-      "%s" format (uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       "%s:%s" format (PREFIX1_QN, uri.drop(PREFIX1_URI.size))
     } else if(uri.startsWith(PREFIX2_URI)) {
@@ -119,6 +119,9 @@ object DefaultDisplayer extends URIDisplayer {
       "%s:%s" format (PREFIX8_QN, uri.drop(PREFIX8_URI.size))
     } else if(uri.startsWith(PREFIX9_URI)) {
       "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
+    } else if(uri.startsWith(BASE_NAME)) {
+      val page = uri.drop(BASE_NAME.size)
+      new TripleBackend(DB_FILE).label(page).getOrElse(page)
     } else if(uri.startsWith(RDF.getURI())) {
       uri.drop(RDF.getURI().size)
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -146,6 +149,11 @@ object DefaultDisplayer extends URIDisplayer {
      } else {
       uri
     }
+    if(label != "") {
+      label
+    } else {
+      uri
+    }
   }
 }
 
@@ -158,10 +166,8 @@ object PrettyDisplayer extends URIDisplayer {
   }
 
   def uriToStr(uri : String) = {
-    if(PROP_NAMES.contains(uri)) {
+    val label = if(PROP_NAMES.contains(uri)) {
       PROP_NAMES(uri)
-    } else if(uri.startsWith(BASE_NAME)) {
-      magicString(uri.drop(BASE_NAME.size))
     } else if(uri.startsWith(PREFIX1_URI)) {
       magicString(uri.drop(PREFIX1_URI.size))
     } else if(uri.startsWith(PREFIX2_URI)) {
@@ -180,6 +186,9 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(PREFIX8_URI.size))
     } else if(uri.startsWith(PREFIX9_URI)) {
       magicString(uri.drop(PREFIX9_URI.size))
+    } else if(uri.startsWith(BASE_NAME)) {
+      val page = uri.drop(BASE_NAME.size)
+      new TripleBackend(DB_FILE).label(page).getOrElse(magicString(page))
     } else if(uri.startsWith(RDF.getURI())) {
       magicString(uri.drop(RDF.getURI().size))
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -207,6 +216,11 @@ object PrettyDisplayer extends URIDisplayer {
     } else {
       uri
     }
+    if(label != "") {
+      label
+    } else {
+      uri
+    }
   }
 }
 
@@ -216,15 +230,16 @@ object QueryElement {
                   model : Model) = {
     if(!stack.contains(elem)) {
       ((elem.listProperties().toSeq.filter { stat =>
-        stat.getPredicate() != RDF.`type` ||
-        stat.getObject() != classOf
+        (stat.getPredicate() != RDF.`type` ||
+        stat.getObject() != classOf) &&
+        !stack.contains(stat.getObject())
       } groupBy { stat =>
         stat.getPredicate()
       }).toList.map {
         case (p, ss) => 
           model.removeAll(elem, p, null)
           new TripleFrag(fromNode(p, elem :: stack, model), 
-                         ss.map(s => fromNode(s.getObject(), elem :: stack, model)))
+                         ss.toList.map(s => fromNode(s.getObject(), elem :: stack, model)))
       } sortBy(_.prop.display)).toList
     } else {
       Nil
@@ -241,9 +256,10 @@ object QueryElement {
       stat.getPredicate()
     }).toList.map {
       case (p, ss) =>
+        val ssList = ss.toList
         model.remove(ss) 
         new TripleFrag(fromNode(p, Nil, model), 
-                       ss.map(s => fromNode(s.getSubject(), Nil, model)))
+                       ssList.map(s => fromNode(s.getSubject(), Nil, model)))
     } sortBy(_.prop.display)).toList
   }
 
@@ -257,12 +273,18 @@ object QueryElement {
   def fromModel(model : Model, query : String) : ElementList = {
     var s : Option[String] = Some(query)
     var rv = collection.mutable.ListBuffer[Element]()
-    while(s != None) {
+    // This is a horrible hack but at least the server will stop crashing
+    var i = 1000
+    while(s != None && i > 0) {
       val elem = model.createResource(s.get)
       val classOf = elem.getProperty(RDF.`type`) match {
         case null => null
         case st => st.getObject()
       }
+
+      if(classOf != null) {
+        model.remove(elem, RDF.`type`, classOf) }
+
       val label = (LABELS.flatMap { prop =>
         Option(elem.getProperty(model.createProperty(prop.drop(1).dropRight(1))))
         }).headOption.map({ stat =>
@@ -280,7 +302,12 @@ object QueryElement {
         inverses=inverseTripleFrags(model, elem, s.get))
       rv.append(head)
       s = nextSubject(model, classOf)
+      i -= 1
     } 
+
+    if(i <= 0)  {
+      System.err.println(s"Failed on $query") }
+
     new ElementList(rv.toList)
   }
 

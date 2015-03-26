@@ -65,7 +65,7 @@ object YuzuSettings {
   // Path to site contents list (set to null to disable)
   val LIST_PATH = "/list"
   // Path to Data ID (metadata) (no initial slash)
-  val METADATA_PATH = "dataid"
+  val METADATA_PATH = "about"
 
   // Properties to use as facets
   val FACETS = Seq(
@@ -97,6 +97,10 @@ object YuzuSettings {
   val LINKED_SETS = List("http://dbpedia.org/")
   val NOT_LINKED = List("http://www.w3.org/", "http://purl.org/dc/",
     "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/")
+  // Never show inverse links on the following pages
+  val NO_INVERSE = List(
+    "http://localhost:8080/ontology"
+  )
   // The minimum number of links to another dataset to be included in metadata
   val MIN_LINKS = 1
     
