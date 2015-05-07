@@ -217,6 +217,7 @@ object PrettyDisplayer extends URIDisplayer {
     } else {
       uri
     }
+    println("x%sx" format (label))
     if(label != "") {
       label
     } else {

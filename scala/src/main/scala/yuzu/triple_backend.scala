@@ -613,6 +613,7 @@ class TripleBackend(db : String) extends Backend {
         ErrorResult(YZ_QUERY_LIMIT_EXCEEDED format YUZUQL_LIMIT) }
       val builder = new QueryBuilder(select)
       val sqlQuery = builder.build
+      println(sqlQuery)
       val vars = builder.vars
       withSession(conn) { implicit session => 
         val results = SQLQuery(sqlQuery).as { rs =>
