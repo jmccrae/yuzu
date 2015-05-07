@@ -121,7 +121,11 @@ object DefaultDisplayer extends URIDisplayer {
       "%s:%s" format (PREFIX9_QN, uri.drop(PREFIX9_URI.size))
     } else if(uri.startsWith(BASE_NAME)) {
       val page = uri.drop(BASE_NAME.size)
-      new TripleBackend(DB_FILE).label(page).getOrElse(page)
+      new TripleBackend(DB_FILE).label(page) match {
+        case Some(null) => page
+        case Some(x) => x
+        case None => page
+      }
     } else if(uri.startsWith(RDF.getURI())) {
       uri.drop(RDF.getURI().size)
     } else if(uri.startsWith(RDFS.getURI())) {
@@ -188,7 +192,11 @@ object PrettyDisplayer extends URIDisplayer {
       magicString(uri.drop(PREFIX9_URI.size))
     } else if(uri.startsWith(BASE_NAME)) {
       val page = uri.drop(BASE_NAME.size)
-      new TripleBackend(DB_FILE).label(page).getOrElse(magicString(page))
+      new TripleBackend(DB_FILE).label(page) match {
+        case Some(null) => magicString(page)
+        case Some(x) => x
+        case None => magicString(page)
+      }
     } else if(uri.startsWith(RDF.getURI())) {
       magicString(uri.drop(RDF.getURI().size))
     } else if(uri.startsWith(RDFS.getURI())) {
