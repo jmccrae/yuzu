@@ -546,7 +546,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     val prev = math.max(offset - limit, 0)
     val hasNext = if(hasMore) { "" } else { "disabled" }
     val next = offset + limit
-    val pages = "%d - %d" format(offset + 1, offset + math.min(limit, results.size))
+    val pages = "%d - %d" format(offset + math.min(1, results.size), offset + math.min(limit, results.size))
     val facets = FACETS.filter(_.getOrElse("list", true) == true).map { facet =>
       val uri_enc = quotePlus(facet("uri").toString)
       if(property != None && ("<" + facet("uri") + ">") == property.get) {
@@ -606,7 +606,7 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     val hasNext = if(results.size <= limit) { " disabled" } else { "" }
     val qs = "&query=" + quotePlus(query) + (
       property match {
-        case Some(p) => "&property=" + quotePlus(p)
+        case Some(p) => "&property=" + quotePlus(p).drop(1).dropRight(1)
         case None => ""
       })
     val results2 = for(result <- results) yield {
