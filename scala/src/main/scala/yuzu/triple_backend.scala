@@ -432,6 +432,11 @@ class TripleBackend(db : String) extends Backend {
           SELECT DISTINCT object, obj_label, count(*), property FROM triples
           WHERE head=1 GROUP BY oid""".execute
 
+    sql"""INSERT INTO free_text
+          SELECT pid, sid, label FROM tripids
+          JOIN ids on oid=id
+          WHERE label != "" """.execute
+
     c.commit() } }
 
     /** Look up a single page */
