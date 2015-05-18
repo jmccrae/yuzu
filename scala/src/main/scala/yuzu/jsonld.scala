@@ -118,7 +118,8 @@ object JsonLDPrettySerializer {
 
   implicit class GraphPimp(graph : Model) {
     def listProperties(subj : Resource = null, obj : RDFNode = null) = {
-      (graph.listStatements().filter { st =>
+      val stats = graph.listStatements().toSeq
+      (stats.filter { st =>
         (subj == null || st.getSubject() == subj) &&
         (obj == null || st.getObject() == obj) 
       } map { st =>
