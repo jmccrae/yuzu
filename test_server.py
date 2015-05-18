@@ -80,6 +80,10 @@ class ServerTest(unittest.TestCase):
         self.assertIn("Creator", content)
         self.assertIn("Title", content)
         self.assertIn("McCrae", content)
+        self.assertIn("select+distinct+%2a"
+                      "+%7b+%3fResource+%3Chttp%3A%2F%2Fpurl.org%2Fdc%2Felemen"
+                      "ts%2F1.1%2Ftitle%3e+%22John+McCrae%22+%7d",
+                      content)
         conn.close()
 
     def test_rdf(self):
@@ -171,6 +175,8 @@ class ServerTest(unittest.TestCase):
         content = str(conn.getresponse().read())
         self.assertIn("href=\"/data/example2\"", content)
         self.assertNotIn("No Results", content)
+        self.assertNotIn("href='/search/?offset=20&amp;query=test' "
+                         "class='btn btn-default  disabled'", content)
         conn.close()
 
     def test_search2(self):
@@ -290,7 +296,7 @@ class ServerTest(unittest.TestCase):
         conn.close()
 
     def test_dataid(self):
-        conn = self.do_get("/dataid")
+        conn = self.do_get("/about")
         content = str(conn.getresponse().read())
         self.assertIn("<html", content)
         self.assertIn("Example Resource", content)
@@ -302,7 +308,7 @@ class ServerTest(unittest.TestCase):
         conn.close()
 
     def test_dataid_rdf(self):
-        conn = self.do_get("/dataid.rdf")
+        conn = self.do_get("/about.rdf")
         content = str(conn.getresponse().read())
         self.assertIn("<rdf", content)
         conn.close()

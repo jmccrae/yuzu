@@ -56,6 +56,11 @@
         .rdf_subheader {
             text-transform: uppercase;
             font-weight: bold;
+            word-wrap:break-word;
+        }
+        .rdf_subsection {
+            border-top: 2px solid #ddd;
+            padding-top: 1em;
         }
         .rdf_table_nested tr:hover {
             background-color: #ddd;
@@ -70,6 +75,7 @@
             border-bottom: 1px solid #eee;
             margin-top: 30px;
             overflow: hidden;
+            word-wrap: break-word;
         }
         .rdf_classof {
             font-style: italic;
@@ -93,6 +99,10 @@
             font-variant: small-caps;
             font-weight: bold;
         }
+        .more img {
+            height: 16px;
+            padding-left: 2px;
+        }
     </style>
     <script>
     function flagFallBack(tag) {
@@ -105,7 +115,7 @@
     <link rel="shortcut icon" href="{{context}}/favicon.ico" />
 </head>
 <body style="padding-top:100px;">
-    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;height:100px;">
+    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;height:100px;overflow:hidden;">
         <div class="container">
             <div class="navbar-header">
                 <a href="{{context}}/"><img src="{{context}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
