@@ -45,6 +45,7 @@ case class Element(val display : String,
     uri }
 
   def fragment = new java.net.URI(superCleanURI(uri)).getFragment()
+  val rel_uri = Option(uri).getOrElse("").drop(Option(uri).getOrElse("").lastIndexOf('/') + 1)
 }
 
 class QueryElement(main : Element,

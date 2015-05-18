@@ -75,7 +75,7 @@ object mustache {
       def getReader(resourceName : String) = new java.io.InputStreamReader(resourceName match {
         case "triple" => resolve("html/triple.mustache").openStream()
         case "triple2" => resolve("html/triple.mustache").openStream()
-        case "rdf2html" => resolve("html/rdf2html.mustache").openStream()
+        case "rdf2html" => resolve("html/niflens.mustache").openStream()
         case _ => throw new FileNotFoundException()
       })
     }

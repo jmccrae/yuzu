@@ -1,0 +1,63 @@
+{{#head}}
+<div class="container">
+<h1>{{rel_uri}}</h1>
+    <div class="row">
+        <div id="legend" class="col-lg-4"></div>
+        <div class="col-lg-8">
+            <div id="nif" style="position:fixed;top:50;"></div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+$.getJSON("{{rel_uri}}.json", function(obj) {
+    var rc = find_ref_context(obj);
+    var rc_text = rc["isString"]["@value"];
+    var chars = [];
+    var j = 0;
+    for(var i = 0; i < rc_text.length; i++) {
+        if(rc_text[i] != "\\") {
+            chars.push("<span id='elem_" + j + "'>" + rc_text[i] + "</span>");
+        } else {
+            if(rc_text[i + 1] == "n") {
+                chars.push("<br/>");
+                i++;
+            }
+        }
+        j++;
+    }
+    $('#nif').html(chars.join(""));
+
+    var legend = build_legend(obj);
+
+    var annos = find_annotations(obj, rc_text.length);
+    for(var i = 0; i < rc_text.length; i++) {
+        var content = "";
+        for(anno in annos[i]) {
+            content += anno_to_str(annos[i][anno], legend);
+            var classes = anno_classes(annos[i][anno], legend);
+            for(c in classes) {
+                $('#elem_' + i).addClass(classes[c]);
+            }
+        }
+        $('#elem_' + i).qtip({
+            "content": {
+                "text": content
+            }
+        });
+    }
+
+    for(key in legend) {
+        var panel = "";
+        panel += "<div class='panel panel-default'><div class='panel-heading'>" + key + "</div>";
+        for(v in legend[key]) {
+            panel += "<div class='panel-body lk_" + v + "' onclick=\"toggle_color('" + v + "')\">" + legend[key][v] + "</div>";
+        }
+        panel += "</div>";
+        $('#legend').append(panel);
+
+    }
+ });
+</script>
+{{/head}}

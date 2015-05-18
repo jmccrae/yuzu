@@ -1,0 +1,41 @@
+#nif {
+    line-height: 1.5em;
+}
+.legend_key {
+    padding:5px;
+    margin:3px;
+    line-height: 1.5em;
+    background-color:#ddd;
+    border: 1px solid black;
+    float:left;
+}
+.anno {
+    border: 2px solid black;
+    margin: 3px;
+    display: inline-block;
+}
+
+.punc { background: darkred; }
+.TO { background: red; }
+.NNP { background: chartreuse; }
+.VBP { background: darkblue; }
+.PRP { background: brown; }
+.VBZ { background: darkcyan; }
+.DT { background: crimson; }
+.NN { background: green; }
+.VBN { background: cyan; }
+.CD { background: deeppink; }
+.VBG { background: darkturquoise; }
+.IN { background: darksalmon; }
+.NNS { background: forestgreen; }
+.CC { background: firebrick; }
+.JJ { background: yellow; }
+.VB { background: dodgerblue; }
+.VBD { background: deepskyblue; }
+.VBP { background: darkblue; }
+.VBP { background: darkblue; }
+.VBP { background: darkblue; }
+.VBP { background: darkblue; }
+.VBP { background: darkblue; }
+.VBP { background: darkblue; }
+
