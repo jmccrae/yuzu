@@ -6,7 +6,7 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://data.lider-project.eu/emn/"
+  val BASE_NAME = "http://data.lider-project.eu/emn"
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
