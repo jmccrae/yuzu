@@ -10,6 +10,7 @@ object YuzuSettings {
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
+  // NB. To change from SBT you must separately edit jetty-env.xml
   val CONTEXT = "/data/iate"
   // The data download will be at BASE_NAME + DUMP_URI
   val DUMP_URI = "/iate.nt.gz"
