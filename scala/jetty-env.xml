@@ -1,0 +1,3 @@
+<Configure>
+  <Set name="contextPath">/emn</Set>
+</Configure>
