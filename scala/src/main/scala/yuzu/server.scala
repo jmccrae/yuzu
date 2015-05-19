@@ -86,6 +86,7 @@ object mustache {
 
 object RDFServer {
 
+  def quotePlus(s : String) = java.net.URLEncoder.encode(s, "UTF-8")
   def renderHTML(title : String, text : String, isTest : Boolean)(implicit resolve : PathResolver) = {
     val template = mustache(resolve("html/page.mustache"))
     template.substitute("title"-> title, "app_title" -> DISPLAY_NAME, 
@@ -170,18 +171,23 @@ object RDFServer {
       out.flush()
     }
     def binary(contentType : String, file : URL) {
-      resp.addHeader("Content-type", contentType)
-      if(file.getProtocol() == "file") {
-        resp.addHeader("Content-length", new File(file.getPath()).length().toString)
+      try {
+        val in = file.openStream()
+        resp.addHeader("Content-type", contentType)
+        if(file.getProtocol() == "file") {
+          resp.addHeader("Content-length", new File(file.getPath()).length().toString)
+        }
+        val out = resp.getOutputStream()
+        val buf = new Array[Byte](4096)
+        var read = 0
+        while({ read = in.read(buf) ; read } >= 0) {
+          out.write(buf, 0, read)
+        }
+        out.flush()
+      } catch {
+        case x : java.io.FileNotFoundException =>
+          resp.sendError(SC_NOT_FOUND, YZ_BINARY_NOT_FOUND) 
       }
-      val in = file.openStream()
-      val out = resp.getOutputStream()
-      val buf = new Array[Byte](4096)
-      var read = 0
-      while({ read = in.read(buf) ; read } >= 0) {
-        out.write(buf, 0, read)
-      }
-      out.flush()
     }
   }
 }
@@ -203,13 +209,21 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       val pd = cls.getProtectionDomain()
       val cs = pd.getCodeSource()
       val loc = cs.getLocation()
-      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()) {
+      if(loc.getProtocol() == "file" && new File(loc.getPath()).isDirectory()
+          && new File(loc.getPath() + fname).exists) {
         new URL("file:"+loc.getPath() + fname)
       } else {
         if(new File(fname).exists) {
           new URL("file:"+fname)
-        } else {
+        } else if(new File("../" + fname).exists) {
           new URL("file:../" + fname)
+        // This is a 'hack' for sbt container:launch
+        } else if(new File("../../" + fname).exists) {
+          new URL("file:../../" + fname)
+        } else {
+          System.err.println("Could not locate %s from %s" format (
+            fname, System.getProperty("user.dir")))
+          new URL("file:"+fname)
         }
       }
     }
@@ -307,6 +321,12 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     model.setNsPrefix("dc", DC_11.getURI())
     model.setNsPrefix("dct", DCTerms.getURI())
     model.setNsPrefix("xsd", XSD.getURI())
+    model.setNsPrefix("dcat", DCAT)
+    model.setNsPrefix("void", VOID)
+    model.setNsPrefix("dataid", DATAID)
+    model.setNsPrefix("foaf", FOAF)
+    model.setNsPrefix("odrl", ODRL)
+    model.setNsPrefix("prov", PROV)
   }
  
   
@@ -328,7 +348,9 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
   }
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) { try {
-    val uri = req.getPathInfo()
+    val uri2 = UnicodeEscape.safeURI(req.getRequestURI().substring(req.getContextPath().length))
+    val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
+    //val uri = req.getPathInfo()
     val isTest = req.getRequestURL().toString() == (BASE_NAME + uri)
     var mime = if(uri.matches(".*\\.html")) {
       html
@@ -379,7 +401,17 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
           } else {
             None
           }
-          search(resp, query, prop)
+          val offset = if(qsParsed.containsKey("offset") && qsParsed.get("offset")(0) != "") {
+            try {
+              qsParsed.get("offset")(0).toInt
+            } catch {
+              case x : NumberFormatException =>
+                0
+            }
+          } else {
+            0
+          }
+          search(resp, query, prop, offset)
         } else {
           send400(resp, YZ_NO_QUERY)
         }
@@ -448,16 +480,21 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
       } else {
         val out = new java.io.StringWriter()
         addNamespaces(model)
-        RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
+        if(mime == jsonld) {
+          JsonLDPrettySerializer.write(out, model, BASE_NAME + METADATA_PATH)
+        } else {
+          RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
+        }
         out.toString()
       }
       resp.respond(mime.mime, SC_OK, "Vary" -> "Accept", "Content-length" -> content.size.toString) {
         out => out.print(content)
       }
-    } else if(uri != "onboarding" && (resolve("html/%s.html" format uri.replaceAll("/$", ""))).exists) {
+    } else if(resolve("html/%s.html" format uri.replaceAll("/$", "")).exists) {
       resp.respond("text/html", SC_OK) {
         out => out.println(renderHTML(DISPLAY_NAME, 
-          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(), isTest))
+          mustache(resolve("html/%s.html" format uri.replaceAll("/$", ""))).substitute(
+            "dump_uri" -> DUMP_URI), isTest))
       }
     } else if(uri.matches(resourceURIRegex.toString)) {
       val resourceURIRegex(id,_) = uri
@@ -467,16 +504,22 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
         case Some(model) => {
           val title = model.listStatements(model.createResource(BASE_NAME + id),
                                             RDFS.label,
-                                            null).map(_.getObject().toString()).mkString(", ")
+                                            null).map(s => DISPLAYER.apply(s.getObject())).mkString(", ")
           val content = if(mime == html) {
-            rdfxmlToHtml(model, Some(BASE_NAME + id), title)
+            if(title == "") {
+              rdfxmlToHtml(model, Some(BASE_NAME + id), 
+                           DISPLAYER.uriToStr(BASE_NAME + id)) 
+            } else {
+              rdfxmlToHtml(model, Some(BASE_NAME + id), title)
+            }
           } else {
             val out = new java.io.StringWriter()
             addNamespaces(model)
-            RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
             if(mime == jsonld) {
-              addContextToJsonLD(out.toString())
+              JsonLDPrettySerializer.write(out, model, BASE_NAME + id)
+              out.toString()
             } else {
+              RDFDataMgr.write(out, model, mime.jena.getOrElse(rdfxml.jena.get))
               out.toString()
             }
           }
@@ -503,42 +546,83 @@ class RDFServer(backend : Backend = new TripleBackend(DB_FILE)) extends HttpServ
     val prev = math.max(offset - limit, 0)
     val hasNext = if(hasMore) { "" } else { "disabled" }
     val next = offset + limit
-    val pages = "%d - %d" format(offset + 1, offset + results.size)
+    val pages = "%d - %d" format(offset + math.min(1, results.size), offset + math.min(limit, results.size))
     val facets = FACETS.filter(_.getOrElse("list", true) == true).map { facet =>
-      val uri_enc = java.net.URLEncoder.encode(facet("uri").toString, "UTF-8")
+      val uri_enc = quotePlus(facet("uri").toString)
       if(property != None && ("<" + facet("uri") + ">") == property.get) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
         facet ++ Map("uri_enc" -> uri_enc, 
           "values" -> vs.map { v => Map[String,String](
                   "prop_uri" -> uri_enc,
-                  "value_enc" -> java.net.URLEncoder.encode(v.link, "UTF-8"),
+                  "value_enc" -> quotePlus(v.link),
                   "value" -> v.label.take(100),
                   "count" -> v.count.toString,
                   "offset" -> obj_offset.getOrElse(0).toString
                 )},
-          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0)+20) } else { None }))
+          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
       } else {
         facet + ("uri_enc" -> uri_enc)
       }
     } 
+    val queryString = (property match {
+        case Some(p) => "&prop=" + quotePlus(p.drop(1).dropRight(1))
+        case None => "" }) + 
+      (obj match {
+        case Some(o) => "&obj=" + quotePlus(o)
+        case None => "" }) +
+      (obj_offset match {
+        case Some(o) => "&obj_offset=" + o
+        case None => "" })
+    val results2 = for(result <- results) yield {
+      Map(
+        "title" -> result.label,
+        "link" -> result.link,
+        "model" -> QueryElement.fromModel(backend.summarize(result.id),
+                                          BASE_NAME + result.id).head) }
+                            
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, 
         template.substitute(
           "facets" -> facets,
-          "results" -> results,
+          "results" -> results2,
           "has_prev" -> hasPrev,
           "prev" -> prev.toString,
           "has_next" -> hasNext,
           "next" -> next.toString,
-          "pages" -> pages), false))
+          "pages" -> pages,
+          "query" -> queryString), false))
     }
   }
 
-  def search(resp : HttpServletResponse, query : String, property : Option[String]) {
+  def search(resp : HttpServletResponse, query : String, property : Option[String],
+             offset : Int) {
+    val limit = 20
     val buf = new StringBuilder()
-    val results = backend.search(query, property)
+    val results = backend.search(query, property, offset, limit + 1)
+    val prev = math.max(0, offset - limit)
+    val next = offset + limit
+    val pages = "%d - %d" format (offset + 1, offset + math.min(limit, results.size))
+    val hasPrev = if(offset == 0) { " disabled" } else { "" }
+    val hasNext = if(results.size <= limit) { " disabled" } else { "" }
+    val qs = "&query=" + quotePlus(query) + (
+      property match {
+        case Some(p) => "&property=" + quotePlus(p).drop(1).dropRight(1)
+        case None => ""
+      })
+    val results2 = for(result <- results) yield {
+      Map(
+        "title" -> result.label,
+        "link" -> result.link,
+        "model" -> QueryElement.fromModel(backend.summarize(result.id),
+                                          BASE_NAME + result.id).head) }
     val page = mustache(resolve("html/search.html")).substitute(
-      "results" -> results
+      "results" -> results2.take(limit),
+      "prev" -> prev,
+      "has_prev" -> hasPrev,
+      "next" -> next,
+      "has_next" -> hasNext,
+      "pages" -> pages,
+      "query" -> qs
     )
     resp.respond("text/html", SC_OK) {
       out => out.println(renderHTML(DISPLAY_NAME, page, false))

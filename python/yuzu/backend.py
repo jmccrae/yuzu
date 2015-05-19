@@ -4,7 +4,7 @@ from rdflib.term import Literal, URIRef
 from rdflib.store import Store
 from yuzu.ql.parse import YuzuQLSyntax
 from yuzu.ql.model import QueryBuilder, sql_results_to_sparql_json
-from yuzu.ql.model import sql_results_to_sparql_xml, FullURI
+from yuzu.ql.model import sql_results_to_sparql_xml, FullURI, YuzuQLError
 import sqlite3
 import sys
 import getopt
@@ -17,7 +17,8 @@ if sys.version_info[0] < 3:
 else:
     from urllib.parse import urlparse, unquote
 
-from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE, DISPLAYER,
+import yuzu.displayer
+from yuzu.settings import (BASE_NAME, CONTEXT, DUMP_FILE, DB_FILE,
                            SPARQL_ENDPOINT, LABELS, FACETS, NOT_LINKED,
                            LINKED_SETS, MIN_LINKS, YUZUQL_LIMIT,
                            PREFIX1_URI, PREFIX1_QN,
@@ -69,6 +70,13 @@ class SPARQLExecutor(multiprocessing.Process):
             self.pipe.send(('error', YZ_BAD_MIME))
 
 
+def mainN3(n3):
+    if n3.startswith("<") and "#" in n3:
+        return n3[:n3.index("#")] + ">"
+    else:
+        return n3
+
+
 class LoadCache:
     def __init__(self, cursor):
         self.values = {}
@@ -83,7 +91,8 @@ class LoadCache:
             row = self.cursor.fetchone()
             if not row:
                 self.cursor.execute(
-                    "insert into ids (n3) values (?)", (key,))
+                    "insert into ids (n3, main) values (?, ?)",
+                    (key, mainN3(key)))
                 self.cursor.execute(
                     "select id from ids where n3=?", (key,))
                 row = self.cursor.fetchone()
@@ -176,7 +185,18 @@ class RDFBackend(Store):
                 self.lookup_blanks(g, o, conn)
         cursor.close()
 
-    def search(self, query, prop, limit=20):
+    def get_label(self, uri, conn):
+        cursor = conn.cursor()
+        cursor.execute("""select label from ids where n3=?""",
+                       ("<%s>" % uri,))
+        row = cursor.fetchone()
+        if row:
+            label, = row
+            return label
+        else:
+            return yuzu.displayer.DISPLAYER.uri_to_str(uri)
+
+    def search(self, query, prop, offset, limit=20):
         """Search for pages with the appropriate property
         @param query The value to query for
         @param prop The property to use or None for no properties
@@ -187,20 +207,50 @@ class RDFBackend(Store):
         cursor = conn.cursor()
 
         if prop:
-            cursor.execute("""select distinct sids.n3, sids.label from
-            free_text join ids as pids on free_text.pid = pids.id
-            join ids as sids on free_text.sid = sids.id
-            where pids.n3=? and object match ? limit ?""",
-                           ("<%s>" % prop, query, limit))
+            cursor.execute("""select distinct subj.main from free_text
+            join ids as subj on free_text.sid=subj.id
+            join ids as prop on free_text.pid=prop.id
+            where prop.n3=? and object match ?
+            order by length(object) asc
+            limit ? offset ?""",
+                           ("<%s>" % prop, query, limit + 1, offset))
         else:
-            cursor.execute("""select distinct sids.n3, sids.label from
-            free_text join ids as sids on free_text.sid = sids.id
-            where object match ? limit ?""",
-                           (query, limit))
+            cursor.execute("""select distinct subj.main from free_text
+            join ids as subj on free_text.sid=subj.id
+            where object match ?
+            order by length(object) asc
+            limit ? offset ?""",
+                           (query, limit + 1, offset))
         rows = cursor.fetchall()
+        results = [{'link': page[1:-1],
+                    'label': self.get_label(page[1:-1], conn),
+                    'id': page[1 + len(BASE_NAME):-1]}
+                   for page, in rows]
         conn.close()
-        return [{'link': CONTEXT + "/" + uri[len(BASE_NAME) + 1:-1],
-                 'label': label} for uri, label in rows]
+        return results
+
+    def summarize(self, id):
+        """Summarize an id
+        @param id The id
+        @return A RDFlib Graph or None if the ID is not found
+        """
+        g = ConjunctiveGraph()
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """select subject, property, object from triples where
+            subject=?""", ("<%s%s>" % (BASE_NAME, unicode_escape(id)),))
+        rows = cursor.fetchall()
+        added = 0
+        if rows:
+            for s, p, o in rows:
+                for f in FACETS:
+                    if added < 20 and str(p)[1:-1] == f["uri"]:
+                        g.add((from_n3(s), from_n3(p), from_n3(o)))
+                        added += 1
+            conn.close()
+        return g
 
     def list_resources(self, offset, limit, prop=None, obj=None):
         """
@@ -232,9 +282,11 @@ class RDFBackend(Store):
             uri, label = row
             if uri != "<BLANK>":
                 if label:
-                    refs.append({'link': CONTEXT + "/" + uri, 'label': label})
+                    refs.append({'link': CONTEXT + "/" + uri, 'label': label,
+                                 'id': uri})
                 else:
-                    refs.append({'link': CONTEXT + "/" + uri, 'label': uri})
+                    refs.append({'link': CONTEXT + "/" + uri, 'label': uri,
+                                 'id': uri})
             n += 1
             row = cursor.fetchone()
         conn.close()
@@ -254,7 +306,7 @@ class RDFBackend(Store):
         if not offset:
             offset = 0
         cursor.execute("""SELECT DISTINCT object, obj_label, count(*)
-                          FROM triples WHERE property=?
+                          FROM triples WHERE property=? AND head=0
                           GROUP BY oid ORDER BY count(*) DESC
                           LIMIT ? OFFSET ?""", (prop, limit + 1, offset))
         row = cursor.fetchone()
@@ -267,17 +319,19 @@ class RDFBackend(Store):
                 results.append({'link': obj, 'label': n3.value,
                                 'count': count})
             elif type(n3) == URIRef:
-                u = self.unname(str(n3))
-                if u:
-                    s, _ = u
-                    if label:
-                        results.append({'link': obj, 'label': label,
-                                        'count': count})
-                    else:
-                        results.append({'link': obj, 'label': s,
-                                        'count': count})
+#                u = self.unname(str(n3))
+#                if u:
+#                    s, _ = u
+                if label:
+                    results.append({'link': obj, 'label': label,
+                                    'count': count})
                 else:
-                    results.append({'link': obj, 'label': DISPLAYER(str(n3)),
+#                        results.append({'link': obj, 'label': s,
+#                                        'count': count})
+#                else:
+                    results.append({'link': obj,
+                                    'label': yuzu.displayer.DISPLAYER.apply(
+                                        str(n3)),
                                     'count': count})
             n += 1
             row = cursor.fetchone()
@@ -294,37 +348,39 @@ class RDFBackend(Store):
         """
         try:
             syntax = YuzuQLSyntax()
-            select = syntax.parse(q, {
-                PREFIX1_QN: FullURI("<%s>" % PREFIX1_URI),
-                PREFIX2_QN: FullURI("<%s>" % PREFIX2_URI),
-                PREFIX3_QN: FullURI("<%s>" % PREFIX3_URI),
-                PREFIX4_QN: FullURI("<%s>" % PREFIX4_URI),
-                PREFIX5_QN: FullURI("<%s>" % PREFIX5_URI),
-                PREFIX6_QN: FullURI("<%s>" % PREFIX6_URI),
-                PREFIX7_QN: FullURI("<%s>" % PREFIX7_URI),
-                PREFIX8_QN: FullURI("<%s>" % PREFIX8_URI),
-                PREFIX9_QN: FullURI("<%s>" % PREFIX9_URI),
-                "rdf": FullURI("<http://www.w3.org/1999/02/22-"
-                               "rdf-syntax-ns#>"),
-                "rdfs": FullURI("<http://www.w3.org/2000/01/rdf-schema#>"),
-                "owl": FullURI("<http://www.w3.org/2002/07/owl#>"),
-                "dc": FullURI("<http://purl.org/dc/elements/1.1./>"),
-                "dct": FullURI("<http://purl.org/dc/terms>"),
-                "xsd": FullURI("<http://www.w3.org/2001/XMLSchema#>")})
+            try:
+                select = syntax.parse(q, {
+                    PREFIX1_QN: FullURI("<%s>" % PREFIX1_URI),
+                    PREFIX2_QN: FullURI("<%s>" % PREFIX2_URI),
+                    PREFIX3_QN: FullURI("<%s>" % PREFIX3_URI),
+                    PREFIX4_QN: FullURI("<%s>" % PREFIX4_URI),
+                    PREFIX5_QN: FullURI("<%s>" % PREFIX5_URI),
+                    PREFIX6_QN: FullURI("<%s>" % PREFIX6_URI),
+                    PREFIX7_QN: FullURI("<%s>" % PREFIX7_URI),
+                    PREFIX8_QN: FullURI("<%s>" % PREFIX8_URI),
+                    PREFIX9_QN: FullURI("<%s>" % PREFIX9_URI),
+                    "rdf": FullURI("<http://www.w3.org/1999/02/22-"
+                                   "rdf-syntax-ns#>"),
+                    "rdfs": FullURI("<http://www.w3.org/2000/01/rdf-schema#>"),
+                    "owl": FullURI("<http://www.w3.org/2002/07/owl#>"),
+                    "dc": FullURI("<http://purl.org/dc/elements/1.1/>"),
+                    "dct": FullURI("<http://purl.org/dc/terms>"),
+                    "xsd": FullURI("<http://www.w3.org/2001/XMLSchema#>")})
+            except YuzuQLError as e:
+                return False, 'error', e.value
             if select.limit < 0 or (select.limit >= YUZUQL_LIMIT and
                                     YUZUQL_LIMIT >= 0):
                 return False, 'error', YZ_QUERY_LIMIT_EXCEEDED % YUZUQL_LIMIT
             qb = QueryBuilder(select)
             sql_query = qb.build()
-            print(sql_query)
             conn = sqlite3.connect(self.db)
             cursor = conn.cursor()
             cursor.execute(sql_query)
             vars = qb.vars()
             if mime_type == "sparql-json":
-                results = sql_results_to_sparql_json(cursor, vars)
+                results = sql_results_to_sparql_json(cursor.fetchall(), vars)
             else:
-                results = sql_results_to_sparql_xml(cursor, vars)
+                results = sql_results_to_sparql_xml(cursor.fetchall(), vars)
             conn.close()
             return False, 'sparql', results
         except Exception as e:
@@ -378,6 +434,7 @@ class RDFBackend(Store):
         cursor.execute("""CREATE TABLE IF NOT EXISTS ids
                           (id integer primary key,
                            n3 text not null,
+                           main text not null,
                            label text, unique(n3))""")
         cursor.execute("""CREATE INDEX n3s on ids (n3)""")
         cursor.execute("""CREATE TABLE IF NOT EXISTS tripids

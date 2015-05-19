@@ -65,7 +65,7 @@ object YuzuSettings {
   // Path to site contents list (set to null to disable)
   val LIST_PATH = "/list"
   // Path to Data ID (metadata) (no initial slash)
-  val METADATA_PATH = "dataid"
+  val METADATA_PATH = "about"
 
   // Properties to use as facets
   val FACETS = Seq(
@@ -74,13 +74,18 @@ object YuzuSettings {
   // Properties to use as labels
   val LABELS = Set(
     "<http://www.w3.org/2000/01/rdf-schema#label>",
-  "<http://xmlns.com/foaf/0.1/nick>",
-  "<http://purl.org/dc/elements/1.1/title>",
-  "<http://purl.org/rss/1.0/title>",
-  "<http://xmlns.com/foaf/0.1/name>"
+    "<http://xmlns.com/foaf/0.1/nick>",
+    "<http://purl.org/dc/elements/1.1/title>",
+    "<http://purl.org/rss/1.0/title>",
+    "<http://xmlns.com/foaf/0.1/name>"
   )
   // The displayer for URIs
   val DISPLAYER = PrettyDisplayer
+  
+  // Any forced names on properties
+  val PROP_NAMES = Map(
+   "http://localhost:8080/ontology#link" -> "Link property"
+  )
   // Linked datasets (this is only used for metadata but is created
   // on DB load). Not linked indicates URI starts which are not to 
   // be considered links, any other links are assumed to start with the 
@@ -88,6 +93,10 @@ object YuzuSettings {
   val LINKED_SETS = List("http://dbpedia.org/")
   val NOT_LINKED = List("http://www.w3.org/", "http://purl.org/dc/",
     "http://xmlns.org/", "http://rdfs.org/", "http://schema.org/")
+  // Never show inverse links on the following pages
+  val NO_INVERSE = List(
+    "http://localhost:8080/ontology"
+  )
   // The minimum number of links to another dataset to be included in metadata
   val MIN_LINKS = 1
     

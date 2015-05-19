@@ -114,6 +114,7 @@ def dataid():
     for target, count in backend.link_counts():
         linkset = BASE[METADATA_PATH + "#LinkSet-" + str(i + 1)]
         g.add((dataid, VOID.subset, linkset))
+        g.add((linkset, VOID.subjectsTarget, dataid))
         g.add((linkset, VOID.target, URIRef(target)))
         g.add((linkset, VOID.triples, Literal(str(count),
                datatype=XSD.integer)))

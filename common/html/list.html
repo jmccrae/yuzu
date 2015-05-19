@@ -7,7 +7,7 @@
         <h4>List by:</h4>
         <div class="list-group">
             {{#facets}}
-            <a href='{{context}}/list/?prop={{uri_enc}}' class="list-group-item active">{{label}}</a>
+            <a href='{{context}}/list/?prop={{uri_enc}}' class="list-group-item active" class="rdf_link">{{label}}</a>
             {{#values?}}
                 <div class="list-group">
             {{/values?}}
@@ -24,16 +24,60 @@
         </div>
     </div>
     <div class="col-lg-10">
-        <table class='rdf_search table table-hover'>
             {{#results}}
-                <tr class='rdf_search_full table-active'><td><a href='{{link}}'>{{label}}</a></td></tr>
+                <div class="panel panel-default">
+                <div class="panel-heading"><a href="{{link}}" class="rdf_link">{{title}}</a></div>
+                <table class="panel-body rdf_embedded_table">
+                    {{#model}}
+                        {{#triples}}
+                            <tr>
+                                <td class="rdf_prop">
+                                    {{#prop}}
+                                    <a href="{{uri}}" class="rdf_link">{{display}}</a>
+                                    {{/prop}}
+                                </td>
+                                <td class="rdf_value rdf_first_value">
+                                {{#obj}}{{#elem}}
+                {{#literal}}
+                    <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
+                     {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
+                    {{#lang}}
+                        <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
+                    {{/lang}}
+                    {{#datatype}}
+                        <span class="pull-right rdf_datatype"><a href="{{uri}}" class="rdf_link">{{display}}</a></span>
+                    {{/datatype}}
+                {{/literal}}
+                {{^literal}}
+                    {{#bnode}}
+                        <i>Anonymous Node</i>
+                    {{/bnode}}
+                    {{^bnode}}
+                        <a href="{{uri}}" property="{{#prop}}{{uri}}{{/prop}}" class="rdf_link">{{display}}</a>
+                    {{/bnode}}
+                {{/literal}}
+                {{/elem}}
+                    {{^last}}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td class="rdf_value rdf_rest_value">
+
+                    {{/last}}
+                {{/obj}}
+                                </td>
+                            </tr>
+                        {{/triples}}
+                    {{/model}}
+                </table>
+            </div>
             {{/results}}
-        </table>
     </div>
 </div>
-<div class="row">
+<div class="row" style="padding-top:50px;">
     <div class="btn-group pull-right">
-        <a href='{{context}}/list/?offset={{prev}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
+        <a href='{{context}}/list/?offset={{prev}}{{query}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
         <a href='#' class='btn btn-default'>{{pages}}</a>
-        <a href='{{context}}/list/?offset={{next}}' class='btn btn-default {{has_next}}'>&gt;&gt;</a>
+        <a href='{{context}}/list/?offset={{next}}{{query}}' class='btn btn-default {{has_next}}'>&gt;&gt;</a>
     </div>
