@@ -6,6 +6,8 @@ scalaVersion := "2.10.3"
 
 seq(webSettings :_*)
 
+env in Compile := Some(file(".") / "jetty-env.xml" asFile)
+
 libraryDependencies ++= Seq(
   "org.apache.jena" % "jena-arq" % "2.12.1",
   "javax.servlet" % "javax.servlet-api" % "3.0.1" % "provided",
