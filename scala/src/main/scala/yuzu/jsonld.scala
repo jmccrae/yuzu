@@ -118,10 +118,11 @@ object JsonLDPrettySerializer {
 
   implicit class GraphPimp(graph : Model) {
     def listProperties(subj : Resource = null, obj : RDFNode = null) = {
-      (graph.listStatements().filter { st =>
-        (subj == null || st.getSubject() == subj) &&
-        (obj == null || st.getObject() == obj) 
-      } map { st =>
+      (graph.listStatements(subj, Option(obj).map(x => graph.createProperty(x.asResource().getURI())).getOrElse(null), null).map { st =>
+//      (stats.filter { st =>
+//        (subj == null || st.getSubject() == subj) &&
+//        (obj == null || st.getObject() == obj) 
+//      } map { st =>
         st.getPredicate()
       }).toSet }
   }
