@@ -384,7 +384,8 @@ class TripleBackend(db : String) extends Backend {
                 }}}
 
             if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
-                !NO_INVERSE.contains(removeFrag(obj.getURI()))) {
+                !NO_INVERSE.contains(removeFrag(obj.getURI())) &&
+                !(obj.getURI().contains("subjectField"))) {
               val page = node2page(obj)
 
               insertTriples(sid, pid, oid, page, false) }}
