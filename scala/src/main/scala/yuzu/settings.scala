@@ -6,19 +6,19 @@ object YuzuSettings {
   // The location where this server is to be deployed to
   // Only URIs in the dump that start with this address will be published
   // Should end with a trailing /
-  val BASE_NAME = "http://data.lider-project.eu/MASC-NIF/"
+  val BASE_NAME = "http://data.lider-project.eu/usage/"
   // The prefix that this servlet will be deployed, e.g. 
   // if the servlet is at http://www.example.org/yuzu/ the context 
   // is /yuzu
-  val CONTEXT = "/MASC-NIF"
+  val CONTEXT = "/usage"
   // The data download will be at BASE_NAME + DUMP_URI
-  val DUMP_URI = "/MASC-NIF.nt.gz"
+  val DUMP_URI = "/usage.nt.gz"
   // The local path to the data
-  val DUMP_FILE = "../masc.nt.gz"
+  val DUMP_FILE = "../usage.nt.gz"
   // Where the database should appear
-  val DB_FILE = "masc.db"
+  val DB_FILE = "usage.db"
   // The name of the server
-  val DISPLAY_NAME = "The Manually Annotated Subcorpus in NIF"
+  val DISPLAY_NAME = "The USAGE review corpus for fine-grained, multi-lingual opinion analysis"
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#"
