@@ -226,8 +226,12 @@ class TripleBackend(db : String) extends Backend {
     val keys = map.keys.toSeq.sortBy(map(_))
     val insertKey = sql"""INSERT OR IGNORE INTO ids (n3, main) VALUES (?, ?)""".
         insert2[String, String]
+    var i = 0
     for(key <- keys) {
-      insertKey(toN3(key), pageN3(toN3(key))) }
+      insertKey(toN3(key), pageN3(toN3(key))) 
+      i += 1
+      if(i % 10000 == 0) { 
+        insertKey.execute }}
     insertKey.execute }
 
   def fromN3orInt(s : String) = if(s.startsWith("<") || s.startsWith("_") || 
