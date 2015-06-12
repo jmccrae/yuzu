@@ -2,7 +2,7 @@ function find_ref_context(obj) {
     if(typeof(obj) === "object") {
         if("@graph" in obj) {
             return find_ref_context(obj["@graph"]);
-        } else if ("@id" in obj && obj["@id"].match(/.*#char=0,$/)) {
+        } else if ("@id" in obj && obj["@id"].match(/^[^#]*$/)) {
             return obj;
         } else {
             for(key in obj) {

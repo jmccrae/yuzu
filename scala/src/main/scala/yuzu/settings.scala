@@ -19,7 +19,7 @@ object YuzuSettings {
   // Where the database should appear
   val DB_FILE = "usage.db"
   // The name of the server
-  val DISPLAY_NAME = "The USAGE review corpus for fine-grained, multi-lingual opinion analysis"
+  val DISPLAY_NAME = "The USAGE review corpus"
 
     // The extra namespaces to be abbreviated in HTML and RDF/XML documents if desired
   val PREFIX1_URI = "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#"
@@ -70,7 +70,7 @@ object YuzuSettings {
 
   // Properties to use as facets
   val FACETS = Seq(
-    Map("uri" -> "http://www.w3.org/2000/01/rdf-schema#label", "label" -> "Label", "list" -> true)
+    Map("uri" -> "http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#isString", "label" -> "Content", "list" -> false)
   )
   // Properties to use as labels
   val LABELS = Set(
