@@ -1,39 +1,49 @@
-Yuzu
-====
+Yuzu (Scala)
+============
 
-Yuzu is a micro-framework for publishing linked data. The goal of yuzu is to provide a small
-code base from which it is possible to quickly publish linked data for a variety of purposes.
-Yuzu is intended to be customised for any purpose and as such has a small and easy-to-understand
-code base. In addition Yuzu is maintained in two languages: Python and Scala
+This documentation describes how to get started with the Scala version
+of the Yuzu RDF Publishing micro-framework
 
-Requirements
-------------
+Compiling
+---------
 
-### Data as a Gzipped N-Triple file
+Yuzu compiles with the [SBT](http://www.scala-sbt.org) tool. In general,
+running the command:
 
-Yuzu assumes that all data is available as a single Gzipped N-Triples dump file. This is easily
-achieved with the `rapper` and `gzip` command as follows:
+    sbt package
 
-    rapper -o ntriples myfile.rdf | gzip >> all.nt.gz
+Should create a usable WAR file in the `target` folder, which can be installed
+to a suitable Java EE server
 
-### Data under a single prefix
+Configuring
+-----------
 
-All data hosted as at a Yuzu point must start with the same URI prefix, which 
-corresponds to the endpoint where the data is hosted. Backlinks are allowed but
-either the subject or the object of every triple must start with the given prefix.
-That is it is impossible to host triples about a resource with URIs 
-`http://www.someotherserver.com/` on a Yuzu instance on a server with prefix
-`http://www.example.com/`.
+The configuration of a single Yuzu instance is performed by editing the 
+`settings.scala` file, there are a number of variables that are important
+to change
 
-### A SPARQL endpoint (optional)
+* `BASE_NAME`: This the URI where the application will be installed to and all
+resources hosted at this endpoint must start with this URI.
+* `DUMP_FILE`: The path to the dump of the data to be hosted as a Gzipped
+N-Triple file, preferrably the output of a `rapper -o ntriples` command
+* `DISPLAY_NAME`: The human-readable name of your dataset
 
-Yuzu does support querying by SPARQL, however the built-in database implementation
-is optimized for browsing and faceted search. As such, the querying is often slow
-or may fail, if you wish to enable querying from the web you should set up an 
-external endpoint, for example using [Virtuoso](http://virtuoso.openlinksw.com/)
-or [4store](http://4store.org/).
+After changing these variables it is necessary to create the database by using 
+the `run` target of SBT, e.g.,
 
-Installation
-------------
+    sbt run
 
-Please see [Python](python/README.md) or [Scala](scala/README.md) instructions.
+Testing
+-------
+
+You can test the set-up by starting sbt and running the command `container:start`, 
+the server should be available for testing at localhost on port 8080. If you wish
+to set sbt into continuous deployment mode with the following command
+
+    ~;copy-resources;aux-compile
+
+Deploying
+---------
+
+It should be possible to deploy the packaged WAR file using standard methods for 
+Java EE servers.
