@@ -1,0 +1,314 @@
+<h1>Welcome to Yuzu</h1>
+
+<p>This is an uninitialized Yuzu instance, let's get you set up</p>
+
+<form class="form-horizontal">
+    <fieldset>
+        <legend>Settings</legend>
+        <div class="form-group">
+            <label for="display_name" class="col-lg-2 control-label">
+                Name
+            </label>
+            <div class="col-lg-10">
+                <input type="text" name="display_name" class="form-control"
+                    placeholder="Dataset name"/>
+                <div class="help-block">This will be shown in the title</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="short_name" class="col-lg-2 control-label">
+                Short Name
+            </label>
+            <div class="col-lg-10">
+                <input type="text" name="short_name" class="form-control"
+                    placeholder="dataset"/>
+                    <div class="help-block">This is the short alphanumeric 
+                        name for you dataset. For example the download
+                        of all data will be at 
+                        <a href="{{context}}/dataset.nt.gz">dataset.nt.gz</a>
+                        where <tt>dataset</tt> is the name given above.
+                    </div>
+            </div>
+        </div>
+         <div class="form-group">
+            <label for="base_name" class="col-lg-2 control-label">
+                Base URI
+            </label>
+            <div class="col-lg-10">
+                <input type="text" name="display_name" class="form-control"
+                    id="base_name"/>
+                <div class="help-block">
+                This is the path where this server is (or will eventually
+                be) located. Only triples whose subject or object starts with
+                this base name will be hosted
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="row">
+                <div class="col-lg-2">
+                    
+                </div>
+                <div class="col-lg-2">
+                    Abbreviation
+                </div>
+                <div class="col-lg-1">
+                </div>
+                <div class="col-lg-7 ">
+                    URI
+                </div>
+            </div>
+            <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 1
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix1_qn" name="prefix1_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix1_qn','prefix1_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix1_uri" name="prefix1_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+            <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 2
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix2_qn" name="prefix2_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix2_qn','prefix2_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix2_uri" name="prefix2_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 3
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix3_qn" name="prefix3_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix3_qn','prefix3_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix3_uri" name="prefix3_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 4
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix4_qn" name="prefix4_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix4_qn','prefix4_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix4_uri" name="prefix4_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 5
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix5_qn" name="prefix5_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix5_qn','prefix5_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix5_uri" name="prefix5_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 6
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix6_qn" name="prefix6_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix6_qn','prefix6_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix6_uri" name="prefix6_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 7
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix7_qn" name="prefix7_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix7_qn','prefix7_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix7_uri" name="prefix7_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 8
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix8_qn" name="prefix8_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix8_qn','prefix8_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix8_uri" name="prefix8_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+             <div class="row">
+                <label class="col-lg-2 control-label">
+                    Prefix 9
+                </label>
+                <div class="col-lg-2">
+                    <input type="text" id="prefix9_qn" name="prefix9_qn" class="form-control"
+                        placeholder="example"/>
+                </div>
+                <div class="col-lg-1">
+                    <a class="btn btn-default" onclick="prefixCC('prefix9_qn','prefix9_uri');">Get prefix</a>
+                </div>
+               <div class="col-lg-7">
+                    <input type="text" id="prefix9_uri" name="prefix9_uri" class="form-control"
+                        placeholder="http://www.example.org/vocabulary#"/>
+                </div>
+           </div>
+            <div class="row">
+                <div class="col-lg-10 col-lg-offset-2 help-block">
+                    <p>Here you should define namespace abbreviations for URIs 
+                    that appear in your dataset. For example, if you have a
+                    URI such as 
+                    <a href="http://www.example.com/vocabulary#property">
+                        http://www.example.com/vocabulary#property</a> it will
+                    appear as such to the user, if you set a vocabulary this
+                    can be shortened to 
+                    <a href="http://www.example.com/vocabulary#property">
+                        example:property</a>. </p>
+                    <p>Note that the following 
+                    vocabularies are always shortened:</p>
+                    <table>
+                        <tr>
+                            <td style="padding-right:20px;">rdf</td>
+                            <td><tt>http://www.w3.org/1999/02/22-rdf-syntax-ns#</tt></td>
+                        </tr>
+                        <tr>
+                            <td style="padding-right:20px;">rdfs</td>
+                            <td><tt>http://www.w3.org/2000/01/rdf-schema#</tt></td>
+                        </tr>
+                         <tr>
+                            <td style="padding-right:20px;">owl</td>
+                            <td><tt>http://www.w3.org/2002/07/owl#</tt></td>
+                        </tr>
+                         <tr>
+                            <td style="padding-right:20px;">dc</td>
+                            <td><tt>http://purl.org/dc/elements/1.1/</tt></td>
+                        </tr>
+                         <tr>
+                            <td style="padding-right:20px;">dct</td>
+                            <td><tt>http://purl.org/dc/terms/</tt></td>
+                        </tr>
+                         <tr>
+                            <td style="padding-right:20px;">xsd</td>
+                            <td><tt>http://www.w3.org/2001/XMLSchema#</tt></td>
+                        </tr>
+                        <tr>
+                            <td>base</td>
+                            <td>Your base URI as defined above</td>
+                        </tr>
+                     </table>
+                </div> 
+            </div>
+         </div>
+         <div class="form-group">
+             <label for="facets" class="control-label col-lg-2">
+                 Facets
+             </label>
+             <div class="col-lg-10">
+                 <textarea cols="80" rows="15"></textarea>
+                 <div class="help-block">
+                     <p>Facets are the key properties users will use to explore 
+                     your dataset. They should generally be either datatype
+                     properties or object properties that have a controlled
+                     set of values. They should not be generally be properties
+                     that are used to connect parts of the dataset. They should
+                     be entered with the full URI followed by a human readable
+                     label, e.g.,</p>
+                     <pre>
+http://purl.org/dc/elements/1.1/language Language
+http://www.lexinfo.net/ontology/2.0/lexinfo#partOfSpeech Part of Speech
+http://schema.org/author Author</pre>
+                 </div>
+             </div>
+         </div>
+         <div class="form-group">
+             <label for="dataset" class="control-label col-lg-2">
+                 Dataset
+             </label>
+             <div class="col-lg-10">
+                 <input type="text" name="dataset_uri" class="form-control"
+                  placeholder="file:///home/user/dataset.nt.gz">
+                 <div class="help-block">
+                     <p>You should specify the URI of the data you wish to host.
+                     This should be in N-Triples format and compressed with 
+                     GZip.  Alternatively, you may upload the data now:</p>
+                 </div>
+                 <input type="file" name="dataset_file" class="form-control"/>
+             </div>
+         </div>
+    </fieldset>
+</form>
+
+<script>
+   
+function endsWith(str, suffix) {
+    return str.indexOf(suffix, str.length - suffix.length) !== -1;
+}
+function prefixCC(qn, uri) {
+    $.getJSON("http://prefix.cc/" + $('#' + qn)[0].value + ".file.json", function(data) {
+        var v = data[$('#' +qn)[0].value];
+        document.getElementById(uri).value = v;
+    });
+}
+
+
+$(document).ready(function() {
+    var loc = window.location.toString();
+    if(endsWith(loc, "/")) {
+        document.getElementById("base_name").value = loc;
+    } else {
+        document.getElementById("base_name").value = loc + "/";
+    }
+        
+});
+</script>
+
+
