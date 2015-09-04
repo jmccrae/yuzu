@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+{{#html}}
+<head>
+    {{#head}}
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    {{title}}
+    <!-- Bootstrap theme -->
+    <link href="{{context.getContextPath()}}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
+    <!-- JQuery (not required) -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <style>
+        .rdf_table {
+            background-color: #eee;
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+        .rdf_table_nested {
+            background-color: #eee;
+        }
+        .rdf_prop {
+            font-weight: bold;
+            width: 180px;
+        }
+        .rdf_table td {
+            padding-left: 20px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            padding-right: 10px;
+            font-size: 120%;
+        }
+        .rdf_embedded_table {
+            width: 100%;
+            margin-top: 0px;
+            margin-bottom: 0px;
+        }
+        .rdf_embedded_table td {
+            padding-left: 20px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            padding-right: 10px;
+            font-size: 110%;
+        }
+        .panel-default {
+            margin-bottom: 0px;
+            border-bottom: 0px;
+        }
+        .panel-heading {
+            font-size: 140%;
+            font-weight: bold;
+        }
+         .rdf_table_nested td{
+            padding-left: 2px;
+        }
+        .rdf_table td.rdf_value {
+            min-width: 350px;
+        }
+        .rdf_subheader {
+            text-transform: uppercase;
+            font-weight: bold;
+            word-wrap:break-word;
+        }
+        .rdf_subsection {
+            border-top: 2px solid #ddd;
+            padding-top: 1em;
+        }
+        .rdf_table_nested tr:hover {
+            background-color: #ddd;
+        }
+        .rdf_table tr:hover {
+            background-color: #ddd;
+        }
+        .rdf_header h1 {
+            font-weight: bold;
+        }
+        .rdf_header {
+            border-bottom: 1px solid #eee;
+            margin-top: 30px;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+        .rdf_classof {
+            font-style: italic;
+        }
+        .rdf_datatype a {
+            font-size: 80%;
+            font-style: italic;
+            color: #333;
+        }
+        a.anchor {
+            display: block; 
+            position: relative; 
+            top: -150px; 
+            visibility: hidden;
+        }
+        div.footer_link {
+            border-right: 1px solid #ccc;
+            text-align: right;
+        }
+        a.footer_link {
+            font-variant: small-caps;
+            font-weight: bold;
+        }
+        .more img {
+            height: 16px;
+            padding-left: 2px;
+        }
+    </style>
+    <script>
+    function flagFallBack(tag) {
+        if(tag.src.indexOf("und.gif", tag.src.length - 7) === -1) {
+            tag.src='{{context.getContextPath()}}/assets/flag/und.gif';
+            tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
+        }
+    }
+    </script>
+    <link rel="shortcut icon" href="{{context.getContextPath()}}/favicon.ico" />
+    {{/head}}
+</head>
+<body style="padding-top:100px;">
+    <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;height:100px;overflow:hidden;">
+        <div class="container">
+            <div class="navbar-header">
+                <a href="{{context.getContextPath()}}/"><img src="{{context.getContextPath()}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
+                <span style="font-size:400%;vertical-align:middle;font-weight:bold;padding-left:30px;">{{app_title}}</span>
+            </div>
+        </div>
+    </div>
+    <!--<div class="alert alert-danger">
+        <h3 style="margin-top:5px;">Step 1</h3>
+        <p>This is the default basic style for Yuzu, you should adapt this 
+        to your site by editing <tt>common/html/page.html</tt>. For more 
+        details see README</p>
+    </div>-->
+       {{#body}}
+            {{_}}
+        {{/body}}
+
+        <div class="navbar" style="background-color:#fff;padding-top:100px;">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-1 col-lg-offset-10 footer_link">
+                        <a href="{{context.getContextPath()}}/about" class="footer_link">About</a><br/>
+                        <a href="{{context.getContextPath()}}/license" class="footer_link">License</a><br/>
+                        <a href="{{context.getContextPath()}}/download" class="footer_link">Download</a><br/>
+                        <a href="https://github.com/jmccrae/yuzu" class="footer_link">Source</a>
+                    </div>
+                    <div class="col-lg-1" style="line-height:5.5em;vertical-align:middle;">
+                        <a href="{{context.getContextPath()}}/license">
+                            <img src="{{context.getContextPath()}}/assets/cc/cc-zero.png" height="30px"/></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    {{/html}}
+</html>
