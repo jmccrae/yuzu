@@ -428,7 +428,7 @@ class TripleBackend(db : String) extends Backend {
           WHERE head=1 GROUP BY oid""".execute
 
     sql"""INSERT INTO free_text
-          SELECT pid, sid, label FROM tripids
+          SELECT sid, pid, label FROM tripids
           JOIN ids on oid=id
           WHERE label != "" """.execute
 
