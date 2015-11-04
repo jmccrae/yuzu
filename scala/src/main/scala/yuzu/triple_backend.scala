@@ -386,6 +386,10 @@ class TripleBackend(db : String) extends Backend {
                 catch {
                   case x : Exception => // oh well 
                 }}}
+            else {
+              if(LABELS.contains("<" + prop.getURI() + ">") && !subj.getURI().contains('#') && obj.isLiteral()) {
+                updateLabel(obj.getLiteralLexicalForm(), sid) }}
+
 
             if(obj.isURI() && obj.getURI().startsWith(BASE_NAME) &&
                 !NO_INVERSE.contains(removeFrag(obj.getURI()))) {
