@@ -6,10 +6,8 @@ import scalate.ScalateSupport
 class YuzuServlet extends YuzuServletActions {
   import YuzuSettings._
   import YuzuUserText._
-
-  val backend = null
-
-  def sparqlQuery(query : String, mime : ResultType, defaultUrl : Option[String]) {}
+  implicit val backend : Backend = null
+  private final val pathWithExtension = "(.*)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)".r
 
   def catchErrors(action : => Any) = {
     try {
@@ -22,6 +20,16 @@ class YuzuServlet extends YuzuServletActions {
   }
 
   get("/*") {
+    val (resource, ext) = params("splat") match {
+      case pathWithExtension(r, "") =>
+        (r, None)
+      case pathWithExtension(r, ext) =>
+        (r, Some(ext.drop(1)))
+      case r =>
+        (r, None) // Probably unreachable
+    }
+    val mime = ContentNegotiation.negotiate(ext, request)
+    contentType = mime.mime
     pass()
   }
 
@@ -84,13 +92,36 @@ class YuzuServlet extends YuzuServletActions {
 
   get(LIST_PATH) {
     catchErrors {
-
+      val offset = params.get("offset") match {
+        case Some(num) if num.matches("[0-9]+") =>
+          num.toInt
+        case _ =>
+          0
+      }
+      val property = params.get("prop") match {
+        case Some(prop) if prop.matches("<.*>") =>
+          Some(prop)
+        case Some(prop) =>
+          Some("<%s>" format prop)
+        case None =>
+          None
+      }
+      val obj = params.get("obj")
+      val objOffset = params.get("obj_offset") match {
+        case Some(num) if num.matches("[0-9]+") =>
+          num.toInt
+        case _ =>
+          0
+      }
+      listResources(offset, property, obj, objOffset)
     }
   }
 
-  get(METADATA_PATH) {
+  get((METADATA_PATH + "(|\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)").r) {
     catchErrors {
-
+      val mime = ContentNegotiation.negotiate(Option(multiParams("captures").apply(0)), request)
+      val model = DataID.get
+      render(model, mime)
     }
   }
 }

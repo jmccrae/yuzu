@@ -38,4 +38,12 @@ trait YuzuServletActions extends YuzuStack {
       "query" -> qs
     )
   }
+
+  def sparqlQuery(query : String, mime : ResultType, defaultUrl : Option[String]) {}
+
+  def listResources(offset : Int, property : Option[String], obj : 
+                    Option[String], objOffset : Int) {}
+
+  def render(model : Map[String, Any], mime : ResultType) {} 
+
 }
