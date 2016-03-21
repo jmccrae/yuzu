@@ -26,11 +26,14 @@ object YuzuBuild extends Build {
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-        "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
-        "org.eclipse.jetty" % "jetty-webapp" % "9.2.10.v20150310" % "container",
+        "ch.qos.logback" % "logback-classic" % "1.1.1" % "runtime",
+        "org.eclipse.jetty" % "jetty-webapp" % "9.2.10.v20150310" % "container"
+          excludeAll(ExclusionRule(organization="org.slf4j")),
         "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
-        "org.apache.jena" % "jena-arq" % "2.12.1",
-        "org.json4s" %% "json4s-jackson" % "3.2.11"
+        "org.apache.jena" % "jena-arq" % "2.12.1"
+          excludeAll(ExclusionRule(organization="org.slf4j")),
+        "org.json4s" %% "json4s-jackson" % "3.2.11",
+        "org.mockito" % "mockito-core" % "1.10.19"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(

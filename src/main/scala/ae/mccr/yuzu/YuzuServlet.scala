@@ -9,6 +9,8 @@ class YuzuServlet extends YuzuServletActions {
 
   val backend = null
 
+  def sparqlQuery(query : String, mime : ResultType, defaultUrl : Option[String]) {}
+
   def catchErrors(action : => Any) = {
     try {
       action
@@ -69,7 +71,14 @@ class YuzuServlet extends YuzuServletActions {
 
   get(SPARQL_PATH) {
     catchErrors {
-
+      if(params contains "query") {
+        val mime = ContentNegotiation.negotiate(None, request, true)
+        sparqlQuery(params("query").toString, mime,
+          params.get("default-graph-uri"))
+      } else {
+          contentType = "text/html"
+          mustache("/sparql")
+      }
     }
   }
 
