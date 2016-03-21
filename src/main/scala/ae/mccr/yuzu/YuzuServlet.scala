@@ -3,10 +3,9 @@ package ae.mccr.yuzu
 import org.scalatra._
 import scalate.ScalateSupport
 
-class YuzuServlet extends YuzuServletActions {
+abstract class YuzuServlet extends YuzuServletActions {
   import YuzuSettings._
   import YuzuUserText._
-  implicit val backend : Backend = null
   private final val pathWithExtension = "(.*)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)".r
 
   def catchErrors(action : => Any) = {
@@ -29,8 +28,7 @@ class YuzuServlet extends YuzuServletActions {
         (r, None) // Probably unreachable
     }
     val mime = ContentNegotiation.negotiate(ext, request)
-    contentType = mime.mime
-    pass()
+    showResource(resource, mime)
   }
 
   get("/") {
@@ -109,9 +107,9 @@ class YuzuServlet extends YuzuServletActions {
       val obj = params.get("obj")
       val objOffset = params.get("obj_offset") match {
         case Some(num) if num.matches("[0-9]+") =>
-          num.toInt
+          Some(num.toInt)
         case _ =>
-          0
+          None
       }
       listResources(offset, property, obj, objOffset)
     }
@@ -121,7 +119,7 @@ class YuzuServlet extends YuzuServletActions {
     catchErrors {
       val mime = ContentNegotiation.negotiate(Option(multiParams("captures").apply(0)), request)
       val model = DataID.get
-      render(model, mime)
+      metadata(model, mime)
     }
   }
 }

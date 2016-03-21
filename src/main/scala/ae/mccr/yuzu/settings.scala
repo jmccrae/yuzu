@@ -134,4 +134,6 @@ object YuzuSettings {
   require(CONTRIBUTOR_EMAILS.size == CONTRIBUTOR_NAMES.size)
   // Links to the resources this data set was derived from
   val DERIVED_FROM : Seq[String] = Nil
+  // TODO:
+  val LABEL_PROP = "label"
 }

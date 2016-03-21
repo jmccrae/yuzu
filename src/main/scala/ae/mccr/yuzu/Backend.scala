@@ -12,7 +12,6 @@ import org.json4s.JObject
 case class SearchResult(link : String, label : String, id : String)
 case class SearchResultWithCount(link : String, label : String, id : String, count : Int)
 
-case class Summarization(id : String, triples : Seq[FactValue])
 case class FactValue(prop : RDFValue, obj : RDFValue)
 case class RDFValue(
     display : String,
@@ -34,9 +33,9 @@ trait Backend {
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
-  def lookup(id : String) : Option[JObject]
+  def lookup(id : String) : Option[Map[String, Any]]
   /** Summarize the key triples to preview a page */
-  def summarize(id : String) : Summarization
+  def summarize(id : String) : Seq[FactValue]
   /** 
    * List pages by property and object
    * @param offset The query offset
