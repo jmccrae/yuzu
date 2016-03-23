@@ -51,6 +51,6 @@ class YuzuServletSpec extends ScalatraSpec {
     status must_== 200
   }
   def notaresource404 = get("/notaresource") {
-    status mist_== 404
+    status must_== 404
   }
 }

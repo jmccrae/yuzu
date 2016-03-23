@@ -5,14 +5,15 @@ import com.hp.hpl.jena.rdf.model.{Model}
 import com.hp.hpl.jena.vocabulary._
 import java.util.concurrent.TimeoutException
 import org.apache.jena.riot.RDFDataMgr
-import org.json4s.JObject
 import org.scalatra._
 import scala.collection.JavaConversions._
-import org.json4s.jackson.JsonMethods._
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 trait YuzuServletActions extends YuzuStack {
   import YuzuSettings._
   import YuzuUserText._
+  import DataConversions._
 
   implicit val backend : Backend
 
@@ -52,7 +53,8 @@ trait YuzuServletActions extends YuzuStack {
     )
   }
 
-  def sparqlQuery(query : String, mimeType : ResultType, defaultGraphURI : Option[String], timeout : Int = 10) {
+  def sparqlQuery(query : String, mimeType : ResultType, 
+                  defaultGraphURI : Option[String], timeout : Int = 10) : Any = {
     try {
       val result = backend.query(query, mimeType, defaultGraphURI, timeout)
       if(mimeType == html) {
@@ -120,7 +122,7 @@ trait YuzuServletActions extends YuzuStack {
   }
 
   def listResources(offset : Int, property : Option[String], obj : 
-                    Option[String], obj_offset : Option[Int]) {
+                    Option[String], obj_offset : Option[Int]) : Any = {
     val limit = 20
     val (hasMore, results) = backend.listResources(offset, limit, property, obj)
     val hasPrev = if(offset > 0) { "" } else { "disabled" }
@@ -173,36 +175,8 @@ trait YuzuServletActions extends YuzuStack {
       "query" -> queryString)
   }
 
-  private def toJson(model : Map[String, Any]) = {
-    "{}"
-  }
 
-  private def toRDFXML(model : Map[String, Any]) = {
-      "<rdf:RDF/>"
-  }
-
-  private def toTurtle(model : Map[String, Any]) = {
-    ""
-  }
-
-  private def toNTriples(model : Map[String, Any]) = {
-    ""
-  }
-
-  private def toHtml(model : Map[String, Any]) = {
-    //Val title = model.get(LABEL_PROP) match {
-      //case Some(x : String) =>
-        //x
-      //case Some(x : Seq[_]) =>
-        //x.mkString(", ")
-      //case _ =>
-        //model.getOrElse("@id", "")
-    //}
-    ""
-  }
-
-
-  def showResource(id : String, mime : ResultType) {
+  def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
     modelOption match {
       case None => 
@@ -226,7 +200,7 @@ trait YuzuServletActions extends YuzuStack {
     }
   } 
 
-  def metadata(metadata : Map[String, Any], mime : ResultType) = {
+  def metadata(metadata : Map[String, Any], mime : ResultType) : Any = {
     contentType = mime.mime
     if(mime == json) {
       toJson(metadata)

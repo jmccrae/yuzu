@@ -7,7 +7,7 @@ import com.hp.hpl.jena.query.{ResultSet => RDFResultSet}
 import java.io.{File, FileInputStream}
 import java.util.zip.GZIPInputStream
 import scala.collection.JavaConversions._
-import org.json4s.JObject
+import spray.json.JsObject
 
 case class SearchResult(link : String, label : String, id : String)
 case class SearchResultWithCount(link : String, label : String, id : String, count : Int)

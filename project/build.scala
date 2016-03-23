@@ -32,7 +32,7 @@ object YuzuBuild extends Build {
         "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
         "org.apache.jena" % "jena-arq" % "2.12.1"
           excludeAll(ExclusionRule(organization="org.slf4j")),
-        "org.json4s" %% "json4s-jackson" % "3.2.11",
+        "io.spray" %%  "spray-json" % "1.3.2",
         "org.mockito" % "mockito-core" % "1.10.19"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
