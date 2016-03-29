@@ -385,7 +385,7 @@ class JsonLDConverter(resolveRemote : Boolean = false,
 
   }
 
-  private def _toTriples(data : JsValue, context2 : Option[JsonLDContext],
+  def _toTriples(data : JsValue, context2 : Option[JsonLDContext],
       subjType : Option[String], subjLang : Option[String]) : (RDFNode, Iterable[Triple]) = {
     val context = localContext(data, context2)
       

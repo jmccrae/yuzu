@@ -1,7 +1,7 @@
 package ae.mccr.yuzu
 
 import spray.json._
-import ae.mccr.yuzu.jsonld.{RDFUtil, JsonLDConverter, JsonLDContext}
+import ae.mccr.yuzu.jsonld._
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import java.io.StringWriter
 
@@ -46,8 +46,80 @@ object DataConversions {
       //case _ =>
         //model.getOrElse("@id", "")
     //}
-    ""
+    defaultToHtml(data, context, "")
   }
 
+  def uriEncode(string : String) : String = string
 
+  def uriEncode(string : Option[String]) : String = uriEncode(string.getOrElse(""))
+
+  def literalEncode(string : String) : String = string
+
+  def htmlEscape(string : String) : String = string
+
+  def display(string : String) = string
+
+  def propUri(key : String, context : Option[JsonLDContext]) : Option[String] = {
+    context match {
+      case Some(context) =>
+        context.toURI(key) match {
+          case URI(value) =>
+            Some(value)
+          case _ =>
+            None
+        }
+      case None =>
+        None
+    }
+  }
+
+  private def valueToHtml(key : String, value : JsValue, 
+      context : Option[JsonLDContext], contextUrl : String) : String = {
+    jsonLDConverter._toTriples(value, context, None, None) match {
+      case (LangLiteral(litVal, lang), triples) if triples.isEmpty => 
+        s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri(key, context))}%3e+%22${literalEncode(litVal)}%22%40$lang+%7d+limit+100" class="more pull-right">
+<img src="$contextUrl/assets/more.png" title="Resources with this property"/>
+</a>
+<span class="pull-right">
+<img src="$contextUrl/assets/flag/$lang}}.gif" onError="flagFallBack(this)"/>
+</span>"""
+      case (TypedLiteral(litVal, datatype), triples) if triples.isEmpty =>
+        s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri(key, context))}%3e+%22${literalEncode(litVal)}%22%5e%5e%3c${uriEncode(datatype)}%3e+%7d+limit+100" class="more pull-right">
+                  <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
+              </a>
+              <span class="pull-right rdf_datatype"><a href="${datatype}" class="rdf_link">${display(datatype)}</a></span>"""
+      case (PlainLiteral(litVal), triples) if triples.isEmpty =>
+        s"""${htmlEscape(litVal)}<a href= "$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri(key, context))}%3e+%22${literalEncode(litVal)}%22+%7d+limit+100" class="more pull-right">
+                  <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
+              </a>"""
+      case (node : Literal, _) => throw new RuntimeException("Should not be possible")
+      case (URI(value), triples) if triples.isEmpty => 
+        s"""<a href="$value" class="rdf_link rdf_prop">${display(key)}</a>
+            <a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(value)}%3e+%3c${uriEncode(value)}%3e+%7d+limit+100" class="more pull-right">
+                 <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
+            </a>"""
+      case (BlankNode(_), triples) if triples.isEmpty => 
+        """-"""
+      case (node : Resource, triples) =>
+        defaultToHtml(value, context, contextUrl)
+    }
+  }
+
+  def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String) : String = {
+    data match {
+      case JsObject(values) =>
+        s"""<table class="rdf_table" resource=""><tr>${
+          (for((key, value) <- values) yield {
+            s"""<td class="rdf_prop">${
+              propUri(key, context) match {
+                case Some(value) =>
+                  s"""<a href="$value" class="rdf_link">${display(key)}</a></td>"""
+                case None =>
+                  s"""${display(key)}"""
+              }
+            }<td class="rdf_value">${valueToHtml(key, value, context, contextUrl)}</td>"""
+          }).mkString("</tr><tr>")
+        }</tr></table>"""
+    }
+  }
 }

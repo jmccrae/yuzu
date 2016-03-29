@@ -27,6 +27,59 @@ class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
         case None =>
           language
       })
+
+  private val qnameString = "(.*?):(.*)".r
+  private val bnodeString = "_:(.*)".r
+
+  private def resolve2(id : String) : URI = {
+    if(id == "") {
+      base match {
+        case Some(b) =>
+          URI(b.toString())
+        case None =>
+          throw new JsonLDException("Relative URI without base: " + id)
+      }
+    } else if(JsonLDConverter.isAbsoluteIRI(id)) {
+      URI(id)
+    } else {
+      base match {
+        case Some(b) =>
+          if(id == "") {
+            URI(b.toString())
+          } else {
+            URI(new java.net.URL(b, id).toString())
+          }
+        case None =>
+            throw new JsonLDException("Relative URI without base: " + id)
+      }
+    }
+  }
+
+  def toURI(fieldKey : String) = {
+    fieldKey match {
+      case bnodeString(fieldKey) =>
+        BlankNode(Some(fieldKey))
+      case qnameString(pre, suf) =>
+        definitions.get(pre) match {
+          case Some(t : JsonLDDefnWithId) =>
+            URI(t.full + suf)
+          case _ =>
+            definitions.get(fieldKey) match {
+              case Some(t : JsonLDDefnWithId) =>
+                URI(t.full)
+              case _ =>
+                resolve2(fieldKey)
+              }
+        }
+      case _ =>
+        definitions.get(fieldKey) match {
+          case Some(t : JsonLDDefnWithId) => 
+            URI(t.full)
+          case _ =>
+            resolve2(fieldKey)
+        }
+    }
+  }
 }
 
 object JsonLDContext {
