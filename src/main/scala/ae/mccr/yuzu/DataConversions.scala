@@ -63,7 +63,7 @@ object DataConversions {
     context match {
       case Some(context) =>
         context.toURI(key) match {
-          case URI(value) =>
+          case Some(URI(value)) =>
             Some(value)
           case _ =>
             None

@@ -31,42 +31,42 @@ class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
   private val qnameString = "(.*?):(.*)".r
   private val bnodeString = "_:(.*)".r
 
-  private def resolve2(id : String) : URI = {
+  private def resolve2(id : String) : Option[URI] = {
     if(id == "") {
       base match {
         case Some(b) =>
-          URI(b.toString())
+          Some(URI(b.toString()))
         case None =>
-          throw new JsonLDException("Relative URI without base: " + id)
+          None
       }
     } else if(JsonLDConverter.isAbsoluteIRI(id)) {
-      URI(id)
+      Some(URI(id))
     } else {
       base match {
         case Some(b) =>
           if(id == "") {
-            URI(b.toString())
+            Some(URI(b.toString()))
           } else {
-            URI(new java.net.URL(b, id).toString())
+            Some(URI(new java.net.URL(b, id).toString()))
           }
         case None =>
-            throw new JsonLDException("Relative URI without base: " + id)
+            None
       }
     }
   }
 
-  def toURI(fieldKey : String) = {
+  def toURI(fieldKey : String) : Option[Resource] = {
     fieldKey match {
       case bnodeString(fieldKey) =>
-        BlankNode(Some(fieldKey))
+        Some(BlankNode(Some(fieldKey)))
       case qnameString(pre, suf) =>
         definitions.get(pre) match {
           case Some(t : JsonLDDefnWithId) =>
-            URI(t.full + suf)
+            Some(URI(t.full + suf))
           case _ =>
             definitions.get(fieldKey) match {
               case Some(t : JsonLDDefnWithId) =>
-                URI(t.full)
+                Some(URI(t.full))
               case _ =>
                 resolve2(fieldKey)
               }
@@ -74,7 +74,7 @@ class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
       case _ =>
         definitions.get(fieldKey) match {
           case Some(t : JsonLDDefnWithId) => 
-            URI(t.full)
+            Some(URI(t.full))
           case _ =>
             resolve2(fieldKey)
         }
