@@ -7,7 +7,7 @@ import com.hp.hpl.jena.query.{ResultSet => RDFResultSet}
 import java.io.{File, FileInputStream}
 import java.util.zip.GZIPInputStream
 import scala.collection.JavaConversions._
-import spray.json.JsObject
+import spray.json.JsValue
 
 case class SearchResult(link : String, label : String, id : String)
 case class SearchResultWithCount(link : String, label : String, id : String, count : Int)
@@ -33,7 +33,7 @@ trait Backend {
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
-  def lookup(id : String) : Option[Map[String, Any]]
+  def lookup(id : String) : Option[JsValue]
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
   /** 

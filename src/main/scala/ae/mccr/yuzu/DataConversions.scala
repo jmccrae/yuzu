@@ -1,23 +1,43 @@
 package ae.mccr.yuzu
 
+import spray.json._
+import ae.mccr.yuzu.jsonld.{RDFUtil, JsonLDConverter, JsonLDContext}
+import org.apache.jena.riot.{RDFDataMgr, Lang}
+import java.io.StringWriter
+
 object DataConversions {
-  def toJson(model : Map[String, Any]) = {
-    "{}"
+  lazy val jsonLDConverter = new JsonLDConverter()
+
+  private def toRDF(data : JsValue, context : Option[JsonLDContext]) = {
+    RDFUtil.toJena(jsonLDConverter.toTriples(data, context))
   }
 
-  def toRDFXML(model : Map[String, Any]) = {
-      "<rdf:RDF/>"
+  def toJson(data : JsValue, context : Option[JsonLDContext]) = {
+    data.prettyPrint
   }
 
-  def toTurtle(model : Map[String, Any]) = {
-    ""
+  def toRDFXML(data : JsValue, context : Option[JsonLDContext]) = {
+    val rdf = toRDF(data, context)
+    val output = new StringWriter()
+    RDFDataMgr.write(output, rdf, Lang.RDFXML)
+    output.toString
   }
 
-  def toNTriples(model : Map[String, Any]) = {
-    ""
+  def toTurtle(data : JsValue, context : Option[JsonLDContext]) = {
+    val rdf = toRDF(data, context)
+    val output = new StringWriter()
+    RDFDataMgr.write(output, rdf, Lang.TURTLE)
+    output.toString
   }
 
-  def toHtml(model : Map[String, Any]) = {
+  def toNTriples(data : JsValue, context : Option[JsonLDContext]) = {
+    val rdf = toRDF(data, context)
+    val output = new StringWriter()
+    RDFDataMgr.write(output, rdf, Lang.NTRIPLES)
+    output.toString
+  }
+
+  def toHtml(data : JsValue, context : Option[JsonLDContext]) = {
     //Val title = model.get(LABEL_PROP) match {
       //case Some(x : String) =>
         //x

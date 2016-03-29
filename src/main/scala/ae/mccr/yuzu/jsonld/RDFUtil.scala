@@ -1,10 +1,14 @@
 package ae.mccr.yuzu.jsonld
 
-import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode}
+import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode, AnonId, ModelFactory}
 import scala.collection.JavaConversions._
   
-trait RDFNode
-trait Resource extends RDFNode
+trait RDFNode {
+  def toJena(implicit model : Model) : JenaRDFNode
+}
+trait Resource extends RDFNode {
+  def toJena(implicit model : Model) : JenaResource
+}
 case class BlankNode(id : Option[String] = None) extends Resource {
   override def toString = id match {
     case Some(s) =>
@@ -12,19 +16,31 @@ case class BlankNode(id : Option[String] = None) extends Resource {
     case None =>
       "[]"
   }
+  def toJena(implicit model : Model) = id match {
+    case Some(id) =>
+      model.createResource(new AnonId(id))
+    case None =>
+      model.createResource()
+  }
+
 }
 case class URI(value : String) extends Resource {
   override def toString = "<" + value + ">"
+  def toJena(implicit model : Model) = model.createResource(value)
+  def toJenaProp(implicit model : Model) = model.createProperty(value)
 }
 trait Literal extends RDFNode
 case class PlainLiteral(value : String) extends Literal {
   override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\""
+  def toJena(implicit model : Model) = model.createLiteral(value)
 }
 case class LangLiteral(value : String, lang : String) extends Literal {
   override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\"@" + lang
+  def toJena(implicit model : Model) = model.createLiteral(value, lang)
 }
 case class TypedLiteral(value : String, datatype : String) extends Literal {
   override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\"^^<" + datatype + ">"
+  def toJena(implicit model : Model) = model.createTypedLiteral(value, datatype)
 }
 
 
@@ -52,6 +68,16 @@ object RDFUtil {
   } else {
     PlainLiteral(node.asLiteral().getLexicalForm())
   }
+
+  def toJena(triples : Iterable[Triple]) : Model = {
+    implicit val model = ModelFactory.createDefaultModel()
+    for((subj, prop, obj) <- triples) {
+      model.add(model.createStatement(
+        subj.toJena, prop.toJenaProp, obj.toJena))
+    }
+    model
+  }
+
 
 
   implicit class ModelPimps(model : Model) {

@@ -184,15 +184,15 @@ trait YuzuServletActions extends YuzuStack {
       case Some(model) => {
         contentType = mime.mime
         respondVary(if(mime == json) {
-          toJson(model)          
+          toJson(model, None)
         } else if(mime == rdfxml) {
-          toRDFXML(model)
+          toRDFXML(model, None)
         } else if(mime == turtle) {
-          toTurtle(model)
+          toTurtle(model, None)
         } else if(mime == nt) {
-          toNTriples(model)
+          toNTriples(model, None)
         } else if(mime == html) {
-          toHtml(model)
+          toHtml(model, None)
         } else {
           throw new IllegalArgumentException()
         })
@@ -200,12 +200,12 @@ trait YuzuServletActions extends YuzuStack {
     }
   } 
 
-  def metadata(metadata : Map[String, Any], mime : ResultType) : Any = {
+  def metadata(metadata : JsValue, mime : ResultType) : Any = {
     contentType = mime.mime
     if(mime == json) {
-      toJson(metadata)
+      toJson(metadata, None)
     } else if(mime == rdfxml) {
-      toRDFXML(metadata)
+      toRDFXML(metadata, None)
     }
   }
 

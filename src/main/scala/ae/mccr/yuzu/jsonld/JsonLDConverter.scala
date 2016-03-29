@@ -93,7 +93,7 @@ class JsonLDConverter(resolveRemote : Boolean = false,
     }
   }
 
-  def toTriples(data : JsValue, context : Option[JsonLDContext]) : Iterable[Triple] = {
+  def toTriples(data : JsValue, context : Option[JsonLDContext] = None) : Iterable[Triple] = {
     data match {
       case o : JsObject =>
         objectToTriples(o, context)
