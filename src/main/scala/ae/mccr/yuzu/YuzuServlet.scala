@@ -4,9 +4,8 @@ import org.scalatra._
 import scalate.ScalateSupport
 
 abstract class YuzuServlet extends YuzuServletActions {
-  import YuzuSettings._
   import YuzuUserText._
-  private final val pathWithExtension = "(.*)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)".r
+  private final val pathWithExtension = "(.*?)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)".r
 
   def catchErrors(action : => Any) = {
     try {
@@ -19,37 +18,42 @@ abstract class YuzuServlet extends YuzuServletActions {
   }
 
   get("/*") {
-    val (resource, ext) = params("splat") match {
-      case pathWithExtension(r, "") =>
-        (r, None)
-      case pathWithExtension(r, ext) =>
-        (r, Some(ext.drop(1)))
-      case r =>
-        (r, None) // Probably unreachable
+    if(params("splat").startsWith(siteSettings.ASSETS_PATH.drop(1))) {
+      pass()
+    } else if(findTemplate("/" + params("splat"), Set("mustache")) != None) {
+      contentType = "text/html"
+      mustache("/" + params("splat"))
+    } else {
+      val (resource, ext) = params("splat") match {
+        case pathWithExtension(r, ext) =>
+          (r, if(ext == "") { None } else { Some(ext.drop(1)) })
+        case r =>
+          (r, None) // Probably unreachable
+      }
+      val mime = ContentNegotiation.negotiate(ext, request)
+      showResource(resource, mime)
     }
-    val mime = ContentNegotiation.negotiate(ext, request)
-    showResource(resource, mime)
   }
 
   get("/") {
     catchErrors {
-      val isTest = request.getRequestURL().toString() != BASE_NAME
+      val isTest = request.getRequestURL().toString() != settings.BASE_NAME
 
       contentType = "text/html"
       mustache("/index", 
         "is_test" -> isTest,
-        "title" -> DISPLAY_NAME)
+        "title" -> siteSettings.DISPLAY_NAME)
     }
   }
 
-  get(LICENSE_PATH) {
+  get(siteSettings.LICENSE_PATH) {
     catchErrors {
       contentType = "text/html"
       mustache("/license")
     }
   }
 
-  get(SEARCH_PATH) {
+  get(siteSettings.SEARCH_PATH) {
     catchErrors {
       if(params contains "query") {
         val query = params("query").toString
@@ -75,7 +79,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get(SPARQL_PATH) {
+  get(siteSettings.SPARQL_PATH) {
     catchErrors {
       if(params contains "query") {
         val mime = ContentNegotiation.negotiate(None, request, true)
@@ -88,7 +92,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get(LIST_PATH) {
+  get(siteSettings.LIST_PATH) {
     catchErrors {
       val offset = params.get("offset") match {
         case Some(num) if num.matches("[0-9]+") =>
@@ -115,7 +119,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get((METADATA_PATH + "(|\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)").r) {
+  get((siteSettings.METADATA_PATH + "(|\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)").r) {
     catchErrors {
       val mime = ContentNegotiation.negotiate(Option(multiParams("captures").apply(0)), request)
       val model = DataID.get

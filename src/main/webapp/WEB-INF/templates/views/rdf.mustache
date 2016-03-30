@@ -1,0 +1,30 @@
+<html>
+    <head>
+        <title>{{title}}</title>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="rdf_header">
+                    <h1 style="word-wrap:break-word;display:inline;">{{title}}</h1>
+                    <ul class="nav nav-tabs pull-right">
+                        <li class="active">
+                           <a href="{{uri}}.html">HTML</a></li>
+                        <li>
+                            <a href="{{uri}}.rdf">RDF/XML</a></li>
+                        <li>
+                            <a href="{{uri}}.nt">N-Triples</a></li>
+                        <li>
+                            <a href="{{uri}}.ttl">Turtle</a></li>
+                        <li>
+                            <a href="{{uri}}.json">JSON-LD</a></li>
+                    </ul>
+                </div>
+                {{#class_of}}
+                    <h5 class="rdf_classof">Instance of: <a href="{{uri}}" class="rdf_link">{{display}}</a></h5>"""
+                {{/class_of}}
+                {{{rdfBody}}}
+            </div>
+        </div>
+    </body>
+</html>

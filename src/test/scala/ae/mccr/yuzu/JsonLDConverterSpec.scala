@@ -658,7 +658,6 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples.foreach(println)
     triples must have size 7
   }
 

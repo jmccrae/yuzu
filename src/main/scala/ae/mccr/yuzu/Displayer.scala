@@ -2,8 +2,9 @@ package ae.mccr.yuzu
 
 import com.hp.hpl.jena.vocabulary._
 
-class Displayer(labelLookup : String => Option[String]) {
-  import YuzuSettings._
+class Displayer(labelLookup : String => Option[String], settings : YuzuSettings,
+  siteSettings : YuzuSiteSettings) {
+  import YuzuConstants._
   def magicString(text : String) = {
     val s = java.net.URLDecoder.decode(text.replaceAll("([a-z])([A-Z])","$1 $2").
       replaceAll("_"," "), "UTF-8")
@@ -11,28 +12,13 @@ class Displayer(labelLookup : String => Option[String]) {
   }
 
   def uriToStr(uri : String) = {
-    val label = if(PROP_NAMES.contains(uri)) {
-      PROP_NAMES(uri)
-    } else if(uri.startsWith(PREFIX1_URI)) {
-      magicString(uri.drop(PREFIX1_URI.size))
-    } else if(uri.startsWith(PREFIX2_URI)) {
-      magicString(uri.drop(PREFIX2_URI.size))
-    } else if(uri.startsWith(PREFIX3_URI)) {
-      magicString(uri.drop(PREFIX3_URI.size))
-    } else if(uri.startsWith(PREFIX4_URI)) {
-      magicString(uri.drop(PREFIX4_URI.size))
-    } else if(uri.startsWith(PREFIX5_URI)) {
-      magicString(uri.drop(PREFIX5_URI.size))
-    } else if(uri.startsWith(PREFIX6_URI)) {
-      magicString(uri.drop(PREFIX6_URI.size))
-    } else if(uri.startsWith(PREFIX7_URI)) {
-      magicString(uri.drop(PREFIX7_URI.size))
-    } else if(uri.startsWith(PREFIX8_URI)) {
-      magicString(uri.drop(PREFIX8_URI.size))
-    } else if(uri.startsWith(PREFIX9_URI)) {
-      magicString(uri.drop(PREFIX9_URI.size))
-    } else if(uri.startsWith(BASE_NAME)) {
-      val page = uri.drop(BASE_NAME.size)
+    val label = if(siteSettings.PROP_NAMES.contains(uri)) {
+      siteSettings.PROP_NAMES(uri)
+    } else if(siteSettings.PREFIXES.exists(x => uri.startsWith(x.uri))) {
+      val prefix_uri = siteSettings.PREFIXES.find(x => uri.startsWith(x.uri)).get.prefix
+      magicString(uri.drop(prefix_uri.size))
+    } else if(uri.startsWith(settings.BASE_NAME)) {
+      val page = uri.drop(settings.BASE_NAME.size)
       labelLookup(page) match {
         case Some(null) => magicString(page)
         case Some(x) => x

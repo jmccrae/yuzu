@@ -1,6 +1,5 @@
 package ae.mccr.yuzu
 
-import ae.mccr.yuzu.YuzuSettings._
 import com.hp.hpl.jena.graph.Node
 import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.query.{ResultSet => RDFResultSet}
@@ -62,8 +61,8 @@ trait Backend {
   /**
    * Load the data from an input stream 
    */
-  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean,
-           maxCache : Int = 1000000) : Unit
+//  def load(inputStream : => java.io.InputStream, ignoreErrors : Boolean,
+//           maxCache : Int = 1000000) : Unit
   /**
    * Return the total number of triples in the model
    */
@@ -71,12 +70,12 @@ trait Backend {
   /**
    * Return the link counts
    */
-  def linkCounts : Seq[(String, Int)]
+//  def linkCounts : Seq[(String, Int)]
 }
 
 sealed trait SPARQLResult
 
-case class TableResult(result : ResultSet) extends SPARQLResult {
+case class TableResult(result : ResultSet, DISPLAYER : Displayer) extends SPARQLResult {
   import scala.collection.JavaConversions._
 
   def toDict = {

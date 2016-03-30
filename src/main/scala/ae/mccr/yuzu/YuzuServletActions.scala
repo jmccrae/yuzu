@@ -11,11 +11,12 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 trait YuzuServletActions extends YuzuStack {
-  import YuzuSettings._
   import YuzuUserText._
   import DataConversions._
 
   implicit val backend : Backend
+  implicit def settings : YuzuSettings
+  implicit def siteSettings : YuzuSiteSettings
 
   def quotePlus(s : String) = java.net.URLEncoder.encode(s, "UTF-8")
 
@@ -63,7 +64,7 @@ trait YuzuServletActions extends YuzuStack {
           case r : TableResult =>
             val d = r.toDict
             respondVary(mustache("/sparql-results",
-              (d :+ ("context" -> CONTEXT)):_*))
+              (d :+ ("context" -> settings.CONTEXT)):_*))
           case BooleanResult(r) =>
             val l = if(r) { "True" } else { "False" }
             respondVary(mustache("/sparql-results",
@@ -73,7 +74,8 @@ trait YuzuServletActions extends YuzuStack {
             contentType = json.mime
             addNamespaces(model)
             RDFDataMgr.write(out, model, mimeType.jena.getOrElse(rdfxml.jena.get))
-            respondVary(addContextToJsonLD(out.toString()))
+            throw new RuntimeException("TODO")
+            //respondVary(addContextToJsonLD(out.toString()))
           case ErrorResult(msg, t) =>
             InternalServerError(t)
         }
@@ -107,7 +109,8 @@ trait YuzuServletActions extends YuzuStack {
             addNamespaces(model)
             RDFDataMgr.write(out, model, mimeType.jena.getOrElse(rdfxml.jena.get))
             if(mimeType == json) {
-              respondVary(addContextToJsonLD(out.toString()))
+              //respondVary(addContextToJsonLD(out.toString()))
+              throw new RuntimeException("TODO")
             } else {
               respondVary(out.toString())
             }
@@ -130,11 +133,14 @@ trait YuzuServletActions extends YuzuStack {
     val hasNext = if(hasMore) { "" } else { "disabled" }
     val next = offset + limit
     val pages = "%d - %d" format(offset + math.min(1, results.size), offset + math.min(limit, results.size))
-    val facets = FACETS.filter(_.getOrElse("list", true) == true).map { facet =>
-      val uri_enc = quotePlus(facet("uri").toString)
-      if(property != None && ("<" + facet("uri") + ">") == property.get) {
+    val facets = siteSettings.FACETS.filter(_.list == true).map { facet =>
+      val uri_enc = quotePlus(facet.uri.toString)
+      if(property != None && ("<" + facet.uri + ">") == property.get) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
-        facet ++ Map("uri_enc" -> uri_enc, 
+        Map(
+          "uri" -> facet.uri,
+          "label" -> facet.label,
+          "uri_enc" -> uri_enc, 
           "values" -> vs.map { v => Map[String,String](
                   "prop_uri" -> uri_enc,
                   "value_enc" -> quotePlus(v.link),
@@ -144,7 +150,7 @@ trait YuzuServletActions extends YuzuStack {
                 )},
           "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
       } else {
-        facet + ("uri_enc" -> uri_enc)
+        Map("uri" -> facet.uri, "label" -> facet.label, "uri_enc" -> uri_enc)
       }
     } 
     val queryString = (property match {
@@ -178,6 +184,8 @@ trait YuzuServletActions extends YuzuStack {
 
   def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
+    val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
+    val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
     modelOption match {
       case None => 
         NotFound()
@@ -192,7 +200,8 @@ trait YuzuServletActions extends YuzuStack {
         } else if(mime == nt) {
           toNTriples(model, None)
         } else if(mime == html) {
-          toHtml(model, None)
+          val html = toHtml(model, None, settings.BASE_NAME + uri)
+          mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()
         })
@@ -213,16 +222,11 @@ trait YuzuServletActions extends YuzuStack {
   ////////////////////////////////////////////////////////////////////
   // Utility
    def addNamespaces(model : Model) {
-    model.setNsPrefix("ontology", BASE_NAME+"ontology#")
-    model.setNsPrefix(PREFIX1_QN, PREFIX1_URI)
-    model.setNsPrefix(PREFIX2_QN, PREFIX2_URI)
-    model.setNsPrefix(PREFIX3_QN, PREFIX3_URI)
-    model.setNsPrefix(PREFIX4_QN, PREFIX4_URI)
-    model.setNsPrefix(PREFIX5_QN, PREFIX5_URI)
-    model.setNsPrefix(PREFIX6_QN, PREFIX6_URI)
-    model.setNsPrefix(PREFIX7_QN, PREFIX7_URI)
-    model.setNsPrefix(PREFIX8_QN, PREFIX8_URI)
-    model.setNsPrefix(PREFIX9_QN, PREFIX9_URI)
+    import YuzuConstants._
+    //model.setNsPrefix("ontology", BASE_NAME+"ontology#")
+    for(p <- siteSettings.PREFIXES) {
+      model.setNsPrefix(p.prefix, p.uri)
+    }
     model.setNsPrefix("rdf", RDF.getURI())
     model.setNsPrefix("rdfs", RDFS.getURI())
     model.setNsPrefix("owl", OWL.getURI())
@@ -237,31 +241,31 @@ trait YuzuServletActions extends YuzuStack {
     model.setNsPrefix("prov", PROV)
   }
 
-  def jsonldContext = mapAsJavaMap(Map(
-    "@base" -> BASE_NAME,
-    PREFIX1_QN -> PREFIX1_URI,
-    PREFIX2_QN -> PREFIX2_URI,
-    PREFIX3_QN -> PREFIX3_URI,
-    PREFIX4_QN -> PREFIX4_URI,
-    PREFIX5_QN -> PREFIX5_URI,
-    PREFIX6_QN -> PREFIX6_URI,
-    PREFIX7_QN -> PREFIX7_URI,
-    PREFIX8_QN -> PREFIX8_URI,
-    PREFIX9_QN -> PREFIX9_URI,
-    "rdf" -> RDF.getURI(),
-    "rdfs" -> RDFS.getURI(),
-    "owl" -> OWL.getURI(),
-    "dc" -> DC_11.getURI(),
-    "dct" -> DCTerms.getURI(),
-    "xsd" -> XSD.getURI()
-  ))
+//  def jsonldContext = mapAsJavaMap(Map(
+//    "@base" -> BASE_NAME,
+//    PREFIX1_QN -> PREFIX1_URI,
+//    PREFIX2_QN -> PREFIX2_URI,
+//    PREFIX3_QN -> PREFIX3_URI,
+//    PREFIX4_QN -> PREFIX4_URI,
+//    PREFIX5_QN -> PREFIX5_URI,
+//    PREFIX6_QN -> PREFIX6_URI,
+//    PREFIX7_QN -> PREFIX7_URI,
+//    PREFIX8_QN -> PREFIX8_URI,
+//    PREFIX9_QN -> PREFIX9_URI,
+//    "rdf" -> RDF.getURI(),
+//    "rdfs" -> RDFS.getURI(),
+//    "owl" -> OWL.getURI(),
+//    "dc" -> DC_11.getURI(),
+//    "dct" -> DCTerms.getURI(),
+//    "xsd" -> XSD.getURI()
+//  ))
 
-  def addContextToJsonLD(doc : String) = {
-    val jsonObject = com.github.jsonldjava.utils.JsonUtils.
-      fromString(doc)
-    val options = new com.github.jsonldjava.core.JsonLdOptions()
-    val compact = com.github.jsonldjava.core.JsonLdProcessor.compact(
-      jsonObject, jsonldContext, options)
-    com.github.jsonldjava.utils.JsonUtils.toPrettyString(compact)
-  }
+//  def addContextToJsonLD(doc : String) = {
+//    val jsonObject = com.github.jsonldjava.utils.JsonUtils.
+//      fromString(doc)
+//    val options = new com.github.jsonldjava.core.JsonLdOptions()
+//    val compact = com.github.jsonldjava.core.JsonLdProcessor.compact(
+//      jsonObject, jsonldContext, options)
+//    com.github.jsonldjava.utils.JsonUtils.toPrettyString(compact)
+//  }
 }

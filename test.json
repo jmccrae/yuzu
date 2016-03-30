@@ -1,0 +1,6 @@
+{
+  "@context": {
+      "label": "http://www.w3.org/2000/01/rdf-schema#label"
+  },
+  "label": { "@value": "A test resource", "@language": "en" }
+}

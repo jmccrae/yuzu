@@ -1,6 +1,5 @@
 package ae.mccr.yuzu
 
-import ae.mccr.yuzu.YuzuSettings._
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime
 import com.hp.hpl.jena.graph.NodeFactory
 import com.hp.hpl.jena.rdf.model.{Model, ModelFactory}
@@ -9,7 +8,11 @@ import spray.json._
 
 object DataID {
 
-  def get(implicit backend : Backend) : JsObject = {
+  def get(implicit backend : Backend, siteSettings : YuzuSiteSettings,
+    settings : YuzuSettings) : JsObject = {
+    import YuzuConstants._
+    import settings._
+    import siteSettings._
     val model = collection.mutable.Map[String, JsValue](
       "@context" -> JsString(BASE_NAME + "assets/dataid.json"),
       "@id" -> JsString(METADATA_PATH),
@@ -93,7 +96,7 @@ object DataID {
 
     model += "distribution" -> JsObject(
       "@type" -> JsString("dcat:Distribution"),
-      "downloadURL" -> JsString(BASE_NAME.dropRight(1) + DUMP_URI),
+      "downloadURL" -> JsString(BASE_NAME.dropRight(1) + DUMP_PATH),
       "triples" -> JsNumber(backend.tripleCount),
       "format" -> JsString("application/x-gzip"))
 

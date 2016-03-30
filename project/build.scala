@@ -9,8 +9,8 @@ object YuzuBuild extends Build {
   val Organization = "ae.mccr"
   val Name = "Yuzu"
   val Version = "2.0.1-SNAPSHOT"
-  val ScalaVersion = "2.11.6"
-  val ScalatraVersion = "2.4.0-RC2-2"
+  val ScalaVersion = "2.10.6"
+  val ScalatraVersion = "2.4.0"
 
   lazy val project = Project (
     "yuzu",
@@ -26,6 +26,9 @@ object YuzuBuild extends Build {
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
+//        "org.scala-lang" % "scala-library" % ScalaVersion,
+//        "org.scala-lang" % "scala-reflect" % ScalaVersion,
+//        "org.scala-lang" % "scala-compiler" % ScalaVersion,
         "ch.qos.logback" % "logback-classic" % "1.1.1" % "runtime",
         "org.eclipse.jetty" % "jetty-webapp" % "9.2.10.v20150310" % "container"
           excludeAll(ExclusionRule(organization="org.slf4j")),

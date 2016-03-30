@@ -37,16 +37,18 @@ object DataConversions {
     output.toString
   }
 
-  def toHtml(data : JsValue, context : Option[JsonLDContext]) = {
-    //Val title = model.get(LABEL_PROP) match {
-      //case Some(x : String) =>
-        //x
-      //case Some(x : Seq[_]) =>
-        //x.mkString(", ")
-      //case _ =>
-        //model.getOrElse("@id", "")
-    //}
-    defaultToHtml(data, context, "")
+  def toHtml(data : JsValue, context : Option[JsonLDContext], url : String) = {
+    val (_, triples) = jsonLDConverter._toTriples(data, context, None, None)
+    val clazz = triples.filter(_._2 == RDFUtil.RDF_TYPE).headOption.map({
+      case (_, _, URI(s)) => s
+      case _ => "ERROR: RDF type object must be a URL"
+    })
+    Seq(
+      "title" -> display(url),
+      "uri" -> url,
+      "rdfBody" -> defaultToHtml(data, context, ""),
+      "class_of" -> clazz.map(c =>
+          Map("uri" -> c, "display" -> display(c))).getOrElse(null))
   }
 
   def uriEncode(string : String) : String = string
@@ -81,7 +83,7 @@ object DataConversions {
 <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
 </a>
 <span class="pull-right">
-<img src="$contextUrl/assets/flag/$lang}}.gif" onError="flagFallBack(this)"/>
+<img src="$contextUrl/assets/flag/$lang.gif" onError="flagFallBack(this)"/>
 </span>"""
       case (TypedLiteral(litVal, datatype), triples) if triples.isEmpty =>
         s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri(key, context))}%3e+%22${literalEncode(litVal)}%22%5e%5e%3c${uriEncode(datatype)}%3e+%7d+limit+100" class="more pull-right">
@@ -109,7 +111,7 @@ object DataConversions {
     data match {
       case JsObject(values) =>
         s"""<table class="rdf_table" resource=""><tr>${
-          (for((key, value) <- values) yield {
+          (for((key, value) <- values if !key.startsWith("@")) yield {
             s"""<td class="rdf_prop">${
               propUri(key, context) match {
                 case Some(value) =>
@@ -117,9 +119,21 @@ object DataConversions {
                 case None =>
                   s"""${display(key)}"""
               }
-            }<td class="rdf_value">${valueToHtml(key, value, context, contextUrl)}</td>"""
+            }</td><td class="rdf_value">${valueToHtml(key, value, context, contextUrl)}</td>"""
           }).mkString("</tr><tr>")
         }</tr></table>"""
+      case JsString(s) =>
+        s"<p>$s</p>"
+      case JsNumber(n) =>
+        s"<p>$n</p>"
+      case JsFalse =>
+        "<p>false</p>"
+      case JsTrue =>
+        "<p>true</p>"
+      case JsNull =>
+        "<p>null</p>"
+      case JsArray(elems) =>
+        s"<div>${elems.map(defaultToHtml(_, context, contextUrl)).mkString("</div><div>")}</div>"
     }
   }
 }
