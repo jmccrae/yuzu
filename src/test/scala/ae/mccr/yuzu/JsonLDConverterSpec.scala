@@ -76,7 +76,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
             "homepage": "http://manu.sporny.org/",
               "image": "http://manu.sporny.org/images/manu.png"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
     (triples must have size 3) and
     (triples must contain ((BlankNode(), URI("http://schema.org/name"), PlainLiteral("Manu Sporny")))) and
     (triples must contain ((BlankNode(), URI("http://schema.org/url"), URI("http://manu.sporny.org/")))) and
@@ -101,7 +101,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "homepage": "http://manu.sporny.org/",
   "image": "http://manu.sporny.org/images/manu.png"
 }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
     (triples must have size 3) and
     (triples must contain ((BlankNode(), URI("http://schema.org/name"), PlainLiteral("Manu Sporny")))) and
     (triples must contain ((BlankNode(), URI("http://schema.org/url"), URI("http://manu.sporny.org/")))) and
@@ -117,7 +117,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "@id": "http://me.markus-lanthaler.com/",
   "name": "Markus Lanthaler"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
     (triples must have size 1) and
     (triples must contain ((URI("http://me.markus-lanthaler.com/"), URI("http://schema.org/name"), PlainLiteral("Markus Lanthaler"))))
   }
@@ -127,7 +127,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
 "@id": "http://example.org/places#BrewEats",
   "@type": "http://schema.org/Restaurant"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
     (triples must have size 1) and
     (triples must contain ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant")))) 
   }
@@ -138,7 +138,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
       "@id": "http://example.org/places#BrewEats",
   "@type": [ "http://schema.org/Restaurant", "http://schema.org/Brewery" ]
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
     (triples must have size 2) and
     (triples must contain ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant"))))
   }
@@ -153,7 +153,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "@id": "http://example.org/places#BrewEats",
   "@type": [ "Restaurant", "Brewery" ]
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
     (triples must have size 2) and
     (triples must contain ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant"))))
   }

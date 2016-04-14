@@ -5,17 +5,16 @@ import spray.json._
 import DefaultJsonProtocol._
 import java.net.URL
 
-class JsonLDConverter(resolveRemote : Boolean = false,
-  base : Option[URL] = None) {
+class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false) {
   import JsonLDConverter._
   import RDFUtil._
 
   private val qnameString = "(.*?):(.*)".r
   private val bnodeString = "_:(.*)".r
 
-  private def resolve2(id : String, contextBase : Option[URL]) : URI = {
+  private def resolve2(id : String, base : Option[URL]) : URI = {
     if(id == "") {
-      contextBase match {
+      base match {
         case Some(b) =>
           URI(b.toString())
         case None =>
@@ -24,24 +23,20 @@ class JsonLDConverter(resolveRemote : Boolean = false,
     } else if(isAbsoluteIRI(id)) {
       URI(id)
     } else {
-      contextBase match {
+      base match {
         case Some(b) =>
           if(id == "") {
             URI(b.toString())
           } else {
-            URI(new java.net.URL(b, id).toString())
+            try {
+              URI(new java.net.URL(b, id).toString())
+            } catch {
+              case x : java.net.MalformedURLException => 
+                throw new RuntimeException("%s + %s failed" format (b.toString(), id), x)
+            }
           }
         case None =>
-          base match {
-            case Some(b) =>
-              if(id == "") {
-                URI(b.toString())
-              } else {
-                URI(new java.net.URL(b, id).toString())
-              }
-            case None =>
-              throw new JsonLDException("Relative URI without base: " + id)
-          }
+          throw new JsonLDException("Relative URI without base: " + id)
       }
     }
   }
@@ -126,7 +121,7 @@ class JsonLDConverter(resolveRemote : Boolean = false,
         if(resolveRemote) {
           Some(JsonLDContext.loadContext(uri))
         } else {
-          throw new JsonLDException("Remote URL but resolveRemote is false")
+          throw new JsonLDException("Remote URL but resolveRemote is false: " + uri)
         }
       case Some(o : JsObject) =>
         Some(JsonLDContext(o))
@@ -533,6 +528,7 @@ class JsonLDConverter(resolveRemote : Boolean = false,
 }
 
 object JsonLDConverter {
+  def apply(base : URL) = new JsonLDConverter(Some(base))
 
   def isAbsoluteIRI(iri : String) = {
     iri.matches(IRIParser.IRI)

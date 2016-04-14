@@ -1,0 +1,11 @@
+{
+    "label": {
+        "@value": "Another example",
+        "@language": "en"
+    },
+    "creator": {
+        "@id": "#creator",
+        "title": "John McCrae"
+    },
+    "language": "English"
+}

@@ -3,50 +3,50 @@ package ae.mccr.yuzu
 import spray.json._
 import ae.mccr.yuzu.jsonld._
 import org.apache.jena.riot.{RDFDataMgr, Lang}
+import java.net.URL
 import java.io.StringWriter
 
 object DataConversions {
-  lazy val jsonLDConverter = new JsonLDConverter()
 
-  private def toRDF(data : JsValue, context : Option[JsonLDContext]) = {
-    RDFUtil.toJena(jsonLDConverter.toTriples(data, context))
+  private def toRDF(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+    RDFUtil.toJena(JsonLDConverter(base).toTriples(data, context))
   }
 
-  def toJson(data : JsValue, context : Option[JsonLDContext]) = {
+  def toJson(data : JsValue, context : Option[JsonLDContext], base : URL) = {
     data.prettyPrint
   }
 
-  def toRDFXML(data : JsValue, context : Option[JsonLDContext]) = {
-    val rdf = toRDF(data, context)
+  def toRDFXML(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+    val rdf = toRDF(data, context, base)
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.RDFXML)
     output.toString
   }
 
-  def toTurtle(data : JsValue, context : Option[JsonLDContext]) = {
-    val rdf = toRDF(data, context)
+  def toTurtle(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+    val rdf = toRDF(data, context, base)
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.TURTLE)
     output.toString
   }
 
-  def toNTriples(data : JsValue, context : Option[JsonLDContext]) = {
-    val rdf = toRDF(data, context)
+  def toNTriples(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+    val rdf = toRDF(data, context, base)
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.NTRIPLES)
     output.toString
   }
 
-  def toHtml(data : JsValue, context : Option[JsonLDContext], url : String) = {
-    val (_, triples) = jsonLDConverter._toTriples(data, context, None, None)
+  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+    val (_, triples) = JsonLDConverter(base)._toTriples(data, context, None, None)
     val clazz = triples.filter(_._2 == RDFUtil.RDF_TYPE).headOption.map({
       case (_, _, URI(s)) => s
       case _ => "ERROR: RDF type object must be a URL"
     })
     Seq(
-      "title" -> display(url),
-      "uri" -> url,
-      "rdfBody" -> defaultToHtml(data, context, ""),
+      "title" -> display(base.toString),
+      "uri" -> base.toString,
+      "rdfBody" -> defaultToHtml(data, context, "", base),
       "class_of" -> clazz.map(c =>
           Map("uri" -> c, "display" -> display(c))).getOrElse(null))
   }
@@ -76,8 +76,9 @@ object DataConversions {
   }
 
   private def valueToHtml(key : String, value : JsValue, 
-      context : Option[JsonLDContext], contextUrl : String) : String = {
-    jsonLDConverter._toTriples(value, context, None, None) match {
+      context : Option[JsonLDContext], contextUrl : String,
+      base : URL) : String = {
+    JsonLDConverter(base)._toTriples(value, context, None, None) match {
       case (LangLiteral(litVal, lang), triples) if triples.isEmpty => 
         s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri(key, context))}%3e+%22${literalEncode(litVal)}%22%40$lang+%7d+limit+100" class="more pull-right">
 <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
@@ -103,11 +104,12 @@ object DataConversions {
       case (BlankNode(_), triples) if triples.isEmpty => 
         """-"""
       case (node : Resource, triples) =>
-        defaultToHtml(value, context, contextUrl)
+        defaultToHtml(value, context, contextUrl, base)
     }
   }
 
-  def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String) : String = {
+  def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String,
+      base : URL) : String = {
     data match {
       case JsObject(values) =>
         s"""<table class="rdf_table" resource=""><tr>${
@@ -119,7 +121,12 @@ object DataConversions {
                 case None =>
                   s"""${display(key)}"""
               }
-            }</td><td class="rdf_value">${valueToHtml(key, value, context, contextUrl)}</td>"""
+            }</td><td class="rdf_value">${value match {
+              case JsArray(values) =>
+                values.map(valueToHtml(key, _, context, contextUrl, base)).mkString("<br/>")
+              case value =>
+                valueToHtml(key, value, context, contextUrl, base)
+            }}</td>"""
           }).mkString("</tr><tr>")
         }</tr></table>"""
       case JsString(s) =>
@@ -133,7 +140,7 @@ object DataConversions {
       case JsNull =>
         "<p>null</p>"
       case JsArray(elems) =>
-        s"<div>${elems.map(defaultToHtml(_, context, contextUrl)).mkString("</div><div>")}</div>"
+        s"<div>${elems.map(defaultToHtml(_, context, contextUrl, base)).mkString("</div><div>")}</div>"
     }
   }
 }

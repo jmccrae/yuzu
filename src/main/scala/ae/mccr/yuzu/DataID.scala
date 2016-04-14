@@ -7,6 +7,42 @@ import com.hp.hpl.jena.vocabulary._
 import spray.json._
 
 object DataID {
+  val dataIdJson = """{
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "void": "http://rdfs.org/ns/void#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "dct": "http://purl.org/dc/terms/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "dataid": "http://dataid.dbpedia.org/ns/core#",
+    "odrl": "http://www.w3.org/ns/odrl/2/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "prov": "http://www.w3.org/ns/prov#",
+    "title": { "@id": "dcat:title", "@language": "en" },
+    "label": { "@id": "rdfs:label", "@language": "en" },
+    "landingPage": { "@id": "dcat:landingPage", "@type": "@id" },
+    "exampleResource": { "@id": "void:exampleResource", "@type": "@id" },
+    "language": { "@id": "dc:language", "@type": "string" },
+    "rootResource": { "@id": "void:rootResource", "@type": "@id" },
+    "ontologyLocation": { "@id": "dataid:ontologyLocation", "@type": "@id" },
+    "issued": { "@id": "dct:issued", "type": "xsd:date" },
+    "versionInfo": { "@id": "dataid:versionInfo", "@type": "string" },
+    "description": { "@id": "dc:description", "@language": "en" },
+    "license": { "@id": "odrl:license", "@type": "@id" },
+    "rights": { "@id": "dc:rights", "@type": "string" },
+    "keyword": { "@id": "dcat:keyword", "@type": "string" },
+    "publisher": { "@id": "dct:publisher", "@type": "@id" },
+    "name": { "@id": "foaf:name", "@type": "string" },
+    "email": { "@id": "foaf:mbox", "@type": "string" },
+    "creator": { "@id": "dct:creator", "@type": "@id" },
+    "contributor": { "@id": "dct:contributor", "@type": "@id" },
+    "wasDerivedFrom": { "@id": "prov:wasDerivedFrom", "@type": "@id" },
+    "distribution": { "@id": "dcat:distribution", "@type": "@id" },
+    "downloadURL": { "@id": "dcat:downloadURL", "@type": "@id" },
+    "triples": { "@id": "void:triples", "type": "xsd:integer" },
+    "format": { "@id": "dc:format", "@type": "string" },
+    "sparqlEndpoint": { "@id": "void:sparqlEndpoint", "@type": "@id" }
+}""".parseJson
 
   def get(implicit backend : Backend, siteSettings : YuzuSiteSettings,
     settings : YuzuSettings) : JsObject = {
@@ -14,7 +50,8 @@ object DataID {
     import settings._
     import siteSettings._
     val model = collection.mutable.Map[String, JsValue](
-      "@context" -> JsString(BASE_NAME + "assets/dataid.json"),
+//      "@context" -> JsString(BASE_NAME + "assets/dataid.json"),
+      "@context" -> dataIdJson,
       "@id" -> JsString(METADATA_PATH),
       "@type" -> JsArray(JsString("dcat:Dataset"), JsString("void:Dataset")),
       "title" -> JsString(DISPLAY_NAME),
@@ -96,7 +133,7 @@ object DataID {
 
     model += "distribution" -> JsObject(
       "@type" -> JsString("dcat:Distribution"),
-      "downloadURL" -> JsString(BASE_NAME.dropRight(1) + DUMP_PATH),
+      "downloadURL" -> JsString(BASE_NAME.dropRight(1) + DUMP_PATH.getOrElse("/data.zip")),
       "triples" -> JsNumber(backend.tripleCount),
       "format" -> JsString("application/x-gzip"))
 

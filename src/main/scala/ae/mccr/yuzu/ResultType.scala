@@ -46,7 +46,7 @@ object ContentNegotiation {
       case Some("ttl") =>
         turtle
       case Some(x) if x.length > 0 =>
-        throw new IllegalArgumentException("Unsupported prefix")
+        throw new IllegalArgumentException("Unsupported prefix: " + x)
       case _ =>
         request.getHeader("Accept") match {
           case null =>

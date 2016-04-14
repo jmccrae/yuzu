@@ -6,18 +6,29 @@ import spray.json.DefaultJsonProtocol._
 
 class ServerSpec extends ScalatraSpec { 
   import TestSettings._
+  val data = Seq(
+    io.Source.fromFile("src/test/resources/server-spec-data/example.json").mkString.parseJson,
+    io.Source.fromFile("src/test/resources/server-spec-data/example2.json").mkString.parseJson,
+    io.Source.fromFile("src/test/resources/server-spec-data/saldo/bosättningsstopp..nn.1.json").mkString.parseJson
+  )
+
   addServlet(new YuzuServlet {
    val backend = mock(classOf[Backend]) 
-   when(backend.listResources(0, 1)).thenReturn((false, Nil))
+   when(backend.listResources(0, 1)).thenReturn((true, 
+     Seq(SearchResult("/data/example", "Example", "data/example"))))
    when(backend.search("test", None, 0, 21)).thenReturn(Nil)
-   when(backend.listResources(0, 20, None, None)).thenReturn((false, Nil))
+   when(backend.listResources(0, 20, None, None)).thenReturn((false, Seq(
+     SearchResult("/data/example", "Example", "data/example"),
+     SearchResult("/data/example2", "Example 2", "data/example2"),
+     SearchResult("/data/saldo/bosättningsstopp..nn.1", "bosättningsstopp..nn.1", "data/bosättningsstopp..nn.1"))))
+   when(backend.listResources(0, 20, Some("<http://www.w3.org/2000/01/rdf-schema#label>"), Some("\"Beispiel\"@de"))).thenReturn((false, Seq(
+     SearchResult("/data/example", "Example", "data/example"))))
+
+
    when(backend.lookup("notaresource")).thenReturn(None)
-   when(backend.lookup("test")).thenReturn(Some("""{
-  "@context": {
-      "label": "http://www.w3.org/2000/01/rdf-schema#label"
-  },
-  "label": { "@value": "A test resource", "@language": "en" }
-}""".parseJson))
+   when(backend.lookup("data/example")).thenReturn(Some(data(0)))
+   when(backend.lookup("data/example2")).thenReturn(Some(data(1)))
+   when(backend.lookup("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(data(2)))
    def sites = Nil
    def settings = TestSettings
    def siteSettings = TestSettings
@@ -66,7 +77,8 @@ class ServerSpec extends ScalatraSpec {
   
   def test_index_html = get("/index.html") {
     (response.body must contain("<html")) and
-    (response.body must contain("Test Instance"))
+    (response.body must contain(TestSettings.DISPLAY_NAME))
+//    (response.body must contain("Test Instance"))
   }
 
     def test_index_get = get("/") {
@@ -86,7 +98,7 @@ class ServerSpec extends ScalatraSpec {
       (response.body must contain("obj_offset=0"))
     }
 
-    def test_list_by_value_object = get("/list?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label&obj=\"Beispiel\"%40de") {
+    def test_list_by_value_object = get("/list?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label&obj=%22Beispiel%22%40de") {
         (response.body must contain("Beispiel")) and
         (response.body must not contain("href=\\\'/data/example2\\\'"))
     }
@@ -205,28 +217,28 @@ class ServerSpec extends ScalatraSpec {
         (response.body must contain("<html"))
     }
 
-    def test_sparql_query = get("/sparql/?query=PREFIX+rdfs%3A+<http%3A%2F%2Fwww.w3"
-                     + ".org%2F2000%2F01%2Frdf-schema%23>%0D%0ASELECT+*+"
-                     + "WHERE+{%0D%0A++%3Fs+rdfs%3Alabel+\"Beispiel\"%40"
-                     + "de%0D%0A}+LIMIT+100",
+    def test_sparql_query = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3"
+                     + ".org%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+"
+                     + "WHERE+%7B%0D%0A++%3Fs+rdfs%3Alabel+%22Beispiel%22%40"
+                     + "de%0D%0A%7D+LIMIT+100",
                       headers=Map("Accept" -> "")) {
         (response.body must not contain("<html")) and
         (response.body must contain("data/example"))
     }
 
-    def test_sparql_query_html = get("/sparql/?query=PREFIX+rdfs%3A+<http%3A%2F%2Fwww.w3"
-                     + ".org%2F2000%2F01%2Frdf-schema%23>%0D%0ASELECT+*+"
-                     + "WHERE+{%0D%0A++%3Fs+rdfs%3Alabel+\"Beispiel\"%40"
-                     + "de%0D%0A}+LIMIT+100",
+    def test_sparql_query_html = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3"
+                     + ".org%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+"
+                     + "WHERE+%7B%0D%0A++%3Fs+rdfs%3Alabel+%22Beispiel%22%40"
+                     + "de%0D%0A%7D+LIMIT+100",
                     headers=Map("Accept" -> "text/html")) {
         (response.body must contain("<html")) and
         (response.body must contain("data/example"))
     }
 
     def test_sparql_query2 = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org"
-                     + "%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+WHERE+{%0D"
+                     + "%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+WHERE+%7B%0D"
                      + "%0A++%3Chttp%3A%2F%2Flocalhost%3A8080%2Fdata%2Fexample%3"
-                     + "E+rdfs%3Alabel+%3Fo+|+rdfs%3AseeAlso+%3Fo%0D%0A}+LIMIT+"
+                     + "E+rdfs%3Alabel+%3Fo+%7C+rdfs%3AseeAlso+%3Fo%0D%0A%7D+LIMIT+"
                      + "100",
                      headers=Map("Accept" -> "text/html")) {
         (response.body must contain("en.gif")) and
@@ -234,8 +246,8 @@ class ServerSpec extends ScalatraSpec {
         (response.body must contain("English"))
     }
 
-    def test_yuzuql = get("/sparql/?query=SELECT+%3Fs+WHERE+{%0D%0A++%3Fs+"
-                     + "rdfs%3Alabel+\"Beispiel\"%40de%0D%0A}+LIMIT+1",
+    def test_yuzuql = get("/sparql/?query=SELECT+%3Fs+WHERE+%7B%0D%0A++%3Fs+"
+                     + "rdfs%3Alabel+%22Beispiel%22%40de%0D%0A%7D+LIMIT+1",
                      headers=Map("Accept" -> "")) {
         response.body must contain("\"value\": \"http://localhost:8080/data/example\"")
     }

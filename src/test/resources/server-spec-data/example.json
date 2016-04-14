@@ -1,0 +1,12 @@
+{
+    "label": [{
+        "@value": "Example with English text",
+        "@language": "en"
+    }, {
+        "@value": "Beispiel",
+        "@language": "de"
+    }],
+    "seeAlso": "dbpedia:Example",
+    "link": "example2"
+}
+

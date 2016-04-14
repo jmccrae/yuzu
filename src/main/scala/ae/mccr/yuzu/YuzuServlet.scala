@@ -5,7 +5,7 @@ import scalate.ScalateSupport
 
 abstract class YuzuServlet extends YuzuServletActions {
   import YuzuUserText._
-  private final val pathWithExtension = "(.*?)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)".r
+  private final val pathWithExtension = "(.*?)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)$".r
 
   def catchErrors(action : => Any) = {
     try {
@@ -35,7 +35,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get("/") {
+  get("/(index(\\.html?)?)?$".r) {
     catchErrors {
       val isTest = request.getRequestURL().toString() != settings.BASE_NAME
 
@@ -46,14 +46,15 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get(siteSettings.LICENSE_PATH) {
+
+  get((siteSettings.LICENSE_PATH + "(\\.html?)?$").r) {
     catchErrors {
       contentType = "text/html"
       mustache("/license")
     }
   }
 
-  get(siteSettings.SEARCH_PATH) {
+  get((siteSettings.SEARCH_PATH + "(\\.html?)?$").r) {
     catchErrors {
       if(params contains "query") {
         val query = params("query").toString
@@ -92,7 +93,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get(siteSettings.LIST_PATH) {
+  get((siteSettings.LIST_PATH + "(\\.html?)?$").r) {
     catchErrors {
       val offset = params.get("offset") match {
         case Some(num) if num.matches("[0-9]+") =>
@@ -119,9 +120,17 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get((siteSettings.METADATA_PATH + "(|\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)").r) {
+  get((siteSettings.METADATA_PATH + "(|\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)$").r) {
     catchErrors {
-      val mime = ContentNegotiation.negotiate(Option(multiParams("captures").apply(0)), request)
+      val ext = multiParams("captures").head match {
+        case null =>
+          None
+        case str if str.startsWith(".") =>
+          Some(str.drop(1))
+        case str =>
+          Some(str)
+      }
+      val mime = ContentNegotiation.negotiate(ext, request)
       val model = DataID.get
       metadata(model, mime)
     }

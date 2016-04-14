@@ -187,20 +187,23 @@ trait YuzuServletActions extends YuzuStack {
     val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
     val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
     modelOption match {
+      case null =>
+        NotFound()
       case None => 
         NotFound()
       case Some(model) => {
         contentType = mime.mime
+        val base = new java.net.URL(request.getRequestURL().toString().toString())
         respondVary(if(mime == json) {
-          toJson(model, None)
+          toJson(model, None, base)
         } else if(mime == rdfxml) {
-          toRDFXML(model, None)
+          toRDFXML(model, None, base)
         } else if(mime == turtle) {
-          toTurtle(model, None)
+          toTurtle(model, None, base)
         } else if(mime == nt) {
-          toNTriples(model, None)
+          toNTriples(model, None, base)
         } else if(mime == html) {
-          val html = toHtml(model, None, settings.BASE_NAME + uri)
+          val html = toHtml(model, None, base)
           mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()
@@ -211,10 +214,11 @@ trait YuzuServletActions extends YuzuStack {
 
   def metadata(metadata : JsValue, mime : ResultType) : Any = {
     contentType = mime.mime
+    val base = new java.net.URL(request.getRequestURL().toString())
     if(mime == json) {
-      toJson(metadata, None)
+      toJson(metadata, None, base)
     } else if(mime == rdfxml) {
-      toRDFXML(metadata, None)
+      toRDFXML(metadata, None, base)
     }
   }
 
