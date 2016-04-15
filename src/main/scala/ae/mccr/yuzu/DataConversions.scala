@@ -5,6 +5,7 @@ import ae.mccr.yuzu.jsonld._
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import java.net.URL
 import java.io.StringWriter
+import com.hp.hpl.jena.rdf.model.Model
 
 object DataConversions {
 
@@ -12,50 +13,57 @@ object DataConversions {
     RDFUtil.toJena(JsonLDConverter(base).toTriples(data, context))
   }
 
-  def toJson(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+  def toJson(data : JsValue, context : Option[JsonLDContext], base : URL) : String = {
     data.prettyPrint
   }
 
-  def toRDFXML(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+  def toRDFXML(data : JsValue, context : Option[JsonLDContext], base : URL,
+    addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, context, base)
+    addNamespaces(rdf)
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.RDFXML)
     output.toString
   }
 
-  def toTurtle(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+  def toTurtle(data : JsValue, context : Option[JsonLDContext], base : URL,
+    addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, context, base)
+    addNamespaces(rdf)
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.TURTLE)
     output.toString
   }
 
-  def toNTriples(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+  def toNTriples(data : JsValue, context : Option[JsonLDContext], base : URL,
+    addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, context, base)
+    addNamespaces(rdf)
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.NTRIPLES)
     output.toString
   }
 
-  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL) : Seq[(String, Any)] = {
     val (_, triples) = JsonLDConverter(base)._toTriples(data, context, None, None)
     val clazz = triples.filter(_._2 == RDFUtil.RDF_TYPE).headOption.map({
       case (_, _, URI(s)) => s
       case _ => "ERROR: RDF type object must be a URL"
     })
+    val rdfBody = defaultToHtml(data, context, "", base)
     Seq(
       "title" -> display(base.toString),
       "uri" -> base.toString,
-      "rdfBody" -> defaultToHtml(data, context, "", base),
+      "rdfBody" -> rdfBody,
       "class_of" -> clazz.map(c =>
           Map("uri" -> c, "display" -> display(c))).getOrElse(null))
   }
 
-  def uriEncode(string : String) : String = string
+  def uriEncode(string : String) : String = java.net.URLEncoder.encode(string, "UTF-8")
 
   def uriEncode(string : Option[String]) : String = uriEncode(string.getOrElse(""))
 
-  def literalEncode(string : String) : String = string
+  def literalEncode(string : String) : String = java.net.URLEncoder.encode(string, "UTF-8")
 
   def htmlEscape(string : String) : String = string
 
@@ -78,6 +86,7 @@ object DataConversions {
   private def valueToHtml(key : String, value : JsValue, 
       context : Option[JsonLDContext], contextUrl : String,
       base : URL) : String = {
+        // TODO: We cannot pass None, None here!
     JsonLDConverter(base)._toTriples(value, context, None, None) match {
       case (LangLiteral(litVal, lang), triples) if triples.isEmpty => 
         s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri(key, context))}%3e+%22${literalEncode(litVal)}%22%40$lang+%7d+limit+100" class="more pull-right">
@@ -117,7 +126,7 @@ object DataConversions {
             s"""<td class="rdf_prop">${
               propUri(key, context) match {
                 case Some(value) =>
-                  s"""<a href="$value" class="rdf_link">${display(key)}</a></td>"""
+                  s"""<a href="$value" class="rdf_link">${display(key)}</a>"""
                 case None =>
                   s"""${display(key)}"""
               }

@@ -22,25 +22,25 @@ object DataID {
     "label": { "@id": "rdfs:label", "@language": "en" },
     "landingPage": { "@id": "dcat:landingPage", "@type": "@id" },
     "exampleResource": { "@id": "void:exampleResource", "@type": "@id" },
-    "language": { "@id": "dc:language", "@type": "string" },
+    "language": { "@id": "dc:language", "@type": "xsd:string" },
     "rootResource": { "@id": "void:rootResource", "@type": "@id" },
     "ontologyLocation": { "@id": "dataid:ontologyLocation", "@type": "@id" },
     "issued": { "@id": "dct:issued", "type": "xsd:date" },
-    "versionInfo": { "@id": "dataid:versionInfo", "@type": "string" },
+    "versionInfo": { "@id": "dataid:versionInfo", "@type": "xsd:string" },
     "description": { "@id": "dc:description", "@language": "en" },
     "license": { "@id": "odrl:license", "@type": "@id" },
-    "rights": { "@id": "dc:rights", "@type": "string" },
-    "keyword": { "@id": "dcat:keyword", "@type": "string" },
+    "rights": { "@id": "dc:rights", "@type": "xsd:string" },
+    "keyword": { "@id": "dcat:keyword", "@type": "xsd:string" },
     "publisher": { "@id": "dct:publisher", "@type": "@id" },
-    "name": { "@id": "foaf:name", "@type": "string" },
-    "email": { "@id": "foaf:mbox", "@type": "string" },
+    "name": { "@id": "foaf:name", "@type": "xsd:string" },
+    "email": { "@id": "foaf:mbox", "@type": "xsd:string" },
     "creator": { "@id": "dct:creator", "@type": "@id" },
     "contributor": { "@id": "dct:contributor", "@type": "@id" },
     "wasDerivedFrom": { "@id": "prov:wasDerivedFrom", "@type": "@id" },
     "distribution": { "@id": "dcat:distribution", "@type": "@id" },
     "downloadURL": { "@id": "dcat:downloadURL", "@type": "@id" },
     "triples": { "@id": "void:triples", "type": "xsd:integer" },
-    "format": { "@id": "dc:format", "@type": "string" },
+    "format": { "@id": "dc:format", "@type": "xsd:string" },
     "sparqlEndpoint": { "@id": "void:sparqlEndpoint", "@type": "@id" }
 }""".parseJson
 
@@ -133,7 +133,7 @@ object DataID {
 
     model += "distribution" -> JsObject(
       "@type" -> JsString("dcat:Distribution"),
-      "downloadURL" -> JsString(BASE_NAME.dropRight(1) + DUMP_PATH.getOrElse("/data.zip")),
+      "downloadURL" -> JsString(BASE_NAME + DATA_FILE.getName()),
       "triples" -> JsNumber(backend.tripleCount),
       "format" -> JsString("application/x-gzip"))
 

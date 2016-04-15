@@ -16,13 +16,14 @@ case class BlankNode(id : Option[String] = None) extends Resource {
     case None =>
       "[]"
   }
-  def toJena(implicit model : Model) = id match {
-    case Some(id) =>
-      model.createResource(new AnonId(id))
-    case None =>
-      model.createResource()
-  }
-
+  def toJena(implicit model : Model) = jenaVal.getOrElseUpdate(model, 
+    id match {
+      case Some(id) =>
+        model.createResource(new AnonId(id))
+      case None =>
+        model.createResource()
+    })
+  val jenaVal = collection.mutable.Map[Model, JenaResource]()
 }
 case class URI(value : String) extends Resource {
   override def toString = "<" + value + ">"

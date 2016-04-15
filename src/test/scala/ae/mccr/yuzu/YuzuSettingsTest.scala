@@ -1,5 +1,6 @@
 package ae.mccr.yuzu
 
+import java.io.File
 import org.scalatra.test.specs2._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -12,7 +13,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     YUZUQL_LIMIT                         $limit
   YuzuSiteSettings should load
     DISPLAY_NAME                         $displayName
-    DUMP_URI                             $dumpUri
+    DUMP_URI                             $dataFile
     SPARQL_ENDPOINT                      $sparqlEndpoint
     LICENSE_PATH                         $licensePath
     SEARCH_PATH                          $searchPath
@@ -41,7 +42,7 @@ class YuzuSettingsTest extends ScalatraSpec {
 
   val data = """{
     "name": "test",
-    "dump": "/test.zip",
+    "data": "src/test/resources/example.zip",
     "sparqlEndpoint": "http://localhost:8080/sparql/",
     "licensePath": "/mylicense",
     "searchPath": "/mysearch",
@@ -96,7 +97,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     
   def displayName = settings.DISPLAY_NAME must_== "test"
 
-  def dumpUri = settings.DUMP_PATH must_== Some("/test.zip")
+  def dataFile = settings.DATA_FILE must_== new File("src/test/resources/example.zip")
 
   def sparqlEndpoint = settings.SPARQL_ENDPOINT must_== Some("http://localhost:8080/sparql/")
 

@@ -33,6 +33,8 @@ trait Backend {
     timeout : Int = 10) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
   def lookup(id : String) : Option[JsValue]
+  /** Get the context document for a given page */
+  def context(id : String) : Option[JsValue]
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
   /** 

@@ -10,6 +10,10 @@ object TestSettings extends YuzuSettings with YuzuSiteSettings {
   def CONTEXT = ""
   def DISPLAY_NAME = "Test Instance"
   def ELASTIC_URL = "http://localhost:9200/"
+  def DATA_FILE = new java.io.File("src/test/resources/example.zip")
+  override def FACETS = Seq(
+    Facet("http://www.w3.org/2000/01/rdf-schema#label", "Label", true)
+      )
 }
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
@@ -56,6 +60,8 @@ class YuzuServletSpec extends ScalatraSpec {
    when(backend.search("test", None, 0, 21)).thenReturn(Nil)
    when(backend.listResources(0, 20, None, None)).thenReturn((false, Nil))
    when(backend.lookup("notaresource")).thenReturn(None)
+   when(backend.context("notaresource")).thenReturn(None)
+   when(backend.context("test")).thenReturn(None)
    when(backend.lookup("test")).thenReturn(Some("""{
   "@context": {
       "label": "http://www.w3.org/2000/01/rdf-schema#label"

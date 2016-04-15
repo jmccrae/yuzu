@@ -9,15 +9,15 @@
                 <h4>List by:</h4>
                 <div class="list-group">
                     {{#facets}}
-                    <a href='{{context}}/list/?prop={{uri_enc}}' class="list-group-item active rdf_link">{{label}}</a>
+                    <a href='{{context.getContextPath()}}/list/?prop={{uri_enc}}' class="list-group-item active rdf_link">{{label}}</a>
                     {{#values?}}
                         <div class="list-group">
                     {{/values?}}
                         {{#values}}
-                        <a href='{{context}}/list?prop={{prop_uri}}&obj={{value_enc}}&obj_offset={{offset}}' class="list-group-item" style="word-wrap:break-word;">{{value}} ({{count}})</a>
+                        <a href='{{context.getContextPath()}}/list?prop={{prop_uri}}%26obj={{value_enc}}%26obj_offset={{offset}}' class="list-group-item" style="word-wrap:break-word;">{{value}} ({{count}})</a>
                         {{/values}}
                         {{#more_values}}
-                        <a href='{{context}}/list/?prop={{uri_enc}}&obj_offset={{more_values}}' class="list-group-item">More values...</a>
+                        <a href='{{context.getContextPath()}}/list/?prop={{uri_enc}}%26obj_offset={{more_values}}' class="list-group-item">More values...</a>
                         {{/more_values}}
                         {{#values?}}
                         </div>
@@ -44,7 +44,7 @@
                             <span property="{{#prop}}{{uri}}{{/prop}}" {{#lang}}xml:lang="{{lang}}"{{/lang}}
                              {{#datatype}}datatype="{{uri}}"{{/datatype}}>{{display}}</span>
                             {{#lang}}
-                                <span class="pull-right"><img src="{{context}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
+                                <span class="pull-right"><img src="{{context.getContextPath()}}/assets/flag/{{lang}}.gif" onError="flagFallBack(this)"/></span>
                             {{/lang}}
                             {{#datatype}}
                                 <span class="pull-right rdf_datatype"><a href="{{uri}}" class="rdf_link">{{display}}</a></span>
@@ -79,9 +79,9 @@
         </div>
         <div class="row" style="padding-top:50px;">
             <div class="btn-group pull-right">
-                <a href='{{context}}/list/?offset={{prev}}{{query}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
+                <a href='{{context.getContextPath()}}/list/?offset={{prev}}{{query}}' class='btn btn-default {{has_prev}}'>&lt;&lt;</a>
                 <a href='#' class='btn btn-default'>{{pages}}</a>
-                <a href='{{context}}/list/?offset={{next}}{{query}}' class='btn btn-default {{has_next}}'>&gt;&gt;</a>
+                <a href='{{context.getContextPath()}}/list/?offset={{next}}{{query}}' class='btn btn-default {{has_next}}'>&gt;&gt;</a>
             </div>
         </div>
     </body>

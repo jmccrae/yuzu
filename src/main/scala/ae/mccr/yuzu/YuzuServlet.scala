@@ -35,7 +35,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get("/(index(\\.html?)?)?$".r) {
+  get("^/(index(\\.html?)?)?$".r) {
     catchErrors {
       val isTest = request.getRequestURL().toString() != settings.BASE_NAME
 
@@ -47,14 +47,14 @@ abstract class YuzuServlet extends YuzuServletActions {
   }
 
 
-  get((siteSettings.LICENSE_PATH + "(\\.html?)?$").r) {
+  get(("^%s(\\.html?)?/?$" format siteSettings.LICENSE_PATH).r) {
     catchErrors {
       contentType = "text/html"
       mustache("/license")
     }
   }
 
-  get((siteSettings.SEARCH_PATH + "(\\.html?)?$").r) {
+  get(("^%s(\\.html?)?/?$" format siteSettings.SEARCH_PATH).r) {
     catchErrors {
       if(params contains "query") {
         val query = params("query").toString
@@ -80,7 +80,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get(siteSettings.SPARQL_PATH) {
+  get(("^%s(\\.html?)?/?$" format siteSettings.SPARQL_PATH).r) {
     catchErrors {
       if(params contains "query") {
         val mime = ContentNegotiation.negotiate(None, request, true)
@@ -93,7 +93,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get((siteSettings.LIST_PATH + "(\\.html?)?$").r) {
+  get(("^%s(\\.html?)?/?$" format siteSettings.LIST_PATH).r) {
     catchErrors {
       val offset = params.get("offset") match {
         case Some(num) if num.matches("[0-9]+") =>
@@ -120,7 +120,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get((siteSettings.METADATA_PATH + "(|\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)$").r) {
+  get(("^%s(\\.html?|\\.rdf|\\.nt|\\.json|\\.ttl)?/?$" format siteSettings.METADATA_PATH).r) {
     catchErrors {
       val ext = multiParams("captures").head match {
         case null =>
@@ -134,5 +134,13 @@ abstract class YuzuServlet extends YuzuServletActions {
       val model = DataID.get
       metadata(model, mime)
     }
+  }
+
+  get(("^/%s$" format siteSettings.DATA_FILE.getName()).r) {
+    Ok(siteSettings.DATA_FILE)
+  }
+
+  get("/favicon.ico") {
+    Ok(request.getServletContext().getResource("/assets/favicon.ico").openStream())
   }
 }

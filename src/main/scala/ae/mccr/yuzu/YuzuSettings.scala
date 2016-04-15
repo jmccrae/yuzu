@@ -1,5 +1,6 @@
 package ae.mccr.yuzu
 
+import java.io.File
 import spray.json._
 
 object YuzuConstants {
@@ -28,11 +29,11 @@ case class PropAbbrev(val uri : String, val prefix : String)
 trait YuzuSiteSettings {
   // The name of the server
   def DISPLAY_NAME : String
+  // The data file
+  def DATA_FILE : File
   // If using an external SPARQL endpoint, the address of this
   // or None if you wish to use only YuzuQL
   def SPARQL_ENDPOINT : Option[String] = None
-  // The path of the direct download (or none to use $site.zip)
-  def DUMP_PATH : Option[String] = None
   // Path to the license (set to null to disable)
   def LICENSE_PATH = "/license"
   // Path to the search (set to null to disable)
@@ -156,7 +157,16 @@ object YuzuSiteSettings {
 
     val DISPLAY_NAME = str("name").getOrElse(throw new MetadataException("Metadata requires a field \"name\""))
 
-    override val DUMP_PATH = str("dump")
+    override val DATA_FILE = str("data") match {
+      case Some(fn) =>
+        val f = new File(fn)
+        if(!f.exists()) {
+          throw new MetadataException("Data file %s does not exist" format (fn))
+        }
+        f
+      case None =>
+        throw new MetadataException("Data file must be given")
+    }
 
     override val SPARQL_ENDPOINT = str("sparqlEndpoint")
 

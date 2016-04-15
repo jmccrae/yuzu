@@ -1,14 +1,16 @@
 package ae.mccr.yuzu
 
+import ae.mccr.yuzu.jsonld.JsonLDContext
 import com.hp.hpl.jena.query.ResultSetFormatter
-import com.hp.hpl.jena.rdf.model.{Model}
+import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.vocabulary._
+import java.net.URL
 import java.util.concurrent.TimeoutException
 import org.apache.jena.riot.RDFDataMgr
 import org.scalatra._
 import scala.collection.JavaConversions._
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 trait YuzuServletActions extends YuzuStack {
   import YuzuUserText._
@@ -181,9 +183,33 @@ trait YuzuServletActions extends YuzuStack {
       "query" -> queryString)
   }
 
+  private def getBase = {
+    val s = request.getRequestURL().toString()
+    if(s.endsWith(".nt")) {
+      new URL(s.dropRight(3))
+    } else if(s.endsWith(".rdf")) {
+      new URL(s.dropRight(4))
+    } else if(s.endsWith(".ttl")) {
+      new URL(s.dropRight(4))
+    } else if(s.endsWith(".json")) {
+      new URL(s.dropRight(5))
+    } else if(s.endsWith(".html")) {
+      new URL(s.dropRight(5))
+    } else {
+      new URL(s)
+    }
+  }
 
   def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
+    val context = backend.context(id) match {
+      case Some(obj : JsObject) =>
+        Some(JsonLDContext(obj))
+      case Some(_) =>
+        throw new RuntimeException("Context must be an object")
+      case None =>
+        None
+    }
     val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
     val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
     modelOption match {
@@ -193,17 +219,17 @@ trait YuzuServletActions extends YuzuStack {
         NotFound()
       case Some(model) => {
         contentType = mime.mime
-        val base = new java.net.URL(request.getRequestURL().toString().toString())
+        val base = getBase
         respondVary(if(mime == json) {
-          toJson(model, None, base)
+          toJson(model, context, base)
         } else if(mime == rdfxml) {
-          toRDFXML(model, None, base)
+          toRDFXML(model, context, base, addNamespaces)
         } else if(mime == turtle) {
-          toTurtle(model, None, base)
+          toTurtle(model, context, base, addNamespaces)
         } else if(mime == nt) {
-          toNTriples(model, None, base)
+          toNTriples(model, context, base, addNamespaces)
         } else if(mime == html) {
-          val html = toHtml(model, None, base)
+          val html = toHtml(model, context, base)
           mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()
@@ -214,12 +240,21 @@ trait YuzuServletActions extends YuzuStack {
 
   def metadata(metadata : JsValue, mime : ResultType) : Any = {
     contentType = mime.mime
-    val base = new java.net.URL(request.getRequestURL().toString())
-    if(mime == json) {
+    val base = getBase
+    respondVary(if(mime == json) {
       toJson(metadata, None, base)
     } else if(mime == rdfxml) {
-      toRDFXML(metadata, None, base)
-    }
+      toRDFXML(metadata, None, base, addNamespaces)
+    } else if(mime == turtle) {
+      toTurtle(metadata, None, base, addNamespaces)
+    } else if(mime == nt) {
+      toNTriples(metadata, None, base, addNamespaces)
+     } else if (mime == html) {
+      val html = toHtml(metadata, None, base)
+      mustache("/rdf", html:_*)      
+    } else {
+      throw new IllegalArgumentException()
+    })
   }
 
 

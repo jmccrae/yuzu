@@ -19,6 +19,8 @@ class ElasticSearchBackend(url : URL, index : String) extends Backend {
     }
   }
 
+  def context(id : String) = throw new RuntimeException("TODO")
+
   def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
     timeout : Int = 10) : SPARQLResult = throw new RuntimeException("TODO")
 

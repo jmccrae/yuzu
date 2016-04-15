@@ -34,21 +34,21 @@ class DataConversionsSpec extends ScalatraSpec {
   }
 
   def rdf = {
-    val result = DataConversions.toRDFXML(testData, testContext, base)
+    val result = DataConversions.toRDFXML(testData, testContext, base, model => {})
     val model = ModelFactory.createDefaultModel()
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.RDFXML)
     (Seq() ++ model.listStatements) should have size 1
   }
 
   def turtle = {
-    val result = DataConversions.toTurtle(testData, testContext, base)
+    val result = DataConversions.toTurtle(testData, testContext, base, model => {})
     val model = ModelFactory.createDefaultModel()
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.TURTLE)
     (Seq() ++ model.listStatements) should have size 1
   }
 
   def nt = {
-    val result = DataConversions.toNTriples(testData, testContext, base)
+    val result = DataConversions.toNTriples(testData, testContext, base, model => {})
     val model = ModelFactory.createDefaultModel()
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.NTRIPLES)
     (Seq() ++ model.listStatements) should have size 1
