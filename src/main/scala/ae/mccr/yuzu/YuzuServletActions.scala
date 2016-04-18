@@ -1,6 +1,6 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
-import ae.mccr.yuzu.jsonld.JsonLDContext
+import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import com.hp.hpl.jena.query.ResultSetFormatter
 import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.vocabulary._

@@ -1,4 +1,4 @@
-package ae.mccr.yuzu.jsonld
+package org.insightcentre.nlp.yuzu.jsonld
 
 import spray.json._
 import java.net.URL

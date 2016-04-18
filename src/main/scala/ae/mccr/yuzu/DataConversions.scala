@@ -1,8 +1,8 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
 import spray.json._
-import ae.mccr.yuzu.jsonld._
-import ae.mccr.yuzu.jsonld.RDFUtil.RDF_TYPE
+import org.insightcentre.nlp.yuzu.jsonld._
+import org.insightcentre.nlp.yuzu.jsonld.RDFUtil.RDF_TYPE
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import java.net.URL
 import java.io.StringWriter

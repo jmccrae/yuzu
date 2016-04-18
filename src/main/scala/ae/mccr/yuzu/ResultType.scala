@@ -1,4 +1,4 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
 import org.apache.jena.riot.RDFFormat
 

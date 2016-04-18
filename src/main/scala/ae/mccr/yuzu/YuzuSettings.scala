@@ -1,4 +1,4 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
 import java.io.File
 import spray.json._

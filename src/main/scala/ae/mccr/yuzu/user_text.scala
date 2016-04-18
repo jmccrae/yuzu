@@ -1,4 +1,4 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
 object YuzuUserText {
   val YZ_MOVED_TO="Moved to"

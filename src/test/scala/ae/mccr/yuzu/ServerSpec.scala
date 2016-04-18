@@ -1,4 +1,4 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 import org.mockito.Mockito._
 import org.scalatra.test.specs2._
 import spray.json._

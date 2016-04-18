@@ -1,4 +1,4 @@
-package ae.mccr.yuzu.jsonld
+package org.insightcentre.nlp.yuzu.jsonld
 
 import java.net.URL
 import org.scalatra.test.specs2._
@@ -7,7 +7,7 @@ import DefaultJsonProtocol._
 import scala.util.Try
 
 class JsonLDConverterSpec extends ScalatraSpec {
-  import ae.mccr.yuzu.jsonld.RDFUtil._
+  import org.insightcentre.nlp.yuzu.jsonld.RDFUtil._
 
   def is = s2"""
   JsonLDConvert 

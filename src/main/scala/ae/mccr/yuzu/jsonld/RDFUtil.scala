@@ -1,4 +1,4 @@
-package ae.mccr.yuzu.jsonld
+package org.insightcentre.nlp.yuzu.jsonld
 
 import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode, AnonId, ModelFactory}
 import scala.collection.JavaConversions._

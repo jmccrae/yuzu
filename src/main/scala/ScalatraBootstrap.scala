@@ -1,4 +1,4 @@
-import ae.mccr.yuzu._
+import org.insightcentre.nlp.yuzu._
 import org.scalatra._
 import javax.servlet.ServletContext
 import spray.json._

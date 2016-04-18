@@ -1,8 +1,8 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
 import org.scalatra.test.specs2._
 import spray.json._
-import ae.mccr.yuzu.jsonld.JsonLDContext
+import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import com.hp.hpl.jena.rdf.model.ModelFactory
 import java.io.StringReader

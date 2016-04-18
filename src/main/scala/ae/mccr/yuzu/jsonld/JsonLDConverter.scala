@@ -1,4 +1,4 @@
-package ae.mccr.yuzu.jsonld
+package org.insightcentre.nlp.yuzu.jsonld
 
 import com.hp.hpl.jena.rdf.model.Model
 import spray.json._

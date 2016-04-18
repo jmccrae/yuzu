@@ -1,4 +1,4 @@
-package ae.mccr.yuzu
+package org.insightcentre.nlp.yuzu
 
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime
 import com.hp.hpl.jena.graph.NodeFactory

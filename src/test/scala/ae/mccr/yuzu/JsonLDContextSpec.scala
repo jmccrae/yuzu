@@ -1,4 +1,4 @@
-package ae.mccr.yuzu.jsonld
+package org.insightcentre.nlp.yuzu.jsonld
 
 import org.scalatra.test.specs2._
 import spray.json._
