@@ -1,7 +1,7 @@
 {
     "label": { "@id": "http://www.w3.org/2000/01/rdf-schema#label", "@language" : "en" },
     "seeAlso": { "@id": "http://www.w3.org/2000/01/rdf-schema#seeAlso", "@type": "@id" },
-    "link": "http://localhost:8080/ontology#link",
+    "link": { "@id": "http://localhost:8080/ontology#link", "@type": "@id" },
     "dbpedia": "http://dbpedia.org/resource/",
     "creator": "http://purl.org/dc/elements/1.1/creator",
     "language": "http://purl.org/dc/elements/1.1/language",

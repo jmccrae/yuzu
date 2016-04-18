@@ -5,9 +5,47 @@ import spray.json._
 import DefaultJsonProtocol._
 import java.net.URL
 
+trait JsonLDVisitor {
+  def startNode(resource : Resource) : Unit
+  def endNode(resource : Resource) : Unit
+  def startProperty(resource : Resource, property : URI) : Unit
+  def endProperty(resource : Resource, property : URI) : Unit
+  def emitValue(subj : Resource, prop : URI, obj : RDFNode) : Unit
+}
+
+class JsonLDTriplesBuilder extends JsonLDVisitor {
+  var triples = collection.mutable.Seq[RDFUtil.Triple]()
+  def startNode(resource : Resource) { }
+  def endNode(resource : Resource) { }
+  def startProperty(resource : Resource, property : URI) { }
+  def endProperty(resource : Resource, property : URI) { }
+  def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
+    triples :+= ((subj, prop, obj))
+  }
+}
+
 class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false) {
   import JsonLDConverter._
   import RDFUtil._
+
+  def toTriples(data : JsValue, context : Option[JsonLDContext] = None) : Iterable[Triple] = {
+    val builder = new JsonLDTriplesBuilder()
+    processJsonLD(data, builder, context)
+    builder.triples
+  }
+
+  def processJsonLD(data : JsValue, visitor : JsonLDVisitor, context : Option[JsonLDContext]) {
+    data match {
+      case o : JsObject =>
+        objectToTriples(o, visitor, context)
+      case JsArray(elems) =>
+        elems.foreach({ elem =>
+          processJsonLD(elem, visitor, context)
+        })
+      case _ =>
+        throw new JsonLDException("Cannot convert literal to RDF")
+    }
+  }
 
   private val qnameString = "(.*?):(.*)".r
   private val bnodeString = "_:(.*)".r
@@ -88,18 +126,6 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
     }
   }
 
-  def toTriples(data : JsValue, context : Option[JsonLDContext] = None) : Iterable[Triple] = {
-    data match {
-      case o : JsObject =>
-        objectToTriples(o, context)
-      case JsArray(elems) =>
-        elems.flatMap({ elem =>
-          toTriples(elem, context)
-        })
-      case _ =>
-        throw new JsonLDException("Cannot convert literal to RDF")
-    }
-  }
 
   private def remapKeywords(data : JsValue, inverse : Map[String, String]) : JsValue = {
     data match {
@@ -115,7 +141,8 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
     }
   }
 
-  private def objectToTriples(data2 : JsObject, context2 : Option[JsonLDContext]) : Iterable[Triple] = {
+  private def objectToTriples(data2 : JsObject, visitor : JsonLDVisitor,
+      context2 : Option[JsonLDContext]) {
     val context = data2.fields.get("@context") match {
       case Some(JsString(uri)) if isAbsoluteIRI(uri) =>
         if(resolveRemote) {
@@ -149,26 +176,30 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
     if(data.fields.contains("@graph")) {
       data.fields("@graph") match {
         case o : JsObject =>
-          objectToTriples(o, context)
+          objectToTriples(o, visitor, context)
         case JsArray(elems) =>
-          elems.flatMap({ elem =>
-            toTriples(elem, context)
+          elems.foreach({ elem =>
+            processJsonLD(elem, visitor, context)
           })
         case _ =>
           throw new JsonLDException("@graph must be an array or object")
       }
     } else {
-      _toTriples(data, context, None, None)._2
+      _toTriples(data, visitor, context, None, None, false)
     }
   }
 
-  private sealed trait PropType
+  private sealed trait PropType {
+    def uri : URI
+  }
   private case class StdProp(uri : URI, typing : Option[String], lang : Option[String]) extends PropType
   private case class LangContainer(uri : URI) extends PropType
   private case class ListContainer(uri : URI) extends PropType
   private case class IDContainer(uri : URI) extends PropType
   private case class ReverseProp(uri : URI) extends PropType
-  private object IgnoreProp extends PropType
+  private object IgnoreProp extends PropType {
+    def uri = null
+  }
 
   private def propType(key : String, context : Option[JsonLDContext]) 
       : PropType = {
@@ -312,11 +343,12 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
     }
   }
 
-  private def resolveSubject(data : JsObject, context : Option[JsonLDContext],
-      subjType : Option[String], subjLang : Option[String]) : (RDFNode, Iterable[Triple]) = {
+  private def resolveSubject(data : JsObject, visitor : JsonLDVisitor,
+      context : Option[JsonLDContext], subjType : Option[String], 
+      subjLang : Option[String]) : RDFNode = {
     data.fields.get("@id") match {
       case Some(JsString(id)) =>
-        (resolve(id, context), Nil)
+        resolve(id, context)
       case Some(_) => 
         throw new JsonLDException("@id must be a string")
       case None => 
@@ -324,27 +356,27 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
           case Some(JsString(s)) =>
             data.fields.get("@type") match {
               case Some(JsString(t)) =>
-                return (TypedLiteral(s, t), Nil)
+                return TypedLiteral(s, t)
               case Some(_) =>
                 throw new JsonLDException("@type must be a string")
               case None =>
                 data.fields.get("@language") match {
                   case Some(JsString(l)) =>
-                    return (LangLiteral(s, l), Nil)
+                    return LangLiteral(s, l)
                   case Some(_) =>
                     throw new JsonLDException("@language must be a string")
                   case None =>
-                    return (makePlain(s, None, None), Nil)
+                    return makePlain(s, None, None)
                 }
             }
           case Some(JsNumber(n)) =>
-            return (TypedLiteral(n.toString(), subjType.getOrElse("http://www.w3.org/2001/XMLSchema#double")), Nil)
+            return TypedLiteral(n.toString(), subjType.getOrElse("http://www.w3.org/2001/XMLSchema#double"))
           case Some(JsTrue) =>
-            return (TypedLiteral("true", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean")), Nil)
+            return TypedLiteral("true", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean"))
           case Some(JsFalse) =>
-            return (TypedLiteral("false", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean")), Nil)
+            return TypedLiteral("false", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean"))
           case Some(JsNull) =>
-            return (null, Nil)
+            return null
           case Some(_) =>
               throw new JsonLDException("@value must be a string")
           case None =>
@@ -352,84 +384,86 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
               case Some(JsArray(elems)) =>
                 val root = BlankNode()
                 var node = root
-                val ts = elems.flatMap({ 
+                elems.flatMap({ 
                   case JsNull =>
                     Nil
                   case elem =>
-                    val (l, triples) = _toTriples(elem, context, subjType, subjLang)
+                    val l = _toTriples(elem, visitor, context, subjType, subjLang, false)
                     val next = BlankNode()
                     val prev = node
                     node = next
-                    triples ++ Seq((prev, RDF_FIRST, l), (prev, RDF_REST, next))
-                }).map({
+                    Seq((prev, RDF_FIRST, l), (prev, RDF_REST, next))
+                }).foreach({
                   case (s, RDF_REST, v) if v == node =>
-                    (s, RDF_REST, RDF_NIL)
-                  case other => other
+                    visitor.emitValue(s, RDF_REST, RDF_NIL)
+                  case (s, p, o) => 
+                    visitor.emitValue(s, p, o)
                 })
-                return (root, ts)
+                return root
               case Some(v) =>
-                val (l, triples) = _toTriples(v, context, subjType, subjLang)
+                val l = _toTriples(v, visitor, context, subjType, subjLang, false)
                 val node = BlankNode()
-                val ts = triples ++ Seq((node, RDF_FIRST, l), (node, RDF_REST, RDF_NIL))
-                return (node, ts)
+                visitor.emitValue(node, RDF_FIRST, l)
+                visitor.emitValue(node, RDF_REST, RDF_NIL)
+                return node
               case None =>
-                return (BlankNode(), Nil)
+                return BlankNode()
             } // @list
         } // @value
     } // @id
 
   }
 
-  def _toTriples(data : JsValue, context2 : Option[JsonLDContext],
-      subjType : Option[String], subjLang : Option[String]) : (RDFNode, Iterable[Triple]) = {
+  private def _toTriples(data : JsValue, visitor: JsonLDVisitor, context2 : Option[JsonLDContext],
+      subjType : Option[String], subjLang : Option[String], inverse : Boolean) : RDFNode = {
     val context = localContext(data, context2)
       
     data match {
       case JsString(s) =>
         subjType match {
           case Some("@id") =>
-            (resolve(s, context), Nil)
+            resolve(s, context)
           case Some(t) =>
-            (TypedLiteral(s, t), Nil)
+            TypedLiteral(s, t)
           case None =>
-            (makePlain(s, context, subjLang), Nil)
+            makePlain(s, context, subjLang)
         }
       case JsNumber(n) =>
-        (TypedLiteral(n.toString(), subjType.getOrElse("http://www.w3.org/2001/XMLSchema#double")), Nil)
+        TypedLiteral(n.toString(), subjType.getOrElse("http://www.w3.org/2001/XMLSchema#double"))
       case JsTrue =>
-        (TypedLiteral("true", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean")), Nil)
+        TypedLiteral("true", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean"))
       case JsFalse =>
-        (TypedLiteral("false", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean")), Nil)
+        TypedLiteral("false", subjType.getOrElse("http://www.w3.org/2001/XMLSchema#boolean"))
       case JsNull =>
-        (null, Nil)
+        null
       case a : JsArray =>
         throw new JsonLDException("Unexpected Array")
       case data : JsObject => {
-        val (subj, triples) = resolveSubject(data, context2, subjType, subjLang)
+        val subj = resolveSubject(data, visitor, context2, subjType, subjLang)
         subj match {
           case l : Literal =>
-            (l, triples)
+            l
           case r : Resource =>
-            (subj, triples ++ data.fields.flatMap({
-              case (key, value) => resolveField(key, value, r, context)
-            }))
+            visitor.startNode(r)
+            data.fields.foreach({
+              case (key, value) => resolveField(key, value, visitor, r, context, inverse)
+            })
+            visitor.endNode(r)
+            r
         }
       }
     }
   }
 
-  private def resolveField(key : String, value : JsValue, subj : Resource, context : Option[JsonLDContext]) 
-        : Iterable[Triple] = {
+  private def resolveField(key : String, value : JsValue, visitor : JsonLDVisitor,
+      subj : Resource, context : Option[JsonLDContext], inverse : Boolean = false) {
     val prop = propType(key, context)
+    visitor.startProperty(subj, prop.uri)
     if(key == "@reverse") {
       value match {
         case data : JsObject => {
-          data.fields.flatMap({
-            case (key, value) => resolveField(key, value, subj, context)
-          }).map({
-            case (s, prop, obj) if s != subj => (s, prop, obj)
-            case (obj, prop, subj : Resource) => (subj, prop, obj)
-            case x => throw new JsonLDException("Literal as subject of @reverse " + x)
+          data.fields.foreach({
+            case (key, value) => resolveField(key, value, visitor, subj, context, true)
           })
         }
         case _ =>
@@ -438,46 +472,64 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
     } else {
       prop match {
         case StdProp(prop, typing, lang) => 
-          resolveStdProp(value, prop, typing, lang, key, subj, context)
+          resolveStdProp(visitor, value, prop, typing, lang, key, subj, context, inverse)
         case LangContainer(prop) =>
-          resolveLangContainer(value, prop, subj, context)
+          resolveLangContainer(visitor, value, prop, subj, context, inverse)
         case ListContainer(prop) =>
-          resolveStdProp(JsObject("@list" -> value), prop, None, None, key, subj, context)
+          resolveStdProp(visitor, JsObject("@list" -> value), prop, None, None, key, subj, context, inverse)
         case IDContainer(prop) =>
-          resolveIdProp(value, prop, subj, context)
+          resolveIdProp(visitor, value, prop, subj, context, inverse)
         case ReverseProp(prop) =>
-          resolveReverseProp(value, prop, subj, context)
+          resolveReverseProp(visitor, value, prop, subj, context)
         case IgnoreProp =>
           Nil
       }
     }
+    visitor.endProperty(subj, prop.uri)
   }
 
-  private def resolveStdProp(value : JsValue, prop : URI, typing : Option[String], lang : Option[String],
-    key : String, subj : Resource, context : Option[JsonLDContext]) : Iterable[Triple] = {
+  private def emit2(visitor : JsonLDVisitor, subj : Resource, prop : URI, 
+                    obj : RDFNode, inverse : Boolean) {
+    if(inverse) {
+      obj match {
+        case r : Resource =>
+          visitor.emitValue(r, prop, subj)
+        case l : Literal =>
+          println("%s %s %s" format (subj, prop, obj))
+          throw new JsonLDException("@reverse must not have a literal value")
+      }
+    } else {
+      visitor.emitValue(subj, prop, obj)
+    }
+  }
+
+  private def resolveStdProp(visitor : JsonLDVisitor, 
+    value : JsValue, prop : URI, typing : Option[String], lang : Option[String],
+    key : String, subj : Resource, context : Option[JsonLDContext],
+    inverse : Boolean = false) {
     value match {
       case JsArray(elems) =>
-        elems.flatMap({ elem =>
-          val (obj, triples) = _toTriples(elem, context, typing, lang)
+        elems.foreach({ elem =>
+          val obj = _toTriples(elem, visitor, context, typing, lang, false)
             if(obj != null) {
-              triples ++ Seq((subj, prop, obj))
+              emit2(visitor, subj, prop, obj, inverse)
             } else {
               Nil
             }
           })
       case value =>
-        val (obj, triples) = _toTriples(value, context, typing, lang)
-        triples ++ Seq((subj, prop, obj))
+        val obj = _toTriples(value, visitor, context, typing, lang, false)
+        emit2(visitor, subj, prop, obj, inverse)
     }
   }
 
-  private def resolveLangContainer(value : JsValue, prop : URI, subj : Resource, 
-    context : Option[JsonLDContext]) : Iterable[Triple] = {
+  private def resolveLangContainer(visitor : JsonLDVisitor, value : JsValue, 
+    prop : URI, subj : Resource, context : Option[JsonLDContext], inverse : Boolean) {
     value match {
       case JsObject(data) =>
         data.map({
           case (lang, JsString(s)) =>
-            (subj, prop, (LangLiteral(s, lang) : RDFNode))
+            emit2(visitor, subj, prop, (LangLiteral(s, lang) : RDFNode), inverse)
           case _ =>
             throw new JsonLDException("All values in a language container must be a string")
         })
@@ -486,20 +538,18 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
     }
   }
 
-  private def resolveIdProp(value : JsValue, prop : URI, subj : Resource,
-    context : Option[JsonLDContext]) : Iterable[Triple] = {
+  private def resolveIdProp(visitor : JsonLDVisitor, value : JsValue, prop : URI, 
+    subj : Resource, context : Option[JsonLDContext], inverse : Boolean) {
       value match {
         case JsObject(data) =>
-          data.flatMap({
+          data.foreach({
             case (id, data2 : JsObject) =>
               val obj = resolve(id, context)
-              val triples = data2.fields.flatMap({
-                case (key, value) => resolveField(key, value, obj, context)
+              data2.fields.foreach({
+                case (key, value) => resolveField(key, value, visitor, obj, context, inverse)
               })
-              val t : Iterable[Triple] = triples ++ Seq((subj, prop, obj))
-              t
+              emit2(visitor, subj, prop, obj, inverse)
             case (id, JsNull) =>
-              Nil
             case _ =>
               throw new JsonLDException("Index container must be an object of objects")
           })
@@ -508,18 +558,18 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
       }
   }
 
-  private def resolveReverseProp(value : JsValue, prop : URI, subj : Resource,
-    context : Option[JsonLDContext]) : Iterable[Triple] = {
+  private def resolveReverseProp(visitor : JsonLDVisitor, value : JsValue, 
+    prop : URI, subj : Resource, context : Option[JsonLDContext]) {
       value match {
         case JsArray(elems) =>
-          elems.flatMap({elem =>
-            resolveReverseProp(elem, prop, subj, context)
+          elems.foreach({elem =>
+            resolveReverseProp(visitor, elem, prop, subj, context)
           })
         case _ =>
-          val (obj, triples) = _toTriples(value, context, Some("@id"), None)
+          val obj = _toTriples(value, visitor, context, Some("@id"), None, false)
           obj match {
             case r : Resource =>
-              triples ++ Seq((r, prop, subj))
+              emit2(visitor, subj, prop, obj, true)
             case l : Literal =>
               throw new JsonLDException("Literal value as subject of @reverse triple")
           }

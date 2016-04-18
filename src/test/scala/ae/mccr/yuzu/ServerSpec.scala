@@ -135,7 +135,7 @@ class ServerSpec extends ScalatraSpec {
         (response.body must contain("Example")) and
         (response.body must contain("flag/en.gif")) and
 //        (response.body must contain("Link property")) and
-        (response.body must =~ ("(?s)href=\"http://localhost:\\d+/data/example2\"")) and
+        (response.body.mkString.replaceAll("\\s","") must =~ ("href=\"http://localhost:\\d+/data/example2\"")) and
 //        (response.body must contain("See Also")) and
         (response.body must contain("seeAlso")) and
         (response.body must contain("http://dbpedia.org/resource/Example"))
@@ -163,7 +163,6 @@ class ServerSpec extends ScalatraSpec {
     }
 
     def test_nt = get("/data/example.nt") {
-        println("NT:"  + response.body.toString())
         (response.body.toString() must =~ ("(?s)<http://localhost:\\d+/data/example>")) and
         (response.body must contain("Beispiel")) and
         (response.body must contain("<http://dbpedia.org/resource/Example>")) 
@@ -240,7 +239,6 @@ class ServerSpec extends ScalatraSpec {
     }
 
     def test_sparql_display = get("/sparql") {
-      println(response.body)
         (response.body must contain("SELECT")) and
         (response.body must contain("<html"))
     }
@@ -282,7 +280,6 @@ class ServerSpec extends ScalatraSpec {
 
 
     def test_dataid = get("/about") {
-        println(response.body)
         (response.body must contain("<html")) and
 //        (response.body must contain("Example Resource")) and
         (response.body must contain("href=\"http://localhost:8080/data/example\"")) and
