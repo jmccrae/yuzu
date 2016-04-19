@@ -30,16 +30,18 @@ case class URI(value : String) extends Resource {
   def toJena(implicit model : Model) = model.createResource(value)
   def toJenaProp(implicit model : Model) = model.createProperty(value)
 }
-trait Literal extends RDFNode
-case class PlainLiteral(value : String) extends Literal {
+trait Literal extends RDFNode {
+  def value : String
+}
+case class PlainLiteral(val value : String) extends Literal {
   override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\""
   def toJena(implicit model : Model) = model.createLiteral(value)
 }
-case class LangLiteral(value : String, lang : String) extends Literal {
+case class LangLiteral(val value : String, lang : String) extends Literal {
   override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\"@" + lang
   def toJena(implicit model : Model) = model.createLiteral(value, lang)
 }
-case class TypedLiteral(value : String, datatype : String) extends Literal {
+case class TypedLiteral(val value : String, datatype : String) extends Literal {
   override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\"^^<" + datatype + ">"
   def toJena(implicit model : Model) = model.createTypedLiteral(value, datatype)
 }

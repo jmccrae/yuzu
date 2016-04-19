@@ -1,24 +1,40 @@
 package org.insightcentre.nlp.yuzu
 
-import java.net.{URL, HttpURLConnection}
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import java.io.File
+import java.net.URL
 import java.util.zip.{ZipFile, ZipException}
+import org.apache.lucene.analysis.standard.StandardAnalyzer
+import org.apache.lucene.document.Document
+import org.apache.lucene.document.{Field, StringField, TextField}
+import org.apache.lucene.index.IndexWriter
+import org.apache.lucene.index.IndexWriterConfig
+import org.apache.lucene.index.Term
+import org.apache.lucene.search.SearcherManager
+import org.apache.lucene.search.TermQuery
+import org.apache.lucene.store.FSDirectory
+import org.insightcentre.nlp.yuzu.jsonld._
 import scala.collection.JavaConversions._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
-class ElasticSearchBackend(url : URL, index : String) extends Backend {
+class LuceneBackend(indexPath : String, index : String,
+    settings : YuzuSettings) extends Backend {
+  val analyzer = new StandardAnalyzer()
+  val indexDir = FSDirectory.open(new File(indexPath).toPath())
+  val config = new IndexWriterConfig(analyzer)
+  val indexWriter = new IndexWriter(indexDir, config)
+  val searcherManager = new SearcherManager(indexWriter, true, null)
 
   def lookup(id : String) = {
-    try {
-      Some(
-        io.Source.fromURL(new URL(url, "/%s/data/%s/_source" format (index, id))).
-          mkString("").parseJson)
-    } catch {
-      case x : java.io.FileNotFoundException => 
-        None
-      case x : java.net.ConnectException =>
-        throw new RuntimeException("ElasticSearch not available", x)
+    val searcher = searcherManager.acquire()
+    val q = new TermQuery(new Term("@id", id))
+    val topDocs = searcher.search(q, 10)
+    if(topDocs.totalHits == 0) {
+      None
+    } else {
+      val doc = searcher.doc(topDocs.scoreDocs(0).doc).getField("@content").stringValue().parseJson
+      searcherManager.release(searcher)
+      Some(doc)
     }
   }
 
@@ -45,42 +61,40 @@ class ElasticSearchBackend(url : URL, index : String) extends Backend {
       if(entry.getName().endsWith(".json")) {
         try {
           System.err.println("Loading %s" format entry.getName())
-          val queryUrl = new URL(url, "/%s/data/%s" format (index, entry.getName()))
-          queryUrl.openConnection() match {
-            case conn : HttpURLConnection =>
-              conn.setDoOutput(true)
-              conn.setRequestMethod("PUT")
-              val out = conn.getOutputStream()
-              val in = zf.getInputStream(entry)
-              val buf = new Array[Byte](4096)
-              var read = -1
-              while({ read = in.read(buf) ; read >= 0 }) {
-                out.write(buf, 0, read)
+          val document = new Document()
+          document.add(new StringField("@id", entry.getName().dropRight(".json".length), Field.Store.YES))
+          val jsonData = io.Source.fromInputStream(zf.getInputStream(entry)).mkString("")
+          document.add(new TextField("@content", jsonData, Field.Store.YES))
+          val jsonLDConverter = new JsonLDConverter(Some(new URL(settings.BASE_NAME + "/" + index)))
+          jsonLDConverter.processJsonLD(jsonData.parseJson, new JsonLDVisitor {
+            def startNode(resource : Resource) { }
+            def endNode(resource : Resource) { }
+            def startProperty(resource : Resource, property : URI) { }
+            def endProperty(resource : Resource, property : URI) { }
+            def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
+              obj match {
+                case r : Resource =>
+                  document.add(new TextField(prop.value, r.toString(), Field.Store.YES))
+                case l : Literal =>
+                  document.add(new StringField(prop.value, l.value, Field.Store.YES))
               }
-              out.flush
-              out.close
-              in.close
-              val response = io.Source.fromInputStream(conn.getInputStream())
-              if(conn.getResponseCode() != 200) {
-                System.err.println("[%d] %s" format (conn.getResponseCode(), response.mkString("")))
-              }
-            case _ =>
-              throw new RuntimeException("Elastic search not on HTTP!")
-          }
+            }
+          }, None)
+          indexWriter.addDocument(document)
+          searcherManager.maybeRefresh()
         } catch {
           case x : ZipException =>
             throw new RuntimeException("Error reading zip", x)
-          case x : java.net.ConnectException =>
-            throw new RuntimeException("ElasticSearch not available", x)
         }
       } else {
         System.err.println("Ignoring " + entry.getName())
       }
     }
+    indexWriter.commit()
   }
 }
 
-object ElasticSearchBackend {
+object LuceneBackend {
   private def toObj(v : JsValue) = v match {
     case o : JsObject => o
     case _ => throw new RuntimeException("settings is not an object?!")
@@ -116,4 +130,4 @@ object ElasticSearchBackend {
 
 
   }
-}
+} 
