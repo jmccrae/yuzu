@@ -2,6 +2,8 @@ package org.insightcentre.nlp.yuzu
 
 import java.io.File
 import spray.json._
+import java.net.{URL, URI}
+import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 
 object YuzuConstants {
   val DCAT = "http://www.w3.org/ns/dcat#"
@@ -14,20 +16,23 @@ object YuzuConstants {
 
 trait YuzuSettings {
   // The root directory of the server
+  // BASE_NAME should not end in a /
   def BASE_NAME : String
-  // The path that this servlet is installed at
-  def CONTEXT : String
   // The maximum number of query results to return
   def YUZUQL_LIMIT = 1000
   // The URL of the Elastic Search instance
-  def ELASTIC_URL : String
+  def DATABASE_URL : URL
 }
 
 case class Facet(val uri : String, val label : String, val list : Boolean)
 case class PropAbbrev(val uri : String, val prefix : String)
 
 trait YuzuSiteSettings {
-  // The name of the server
+  // The identifier for the server
+  // The data will be available at BASE_NAME/NAME/file_name
+  // Or "" if the resources are at BASE_NAME/file_name
+  def NAME : String
+  // The (readable) name of the server
   def DISPLAY_NAME : String
   // The data file
   def DATA_FILE : File
@@ -52,11 +57,14 @@ trait YuzuSiteSettings {
   def PROP_NAMES = Map[String, String]()
   // Any prefixes that are defined
   def PREFIXES = Seq[PropAbbrev]()
-
+  // Labelling properties
+  def LABEL_PROP = URI.create("http://www.w3.org/2000/01/rdf-schema#label")
+  // The default context
+  def DEFAULT_CONTEXT = new JsonLDContext(Map(), None, None, None, Map())
   // The language of this site
   def LANG = "en"
   // If a resource in the data is the schema (ontology) then include its
-  // path here. No intial slash, should resolve at BASE_NAME + ONTOLOGY
+  // path here. No intial slash, should resolve at BASE_NAME/ONTOLOGY
   def ONTOLOGY : Option[String] = None
   // The date the resource was created, e.g.,
   // The date should be of the format YYYY-MM-DD
@@ -97,10 +105,16 @@ object YuzuSettings {
         case None => None
       }
     }
-    override val BASE_NAME = str("baseName").getOrElse("http://localhost:8080")
-    override val CONTEXT = str("context").getOrElse("")
-    override val ELASTIC_URL = str("context").getOrElse("http://localhost:9200/")
-    override val YUZUQL_LIMIT = obj.fields.get("limit") match {
+    override val BASE_NAME = {
+      val bn = str("baseName").getOrElse("http://localhost:8080")
+      if(bn.endsWith("/")) {
+        bn.dropRight(1)
+      } else {
+        bn
+      }
+    }
+    override val DATABASE_URL = new URL(str("databaseURL").getOrElse("file:tmp/"))
+    override val YUZUQL_LIMIT = obj.fields.get("yuzuQLLimit") match {
       case Some(JsNumber(n)) => n.toInt
       case Some(JsString(s)) => try { 
         s.toInt
@@ -155,6 +169,7 @@ object YuzuSiteSettings {
       case None => Nil
     }
 
+    val NAME = str("id").getOrElse(throw new MetadataException("Metadata requires a field \"id\""))
     val DISPLAY_NAME = str("name").getOrElse(throw new MetadataException("Metadata requires a field \"name\""))
 
     override val DATA_FILE = str("data") match {
@@ -176,6 +191,16 @@ object YuzuSiteSettings {
     override val SPARQL_PATH = str("sparqlPath").getOrElse(super.SPARQL_PATH)
     override val LIST_PATH = str("listPath").getOrElse(super.LIST_PATH)
     override val METADATA_PATH = str("metadataPath").getOrElse(super.METADATA_PATH)
+
+    override val LABEL_PROP = str("labelProp").map(URI.create).getOrElse(super.LABEL_PROP)
+    override val DEFAULT_CONTEXT = obj.fields.get("context") match {
+      case Some(o : JsObject) => 
+        JsonLDContext(o)
+      case Some(_) =>
+        throw new MetadataException("context must be an object")
+      case None =>
+        super.DEFAULT_CONTEXT
+    }
 
     override val FACETS = obj.fields.get("facets") match {
       case Some(JsArray(elems)) => 

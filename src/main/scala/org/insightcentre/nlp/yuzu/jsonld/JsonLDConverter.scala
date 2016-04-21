@@ -13,12 +13,16 @@ trait JsonLDVisitor {
   def emitValue(subj : Resource, prop : URI, obj : RDFNode) : Unit
 }
 
-class JsonLDTriplesBuilder extends JsonLDVisitor {
+trait BaseJsonLDVisitor extends JsonLDVisitor {
+  def startNode(resource : Resource) {}
+  def endNode(resource : Resource) {}
+  def startProperty(resource : Resource, property : URI) {}
+  def endProperty(resource : Resource, property : URI) {}
+}
+
+
+class JsonLDTriplesBuilder extends BaseJsonLDVisitor {
   var triples = collection.mutable.Seq[RDFUtil.Triple]()
-  def startNode(resource : Resource) { }
-  def endNode(resource : Resource) { }
-  def startProperty(resource : Resource, property : URI) { }
-  def endProperty(resource : Resource, property : URI) { }
   def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
     triples :+= ((subj, prop, obj))
   }

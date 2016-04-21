@@ -9,32 +9,44 @@ import org.apache.lucene.document.{Field, StringField, TextField}
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.index.Term
-import org.apache.lucene.search.SearcherManager
-import org.apache.lucene.search.TermQuery
+import org.apache.lucene.search.{IndexSearcher, SearcherManager, TermQuery, FieldValueQuery, MatchAllDocsQuery, PhraseQuery}
 import org.apache.lucene.store.FSDirectory
 import org.insightcentre.nlp.yuzu.jsonld._
 import scala.collection.JavaConversions._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+import org.insightcentre.nlp.yuzu.jsonld.RDFNode
 
-class LuceneBackend(indexPath : String, index : String,
-    settings : YuzuSettings) extends Backend {
+class LuceneBackend(settings : YuzuSettings, siteSettings : YuzuSiteSettings) extends Backend {
+  import settings._
+  import siteSettings._
+
   val analyzer = new StandardAnalyzer()
-  val indexDir = FSDirectory.open(new File(indexPath).toPath())
+  val indexDir = if(DATABASE_URL.getProtocol() == "file") {
+    FSDirectory.open(new File(DATABASE_URL.getPath()).toPath())
+  } else {
+    throw new RuntimeException("Unsupported protocol: " + DATABASE_URL)
+  }
   val config = new IndexWriterConfig(analyzer)
-  val indexWriter = new IndexWriter(indexDir, config)
-  val searcherManager = new SearcherManager(indexWriter, true, null)
+  lazy val searcherManager = new SearcherManager(indexDir, null)
+  val displayer = new Displayer(label, settings, siteSettings)
 
-  def lookup(id : String) = {
+  private def search[A](foo : IndexSearcher => A) = {
     val searcher = searcherManager.acquire()
+    try {
+      foo(searcher)
+    } finally {
+      searcherManager.release(searcher)
+    }
+  }
+
+  def lookup(id : String) = search { searcher =>
     val q = new TermQuery(new Term("@id", id))
     val topDocs = searcher.search(q, 10)
     if(topDocs.totalHits == 0) {
       None
     } else {
-      val doc = searcher.doc(topDocs.scoreDocs(0).doc).getField("@content").stringValue().parseJson
-      searcherManager.release(searcher)
-      Some(doc)
+      Some(searcher.doc(topDocs.scoreDocs(0).doc).getField("@content").stringValue().parseJson)
     }
   }
 
@@ -46,26 +58,126 @@ class LuceneBackend(indexPath : String, index : String,
   def summarize(id : String) = throw new RuntimeException("TODO")
 
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, 
-    obj : Option[String] = None) = throw new RuntimeException("TODO")
+    obj : Option[RDFNode] = None) = search { searcher =>
+      val q = prop match {
+        case Some(p) =>
+          obj match {
+            case Some(r : URI) =>
+              new TermQuery(new Term(p, r.value))
+            case Some(l : Literal) =>
+              val pq = new PhraseQuery.Builder()
+              val ts = analyzer.tokenStream(p, l.value)
+              val charTermAtt = ts.addAttribute(classOf[org.apache.lucene.analysis.tokenattributes.CharTermAttribute])
+              ts.reset()
+              while(ts.incrementToken) {
+                pq.add(new Term(p, charTermAtt.toString()))
+              }
+              ts.end()
+              ts.close()
+              pq.build()
+            case _ =>
+              //new TermQuery(new Term(p))
+//              new FieldValueQuery(p) {
+              new org.apache.lucene.search.Query {
+                def toString(f : String) = "Custom[" + p + "]"
+                override def createWeight(searcher : IndexSearcher, needsScores : Boolean) = {
+                  new org.apache.lucene.search.RandomAccessWeight(this) {
+
+                    override def getMatchingDocs(context : org.apache.lucene.index.LeafReaderContext) = {
+                      println(context.reader().getFieldInfos().foreach(fi => println(fi.getDocValuesType())))
+                      context.reader().getDocsWithField(p)  
+                    }
+                  }
+                }
+              }
+          }
+        case None =>
+          new MatchAllDocsQuery()
+      }
+      println(q)
+      val topDocs = searcher.search(q, offset + limit + 1)
+      val results = for(i <- offset until math.min(topDocs.scoreDocs.length, offset + limit)) yield {
+        val doc = searcher.doc(topDocs.scoreDocs(i).doc)
+        val id = doc.getField("@id").stringValue()
+        val label = Option(doc.getField("@label")).map(_.stringValue()).
+          getOrElse(displayer.magicString(id))
+        SearchResult(label, id)
+      }
+      (topDocs.totalHits > offset + limit, results.toSeq)
+  }
+
+  def label(id : String) : Option[String] = search { searcher =>
+    val q = new TermQuery(new Term("@id", id))
+    val topDocs = searcher.search(q, 1)
+    if(topDocs.totalHits == 0) {
+      None
+    } else {
+      val doc = searcher.doc(topDocs.scoreDocs(0).doc)
+      Option(doc.getField("@label")).map(_.stringValue())
+    }
+  }
 
   def listValues(offset : Int, limit : Int, prop : String) = throw new RuntimeException("TODO")
 
   def search(query : String, property : Option[String], offset : Int, limit : Int) = 
     throw new RuntimeException("TODO")
 
-  def tripleCount = throw new RuntimeException("TODO")
-
   def load(zipFile : File) {
+    val indexWriter = new IndexWriter(indexDir, config)
     val zf = new ZipFile(zipFile)
+
+    def fileName(path : String) = if(path contains "/") {
+      path.drop(path.lastIndexOf("/") + 1)
+    } else {
+      path
+    }
+    val contexts = zf.entries().filter(e => fileName(e.getName()) == "context.json").map({ e =>
+      val jsonLD = io.Source.fromInputStream(zf.getInputStream(e)).mkString.parseJson match {
+        case o : JsObject =>
+          JsonLDContext(o)
+        case _ =>
+          throw new RuntimeException("Context is not an object")
+      }
+      e.getName().dropRight("/context.json".length) -> jsonLD
+    }).toMap
+
+    def findContextPath(path : String) = {
+      val ps = path.split("/")
+      (ps.length to 0 by -1).find({ i =>
+        contexts contains ps.take(i).mkString("/")
+      }) match {
+        case Some(i) =>
+          ps.take(i).mkString("/")
+        case None =>
+          ""
+      }
+    }
+
+    def context(path : String) = {
+      val ps = path.split("/")
+      (ps.length to 0 by -1).find({ i =>
+        contexts contains ps.take(i).mkString("/")
+      }) match {
+        case Some(i) =>
+          contexts(ps.take(i).mkString("/"))
+        case None =>
+          DEFAULT_CONTEXT
+      }
+    }
+
+
     for(entry <- zf.entries()) {
-      if(entry.getName().endsWith(".json")) {
+      if(entry.getName().endsWith(".json") && fileName(entry.getName()) != "context.json") {
         try {
           System.err.println("Loading %s" format entry.getName())
           val document = new Document()
+          val fileName = entry.getName().dropRight(".json".length)
           document.add(new StringField("@id", entry.getName().dropRight(".json".length), Field.Store.YES))
           val jsonData = io.Source.fromInputStream(zf.getInputStream(entry)).mkString("")
-          document.add(new TextField("@content", jsonData, Field.Store.YES))
-          val jsonLDConverter = new JsonLDConverter(Some(new URL(settings.BASE_NAME + "/" + index)))
+          document.add(new StringField("@content", jsonData, Field.Store.YES))
+          document.add(new StringField("@context", findContextPath(entry.getName()), Field.Store.YES))
+          val jsonLDConverter = new JsonLDConverter(Some(new URL(BASE_NAME + "/" + NAME + "/" + fileName)))
+          // TODO: Add "@label"
           jsonLDConverter.processJsonLD(jsonData.parseJson, new JsonLDVisitor {
             def startNode(resource : Resource) { }
             def endNode(resource : Resource) { }
@@ -74,14 +186,18 @@ class LuceneBackend(indexPath : String, index : String,
             def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
               obj match {
                 case r : Resource =>
-                  document.add(new TextField(prop.value, r.toString(), Field.Store.YES))
+                  document.add(new StringField(prop.value, r.toString(), Field.Store.YES))
                 case l : Literal =>
-                  document.add(new StringField(prop.value, l.value, Field.Store.YES))
+                  if(prop.value == LABEL_PROP.toString) {
+                    document.add(new TextField("@label", l.value, Field.Store.YES))
+                  }
+                  println("TextField(%s, %s, YES)" format (prop.value, l.value))
+                  document.add(new TextField(prop.value, l.value, Field.Store.YES))
               }
             }
-          }, None)
+          }, Some(context(entry.getName())))
+          println(document)
           indexWriter.addDocument(document)
-          searcherManager.maybeRefresh()
         } catch {
           case x : ZipException =>
             throw new RuntimeException("Error reading zip", x)
@@ -91,6 +207,8 @@ class LuceneBackend(indexPath : String, index : String,
       }
     }
     indexWriter.commit()
+    indexWriter.close()
+    
   }
 }
 
@@ -123,7 +241,7 @@ object LuceneBackend {
     val settings = YuzuSettings(toObj(io.Source.fromFile(settingsFile).mkString("").parseJson))
     for((name, settingsFile) <- sites) {
       val siteSettings = YuzuSiteSettings(toObj(io.Source.fromFile(settingsFile).mkString("").parseJson))
-      val backend = new ElasticSearchBackend(new URL(settings.ELASTIC_URL), name)
+      val backend = new LuceneBackend(settings, siteSettings)
       System.err.println("Loading site %s" format name)
       backend.load(siteSettings.DATA_FILE)
     }

@@ -37,8 +37,8 @@ object YuzuBuild extends Build {
           excludeAll(ExclusionRule(organization="org.slf4j")),
         "io.spray" %%  "spray-json" % "1.3.2",
         "org.mockito" % "mockito-core" % "1.10.19",
-        "org.apache.lucene" % "lucene-core" % "5.5.0",
-        "org.apache.lucene" % "lucene-analyzers-common" % "5.5.0"
+        "org.apache.lucene" % "lucene-core" % "6.0.0",
+        "org.apache.lucene" % "lucene-analyzers-common" % "6.0.0"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(

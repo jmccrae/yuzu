@@ -3,6 +3,7 @@ import org.mockito.Mockito._
 import org.scalatra.test.specs2._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import org.insightcentre.nlp.yuzu.jsonld._
 
 class ServerSpec extends ScalatraSpec { 
   import TestSettings._
@@ -11,46 +12,46 @@ class ServerSpec extends ScalatraSpec {
     io.Source.fromFile("src/test/resources/server-spec-data/example2.json").mkString.parseJson,
     io.Source.fromFile("src/test/resources/server-spec-data/saldo/bosättningsstopp..nn.1.json").mkString.parseJson
   )
-  val context = io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString.parseJson
+  val context = JsonLDContext(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString.parseJson.asInstanceOf[JsObject])
 
   addServlet(new YuzuServlet {
    val backend = mock(classOf[Backend]) 
    when(backend.listResources(0, 1)).thenReturn((true, 
-     Seq(SearchResult("/data/example", "Example Resource", "data/example"))))
+     Seq(SearchResult("Example Resource", "data/example"))))
    when(backend.search("test", None, 0, 21)).thenReturn(Nil)
 
    when(backend.search("test", None, 0, 21)).thenReturn(Nil)
    when(backend.search("English", None, 0, 21)).thenReturn(Seq(
-     SearchResult("/data/example", "Example", "data/example"),
-     SearchResult("/data/example2", "Example", "data/example2")
+     SearchResult("Example", "data/example"),
+     SearchResult("Example", "data/example2")
      ))
    when(backend.search("English example", None, 0, 21)).thenReturn(Seq(
-     SearchResult("/data/example", "Example", "data/example")
+     SearchResult("Example", "data/example")
      ))
    when(backend.search("gobbledegook", None, 0, 21)).thenReturn(Nil)
    when(backend.search("English", Some("http://www.w3.org/2000/01/rdf-schema#label"), 0, 21)).thenReturn(Seq(
-     SearchResult("/data/example", "Example", "data/example")
+     SearchResult("Example", "data/example")
      ))
    when(backend.search("", None, 0, 21)).thenReturn(Nil)
 
    when(backend.listResources(0, 20, None, None)).thenReturn((false, Seq(
-     SearchResult("/data/example", "Example", "data/example"),
-     SearchResult("/data/example2", "Example 2", "data/example2"),
-     SearchResult("/data/saldo/bosättningsstopp..nn.1", "bosättningsstopp..nn.1", "data/bosättningsstopp..nn.1"))))
+     SearchResult("Example", "data/example"),
+     SearchResult("Example 2", "data/example2"),
+     SearchResult("bosättningsstopp..nn.1", "data/bosättningsstopp..nn.1"))))
    when(backend.listResources(0, 20, Some("<http://www.w3.org/2000/01/rdf-schema#label>"), None)).thenReturn((false, Seq(
-     SearchResult("/data/example", "Example", "data/example"),
-     SearchResult("/data/example2", "Beispiel (2)", "data/example2"))))
-   when(backend.listResources(0, 20, Some("<http://www.w3.org/2000/01/rdf-schema#label>"), Some("\"Beispiel\"@de"))).thenReturn((false, Seq(
-     SearchResult("/data/example", "Example", "data/example"))))
+     SearchResult("Example", "data/example"),
+     SearchResult("Beispiel (2)", "data/example2"))))
+   when(backend.listResources(0, 20, Some("<http://www.w3.org/2000/01/rdf-schema#label>"), Some(LangLiteral("Beispiel","de")))).thenReturn((false, Seq(
+     SearchResult("Example", "data/example"))))
 
    when(backend.listValues(0,20,"<http://www.w3.org/2000/01/rdf-schema#label>")).thenReturn((
      true, Seq(
-       SearchResultWithCount("", "Example", "", 10))))
+       SearchResultWithCount("Example", "", 10))))
      
 
-   when(backend.context("data/example")).thenReturn(Some(context))
-   when(backend.context("data/example2")).thenReturn(Some(context))
-   when(backend.context("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(context))
+   when(backend.context("data/example")).thenReturn(context)
+   when(backend.context("data/example2")).thenReturn(context)
+   when(backend.context("data/saldo/bosättningsstopp..nn.1")).thenReturn(context)
 
    when(backend.lookup("notaresource")).thenReturn(None)
    when(backend.lookup("data/example")).thenReturn(Some(data(0)))
@@ -283,7 +284,7 @@ class ServerSpec extends ScalatraSpec {
         (response.body must contain("<html")) and
 //        (response.body must contain("Example Resource")) and
         (response.body must contain("href=\"http://localhost:8080/data/example\"")) and
-        (response.body must contain(">http://localhost:8080/</a>")) and
+        (response.body must contain(">http://localhost:8080</a>")) and
 //        (response.body must contain("Link Set")) and
         (response.body must contain("Instance of")) and
  //       (response.body must contain("Distribution"))

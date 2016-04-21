@@ -6,6 +6,7 @@ import spray.json.DefaultJsonProtocol._
 import java.io.File
 import java.util.zip.{ZipFile, ZipException}
 import scala.collection.JavaConversions._
+import org.insightcentre.nlp.yuzu.jsonld.RDFNode
 
 class ElasticSearchBackend(url : URL, index : String) extends Backend {
 
@@ -30,7 +31,7 @@ class ElasticSearchBackend(url : URL, index : String) extends Backend {
   def summarize(id : String) = throw new RuntimeException("TODO")
 
   def listResources(offset : Int, limit : Int, prop : Option[String] = None, 
-    obj : Option[String] = None) = throw new RuntimeException("TODO")
+    obj : Option[RDFNode] = None) = throw new RuntimeException("TODO")
 
   def listValues(offset : Int, limit : Int, prop : String) = throw new RuntimeException("TODO")
 
@@ -109,7 +110,7 @@ object ElasticSearchBackend {
     val settings = YuzuSettings(toObj(io.Source.fromFile(settingsFile).mkString("").parseJson))
     for((name, settingsFile) <- sites) {
       val siteSettings = YuzuSiteSettings(toObj(io.Source.fromFile(settingsFile).mkString("").parseJson))
-      val backend = new ElasticSearchBackend(new URL(settings.ELASTIC_URL), name)
+      val backend = new ElasticSearchBackend(settings.DATABASE_URL, name)
       System.err.println("Loading site %s" format name)
       backend.load(siteSettings.DATA_FILE)
     }

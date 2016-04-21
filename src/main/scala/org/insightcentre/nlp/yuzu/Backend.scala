@@ -7,34 +7,34 @@ import java.io.{File, FileInputStream}
 import java.util.zip.GZIPInputStream
 import scala.collection.JavaConversions._
 import spray.json.JsValue
+import org.insightcentre.nlp.yuzu.jsonld.{JsonLDContext, RDFNode}
 
-case class SearchResult(link : String, label : String, id : String)
-case class SearchResultWithCount(link : String, label : String, id : String, count : Int)
+case class SearchResult(label : String, id : String)
+case class SearchResultWithCount(label : String, id : String, count : Int)
 
 case class FactValue(prop : RDFValue, obj : RDFValue)
 case class RDFValue(
     display : String,
-    `id`: String = null,
-    `type`: RDFValue = null,
-    `value`: String = null,
-    `language`: String = null) {
-  def bnode = {
-    if(`id` == null) {
-      `value` == null
-    } else {
-      `id` startsWith "_:" 
-    }
-  }
+    link : String = null,
+    `type` : RDFValue = null,
+    value : String = null,
+    language : String = null) {
+//  def bnode = {
+//    if(link == null) {
+//      `value` == null
+//    } else {
+//      `id` startsWith "_:" 
+//    }
+//  }
 }
   
 trait Backend {
   /** Run a SPARQL query on the backend */
-  def query(query : String, mimeType : ResultType, defaultGraphURI : Option[String],
-    timeout : Int = 10) : SPARQLResult
+  def query(query : String, defaultGraphURI : Option[String]) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
   def lookup(id : String) : Option[JsValue]
   /** Get the context document for a given page */
-  def context(id : String) : Option[JsValue]
+  def context(id : String) : JsonLDContext
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
   /** 
@@ -44,7 +44,7 @@ trait Backend {
    * @param prop The property (if any)
    * @param obj The object value (if any)
    */
-  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[String] = None) : (Boolean,Seq[SearchResult])
+  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[RDFNode] = None) : (Boolean,Seq[SearchResult])
   /**
    * List all values of a property
    * @param offset The query offset
@@ -68,7 +68,7 @@ trait Backend {
   /**
    * Return the total number of triples in the model
    */
-  def tripleCount : Int
+  //def tripleCount : Int
   /**
    * Return the link counts
    */

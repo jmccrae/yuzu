@@ -49,6 +49,7 @@ object DataID {
     import YuzuConstants._
     import settings._
     import siteSettings._
+    val serverUrl = BASE_NAME + (if(NAME == "") { "" } else { "/" + NAME })
     val model = collection.mutable.Map[String, JsValue](
 //      "@context" -> JsString(BASE_NAME + "assets/dataid.json"),
       "@context" -> dataIdJson,
@@ -56,23 +57,23 @@ object DataID {
       "@type" -> JsArray(JsString("dcat:Dataset"), JsString("void:Dataset")),
       "title" -> JsString(DISPLAY_NAME),
       "label" -> JsString(DISPLAY_NAME),
-      "landingPage" -> JsString(BASE_NAME),
+      "landingPage" -> JsString(serverUrl),
       "language" -> JsString(LANG),
-      "rootResource" -> JsString(BASE_NAME.dropRight(1) + LIST_PATH),
-      "license" -> JsString(BASE_NAME.dropRight(1) + LICENSE_PATH),
+      "rootResource" -> JsString(serverUrl + LIST_PATH),
+      "license" -> JsString(serverUrl + LICENSE_PATH),
       "keyword" -> JsArray(KEYWORDS.map(JsString.apply).toList),
       "wasDerivedFrom" -> JsArray(DERIVED_FROM.map(JsString.apply).toList)
     )
 
     backend.listResources(0, 1)._2.headOption match {
-      case Some(SearchResult(link, _, _)) =>
-        model += "exampleResource" -> JsString(BASE_NAME.dropRight(1) + link)
+      case Some(SearchResult(_, id)) =>
+        model += "exampleResource" -> JsString(serverUrl + "/" + id)
       case None =>
     }
 
     ONTOLOGY match {
       case Some(o) =>
-        model += "ontologyLocation" -> JsString(BASE_NAME + o)
+        model += "ontologyLocation" -> JsString(serverUrl + "/" + o)
       case None =>
     }
 
@@ -133,15 +134,15 @@ object DataID {
 
     model += "distribution" -> JsObject(
       "@type" -> JsString("dcat:Distribution"),
-      "downloadURL" -> JsString(BASE_NAME + DATA_FILE.getName()),
-      "triples" -> JsNumber(backend.tripleCount),
+      "downloadURL" -> JsString(serverUrl + "/" + DATA_FILE.getName()),
+//      "triples" -> JsNumber(backend.tripleCount),
       "format" -> JsString("application/x-gzip"))
 
     SPARQL_ENDPOINT match {
       case Some(se) =>
         model += "sparqlEndpoint" -> JsString(se)
       case None =>
-        model += "sparqlEndpoint" -> JsString(BASE_NAME.dropRight(1) + SPARQL_PATH)
+        model += "sparqlEndpoint" -> JsString(serverUrl + SPARQL_PATH)
     }
 
 // Linksets are very slow and quite unnecessary!

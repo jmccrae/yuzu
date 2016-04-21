@@ -1,6 +1,6 @@
 package org.insightcentre.nlp.yuzu
 
-import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
+import org.insightcentre.nlp.yuzu.jsonld.{RDFNode, JsonLDContext}
 import com.hp.hpl.jena.query.ResultSetFormatter
 import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.vocabulary._
@@ -42,7 +42,7 @@ trait YuzuServletActions extends YuzuStack {
     val results2 = for(result <- results) yield {
       Map(
         "title" -> result.label,
-        "link" -> result.link,
+        "link" -> (request.getServletContext().getContextPath() + "/" + result.id),
         "model" -> backend.summarize(result.id)) }
     contentType = "text/html"
     mustache("/search",
@@ -59,14 +59,13 @@ trait YuzuServletActions extends YuzuStack {
   def sparqlQuery(query : String, mimeType : ResultType, 
                   defaultGraphURI : Option[String], timeout : Int = 10) : Any = {
     try {
-      val result = backend.query(query, mimeType, defaultGraphURI, timeout)
+      val result = backend.query(query, defaultGraphURI)
       if(mimeType == html) {
         contentType = "text/html"
         result match {
           case r : TableResult =>
             val d = r.toDict
-            respondVary(mustache("/sparql-results",
-              (d :+ ("context" -> settings.CONTEXT)):_*))
+            respondVary(mustache("/sparql-results", d:_*))
           case BooleanResult(r) =>
             val l = if(r) { "True" } else { "False" }
             respondVary(mustache("/sparql-results",
@@ -84,16 +83,16 @@ trait YuzuServletActions extends YuzuStack {
       } else {
         result match {
           case r : TableResult =>
-            if(mimeType == sparql) {
-              contentType = sparql.mime
+            if(mimeType == sparqlresults) {
+              contentType = sparqlresults.mime
               respondVary(r.toXML.toString)
             } else {
               contentType == sparqljson.mime
               respondVary(r.toJSON)
             }
           case BooleanResult(r) =>
-            if(mimeType == sparql) {
-              contentType = sparql.mime
+            if(mimeType == sparqlresults) {
+              contentType = sparqlresults.mime
               respondVary(ResultSetFormatter.asXMLString(r))
             } else {
               val baos = new java.io.ByteArrayOutputStream()
@@ -103,7 +102,7 @@ trait YuzuServletActions extends YuzuStack {
             }
           case ModelResult(model) =>
             val out = new java.io.StringWriter()
-            contentType = if(mimeType == sparql) {
+            contentType = if(mimeType == sparqlresults) {
               rdfxml.mime
             } else {
               mimeType.mime
@@ -129,7 +128,7 @@ trait YuzuServletActions extends YuzuStack {
   def listResources(offset : Int, property : Option[String], obj : 
                     Option[String], obj_offset : Option[Int]) : Any = {
     val limit = 20
-    val (hasMore, results) = backend.listResources(offset, limit, property, obj)
+    val (hasMore, results) = backend.listResources(offset, limit, property, obj.map(RDFNode.apply))
     val hasPrev = if(offset > 0) { "" } else { "disabled" }
     val prev = math.max(offset - limit, 0)
     val hasNext = if(hasMore) { "" } else { "disabled" }
@@ -145,7 +144,7 @@ trait YuzuServletActions extends YuzuStack {
           "uri_enc" -> uri_enc, 
           "values" -> vs.map { v => Map[String,String](
                   "prop_uri" -> uri_enc,
-                  "value_enc" -> quotePlus(v.link),
+                  "value_enc" -> quotePlus(request.getServletContext().getContextPath() + "/" + v.id),
                   "value" -> v.label.take(100),
                   "count" -> v.count.toString,
                   "offset" -> obj_offset.getOrElse(0).toString
@@ -167,7 +166,7 @@ trait YuzuServletActions extends YuzuStack {
     val results2 = for(result <- results) yield {
       Map(
         "title" -> result.label,
-        "link" -> result.link,
+        "link" -> (request.getServletContext().getContextPath() + "/" + result.id),
         "model" -> backend.summarize(result.id))
     }
 
@@ -202,14 +201,7 @@ trait YuzuServletActions extends YuzuStack {
 
   def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
-    val context = backend.context(id) match {
-      case Some(obj : JsObject) =>
-        Some(JsonLDContext(obj))
-      case Some(_) =>
-        throw new RuntimeException("Context must be an object")
-      case None =>
-        None
-    }
+    val context = Some(backend.context(id))
     val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
     val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
     modelOption match {

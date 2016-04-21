@@ -1,10 +1,38 @@
 package org.insightcentre.nlp.yuzu.jsonld
 
 import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode, AnonId, ModelFactory}
+import com.hp.hpl.jena.graph.Node
 import scala.collection.JavaConversions._
   
 trait RDFNode {
   def toJena(implicit model : Model) : JenaRDFNode
+}
+object RDFNode {
+  private val langLit  = "\"(.*)\"@(.*)".r
+  private val typedLit = "\"(.*)\"^^(.*)".r
+  private val plainLit = "\"(.*)\"".r
+  private val uri = "<(.*)>".r
+  private val bnode = "_:(.*)".r
+  def apply(s : String) : RDFNode = s match {
+    case langLit(lit, lang) => LangLiteral(lit, lang)
+    case typedLit(value, dt) => TypedLiteral(value, dt)
+    case plainLit(value) => PlainLiteral(value)
+    case uri(u) => URI(u)
+    case bnode(id) => BlankNode(Some(id))
+    case "[]" => BlankNode()
+    case _ => throw new IllegalArgumentException("Not an RDF literal: " + s)
+  }
+  def apply(n : Node) : RDFNode = if(n.isURI()) {
+    URI(n.getURI()) 
+  } else if(n.isBlank()) {
+    BlankNode(Option(n.getBlankNodeLabel()))
+  } else if(n.getLiteralLanguage() != null) {
+    LangLiteral(n.getLiteralLexicalForm(), n.getLiteralLanguage())
+  } else if(n.getLiteralDatatypeURI() != null) {
+    TypedLiteral(n.getLiteralLexicalForm(), n.getLiteralDatatypeURI())
+  } else {
+    PlainLiteral(n.getLiteralLexicalForm())
+  }
 }
 trait Resource extends RDFNode {
   def toJena(implicit model : Model) : JenaResource

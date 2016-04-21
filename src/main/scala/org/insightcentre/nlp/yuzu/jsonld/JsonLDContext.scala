@@ -80,6 +80,9 @@ class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
         }
     }
   }
+  
+  override def toString = "JsonLDDefintion(%s, %s, %s, %s)" format(
+    definitions, base, vocab, language)
 }
 
 object JsonLDContext {

@@ -4,7 +4,7 @@ import org.apache.jena.riot.RDFFormat
 
 sealed class ResultType(val mime : String, val jena : Option[RDFFormat])
 
-object sparql extends ResultType("application/sparql-results+xml", None)
+object sparqlresults extends ResultType("application/sparql-results+xml", None)
 object sparqljson extends ResultType("application/sparql-results+json", None)
 object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PRETTY))
 object html extends ResultType("text/html", None)
@@ -26,7 +26,7 @@ object ContentNegotiation {
   )
 
   val sparqlMimeTypes = Map(
-    "application/sparql-results+xml" -> sparql,
+    "application/sparql-results+xml" -> sparqlresults,
     "application/sparql-results+json" -> sparqljson,
     "application/json" -> sparqljson,
     "application/javascript" -> sparqljson

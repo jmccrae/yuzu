@@ -9,7 +9,8 @@ import java.net.URL
 class StandardYuzuServlet(name : String,
   val settings : YuzuSettings, val siteSettings : YuzuSiteSettings) extends YuzuServlet {
    
-  lazy val backend = new ElasticSearchBackend(new URL(settings.ELASTIC_URL), name)
+//  lazy val backend = new ElasticSearchBackend(new URL(settings.ELASTIC_URL), name)
+  lazy val backend = new LuceneBackend(settings, siteSettings)
 }
 
 class ScalatraBootstrap extends LifeCycle {
