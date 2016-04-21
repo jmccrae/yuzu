@@ -64,8 +64,10 @@ trait YuzuServletActions extends YuzuStack {
         contentType = "text/html"
         result match {
           case r : TableResult =>
-            val d = r.toDict
-            respondVary(mustache("/sparql-results", d:_*))
+            val (v, res) = r.toDict
+            respondVary(mustache("/sparql-results", 
+              "variables" -> v, 
+              "results" -> res))
           case BooleanResult(r) =>
             val l = if(r) { "True" } else { "False" }
             respondVary(mustache("/sparql-results",
@@ -221,7 +223,8 @@ trait YuzuServletActions extends YuzuStack {
         } else if(mime == nt) {
           toNTriples(model, context, base, addNamespaces)
         } else if(mime == html) {
-          val html = toHtml(model, context, base)
+          val backlinks = backend.backlinks(id)
+          val html = toHtml(model, context, base, backlinks)
           mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()

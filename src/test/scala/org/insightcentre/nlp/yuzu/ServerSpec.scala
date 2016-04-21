@@ -4,6 +4,7 @@ import org.scalatra.test.specs2._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.insightcentre.nlp.yuzu.jsonld._
+import com.hp.hpl.jena.graph.NodeFactory
 
 class ServerSpec extends ScalatraSpec { 
   import TestSettings._
@@ -57,6 +58,15 @@ class ServerSpec extends ScalatraSpec {
    when(backend.lookup("data/example")).thenReturn(Some(data(0)))
    when(backend.lookup("data/example2")).thenReturn(Some(data(1)))
    when(backend.lookup("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(data(2)))
+
+   when(backend.query("""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT * WHERE {  ?s rdfs:label "Beispiel"@de} LIMIT 100""", None)).thenReturn(TableResult(
+  ResultSet(Seq("s"), Seq(Map("s" -> NodeFactory.createURI(TestSettings.BASE_NAME + "/data/example2")))), new Displayer(s => None, TestSettings, TestSettings)))
+   when(backend.backlinks("data/example2")).thenReturn(Seq((
+     "http://localhost:8080/ontology#link", "http://localhost:8080/data/example")))
+   when(backend.backlinks("data/example")).thenReturn(Nil)
+   when(backend.backlinks("data/saldo/bosättningsstopp..nn.1")).thenReturn(Nil)
+  
+
    def sites = Nil
    def settings = TestSettings
    def siteSettings = TestSettings
@@ -86,16 +96,14 @@ class ServerSpec extends ScalatraSpec {
     return the whole dataset                     $test_dump
     show asset files                             $test_asset
     show a favicon                               $test_favicon
-    show the standard SPARQL page                 test_sparql_display
-    answer a SPARQL query                         test_sparql_query
-    answer a SPARQL query with HTML               test_sparql_query_html
-    answer a more complex SPARQL query            test_sparql_query2
-    answer another SPARQL query                   test_yuzuql
+    show the standard SPARQL page                $test_sparql_display
+    answer a SPARQL query                        $test_sparql_query
+    answer a SPARQL query with HTML              $test_sparql_query_html
     show a metadata file                         $test_dataid
     show an RDF metadata file                    $test_dataid_rdf
-    show backlinks between resources              test_backlinks
     support unicode IDs                          $test_unicode
     support unicode content                      $test_unicode2
+    show backlinks between resources             $test_backlinks
   """
 
 
@@ -244,41 +252,23 @@ class ServerSpec extends ScalatraSpec {
         (response.body must contain("<html"))
     }
 
-//    def test_sparql_query = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3"
-//                     + ".org%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+"
-//                     + "WHERE+%7B%0D%0A++%3Fs+rdfs%3Alabel+%22Beispiel%22%40"
-//                     + "de%0D%0A%7D+LIMIT+100",
-//                      headers=Map("Accept" -> "")) {
-//        (response.body must not contain("<html")) and
-//        (response.body must contain("data/example"))
-//    }
-//
-//    def test_sparql_query_html = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3"
-//                     + ".org%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+"
-//                     + "WHERE+%7B%0D%0A++%3Fs+rdfs%3Alabel+%22Beispiel%22%40"
-//                     + "de%0D%0A%7D+LIMIT+100",
-//                    headers=Map("Accept" -> "text/html")) {
-//        (response.body must contain("<html")) and
-//        (response.body must contain("data/example"))
-//    }
-//
-//    def test_sparql_query2 = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org"
-//                     + "%2F2000%2F01%2Frdf-schema%23%3E%0D%0ASELECT+*+WHERE+%7B%0D"
-//                     + "%0A++%3Chttp%3A%2F%2Flocalhost%3A8080%2Fdata%2Fexample%3"
-//                     + "E+rdfs%3Alabel+%3Fo+%7C+rdfs%3AseeAlso+%3Fo%0D%0A%7D+LIMIT+"
-//                     + "100",
-//                     headers=Map("Accept" -> "text/html")) {
-//        (response.body must contain("en.gif")) and
-//        (response.body must contain("href=\"http://dbpedia.org")) and
-//        (response.body must contain("English"))
-//    }
-//
-//    def test_yuzuql = get("/sparql/?query=SELECT+%3Fs+WHERE+%7B%0D%0A++%3Fs+"
-//                     + "rdfs%3Alabel+%22Beispiel%22%40de%0D%0A%7D+LIMIT+1",
-//                     headers=Map("Accept" -> "")) {
-//        response.body must contain("\"value\": \"http://localhost:8080/data/example\"")
-//    }
+    def test_sparql_query = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3"
+                     + ".org%2F2000%2F01%2Frdf-schema%23%3E+SELECT+*+"
+                     + "WHERE+%7B++%3Fs+rdfs%3Alabel+%22Beispiel%22%40"
+                     + "de%7D+LIMIT+100",
+                      headers=Map("Accept" -> "")) {
+        (response.body must not contain("<html")) and
+        (response.body must contain("data/example"))
+    }
 
+    def test_sparql_query_html = get("/sparql/?query=PREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3"
+                     + ".org%2F2000%2F01%2Frdf-schema%23%3E+SELECT+*+"
+                     + "WHERE+%7B++%3Fs+rdfs%3Alabel+%22Beispiel%22%40"
+                     + "de%7D+LIMIT+100",
+                    headers=Map("Accept" -> "text/html")) {
+        (response.body must contain("<html")) and
+        (response.body must contain("data/example"))
+    }
 
     def test_dataid = get("/about") {
         (response.body must contain("<html")) and
@@ -295,10 +285,10 @@ class ServerSpec extends ScalatraSpec {
         (response.body must contain("<rdf"))
     }
 
-//    def test_backlinks = get("/data/example2") {
-//        (response.body must contain("Is <a")) and
-//        (response.body must contain("href=\"http://localhost:8080/data/example\""))
-//    }
+    def test_backlinks = get("/data/example2") {
+        (response.body must contain("Is <a")) and
+        (response.body must contain("href=\"http://localhost:8080/data/example\""))
+    }
 
     def test_unicode = get("/list") {
         response.body must contain("bosättningsstopp")

@@ -62,6 +62,7 @@ class YuzuServletSpec extends ScalatraSpec {
    when(backend.lookup("notaresource")).thenReturn(None)
    when(backend.context("notaresource")).thenReturn(DEFAULT_CONTEXT)
    when(backend.context("test")).thenReturn(DEFAULT_CONTEXT)
+   when(backend.backlinks("test")).thenReturn(Nil)
    when(backend.lookup("test")).thenReturn(Some("""{
   "@context": {
       "label": "http://www.w3.org/2000/01/rdf-schema#label"

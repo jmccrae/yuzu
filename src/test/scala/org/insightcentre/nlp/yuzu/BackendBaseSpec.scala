@@ -77,6 +77,7 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
     def facets(implicit searcher : Searcher) = Seq(
       ("http://www.w3.org/2000/01/rdf-schema#label", LangLiteral("Example with English text", "en"))
     )
+    def backlinks(implicit searcher : Searcher) = Nil
   }
 
   object ExampleDocument2 extends Document {
@@ -97,6 +98,7 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
     def facets(implicit searcher : Searcher) = Seq(
       ("http://www.w3.org/2000/01/rdf-schema#label", LangLiteral("Another example", "en"))
     )
+    def backlinks(implicit searcher : Searcher) = Nil
   }
 
   def search[A](foo : Searcher => A) = foo(new TestSearcher)
@@ -120,6 +122,7 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
       foo(dl)
       documents put (id, (content, dl))
     }
+    def addBackLink(id : String, prop : String, fromId : String) { }
   }
   var theTestLoader = new TestLoader
   def load(foo : Loader => Unit) = foo(theTestLoader)

@@ -37,6 +37,8 @@ trait Backend {
   def context(id : String) : JsonLDContext
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
+  /** Get backlinks */
+  def backlinks(id : String) : Seq[(String, String)]
   /** 
    * List pages by property and object
    * @param offset The query offset
@@ -75,47 +77,43 @@ trait Backend {
 //  def linkCounts : Seq[(String, Int)]
 }
 
-sealed trait SPARQLResult
+sealed trait SPARQLResult {
+  def boolean : Boolean = false
+}
 
 case class TableResult(result : ResultSet, DISPLAYER : Displayer) extends SPARQLResult {
   import scala.collection.JavaConversions._
 
-  def toDict = {
-    val variables = result.resultVars.map { name =>
-      mapAsJavaMap(Map("name" -> name))
-    }
-    val results = new java.util.ArrayList[java.util.Map[String, java.util.ArrayList[java.util.Map[String,String]]]]()
-    for(r <- result.results) {
-      val r2 = new java.util.HashMap[String, java.util.ArrayList[java.util.Map[String,String]]]()
-      val l2 = new java.util.ArrayList[java.util.Map[String,String]]()
-      r2.put("result", l2)
-      for(v <- result.resultVars) {
-        if(r.contains(v)) {
-          val o = r(v)
-          val target = new java.util.HashMap[String, String]()
-          if(o.isURI()) {
-            target.put("uri", o.getURI())
-            target.put("display", DISPLAYER.uriToStr(o.getURI()))
-          } else if(o.isLiteral()) {
-            val l = o
-            target.put("value", l.getLiteralLexicalForm())
-            if(l.getLiteralLanguage() != null) {
-              target.put("lang", l.getLiteralLanguage())
-            }
-            if(l.getLiteralDatatype() != null) {
-              target.put("datatype", l.getLiteralDatatype().getURI())
-            }
-          } else if(o.isBlank()) {
-            target.put("bnode", o.getBlankNodeId().toString())
+  def toDict : (List[Map[String,String]], List[Map[String, List[Map[String, String]]]]) = {
+    val variables = result.resultVars.map(name => Map("name"->name)).toList
+    var results = for(r <- result.results) yield {
+      Map("result" -> 
+        (for(v <- result.resultVars) yield {
+          r.get(v) match {
+            case Some(o) =>
+              if(o.isURI()) {
+                Map[String, String]("uri" -> o.getURI(), "display" -> DISPLAYER.uriToStr(o.getURI()))
+              } else if(o.isLiteral()) {
+                if(o.getLiteralLanguage() != null) {
+                  Map[String, String]("value" -> o.getLiteralLexicalForm(),
+                      "lang" -> o.getLiteralLanguage())
+                } else if(o.getLiteralDatatype() != null) {
+                  Map[String, String]("value" -> o.getLiteralLexicalForm(),
+                      "datatype" -> o.getLiteralDatatype().getURI())
+                } else {
+                  Map[String, String]("value" -> o.getLiteralLexicalForm())
+                }
+              } else if(o.isBlank()) {
+                Map[String, String]("bnode" -> o.getBlankNodeId().toString())
+              } else {
+                Map[String,String]()
+              }
+            case None =>
+              Map[String,String]()
           }
-          l2.add(target)
-        } else {
-          l2.add(new java.util.HashMap[String, String]())
-        }
-      }
-      results.add(r2)
+        }).toList)
     }
-    Seq[(String, Any)]("variables" -> variables, "results" -> results)
+    (variables, results.toList)
   }
 
   def toXML = <sparql xmlns="http://www.w3.org/2005/sparql-results#">
@@ -174,7 +172,9 @@ case class TableResult(result : ResultSet, DISPLAYER : Displayer) extends SPARQL
 
 }
 
-case class BooleanResult(result : Boolean) extends SPARQLResult
+case class BooleanResult(result : Boolean) extends SPARQLResult {
+  override def boolean = true
+}
 case class ModelResult(result : Model) extends SPARQLResult
 case class ErrorResult(message : String, cause : Throwable = null) extends SPARQLResult
 

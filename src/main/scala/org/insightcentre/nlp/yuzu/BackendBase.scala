@@ -47,10 +47,12 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
       }, Some(context(id)))
       t
     }
+    def backlinks(implicit searcher : Searcher) : Seq[(String, String)]
   }
   protected trait Loader {
     def addContext(id : String, json : String) : Unit
     def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) : Unit
+    def addBackLink(id : String, prop : String, fromId : String) : Unit
   }
   protected trait DocumentLoader {
     def addLabel(label : String) : Unit
@@ -261,6 +263,15 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
     }).toSeq
   }
 
+  def backlinks(id : String) = search { implicit searcher => 
+    searcher.find(id) match {
+      case Some(d) => d.backlinks.map({
+        case (link, id2) => (link, BASE_NAME + "/" + NAME + "/" + id2)
+      })
+      case None => Nil
+    }
+  }
+
   def load(zipFile : File) {
     val zf = new ZipFile(zipFile)
 
@@ -319,6 +330,12 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
                 def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
                   val isFacet = FACETS.exists(_.uri == prop.value)
                   obj match {
+                    case r@URI(u) =>
+                      if(u.startsWith(BASE_NAME + "/" + NAME + "/")) {
+                        loader.addBackLink(u.drop(BASE_NAME.size + NAME.size + 2),
+                          prop.value, id)
+                      }
+                      document.addProp(prop.value, r, isFacet)
                     case r : Resource =>
                       document.addProp(prop.value, r, isFacet)
                     case l@LangLiteral(lv, lang) =>

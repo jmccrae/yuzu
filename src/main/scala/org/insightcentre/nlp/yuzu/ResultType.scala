@@ -50,7 +50,7 @@ object ContentNegotiation {
       case _ =>
         request.getHeader("Accept") match {
           case null =>
-            html
+            if(useSparql) { sparqljson } else { html }
           case acceptString =>
             val acceptSplit = acceptString.split("\\s*,\\s*") 
             val acceptWeighted = acceptSplit.zipWithIndex.map({ 

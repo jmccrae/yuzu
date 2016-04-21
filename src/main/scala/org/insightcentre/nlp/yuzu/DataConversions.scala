@@ -45,7 +45,8 @@ object DataConversions {
     output.toString
   }
 
-  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL) : Seq[(String, Any)] = {
+  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL,
+      backlinks : Seq[(String, String)] = Nil) : Seq[(String, Any)] = {
     val converter = new JsonLDConverter(Some(base))
     val clazz = converter.toTriples(data, context) find ({ 
       case (URI(subjUri), RDF_TYPE, obj : URI) => 
@@ -58,7 +59,7 @@ object DataConversions {
       case None =>
         None
     }
-    val rdfBody = defaultToHtml(data, context, "", base)
+    val rdfBody = defaultToHtml(data, context, "", base, backlinks)
     Seq(
       "title" -> display(base.toString),
       "uri" -> base.toString,
@@ -125,7 +126,7 @@ object DataConversions {
   }
 
   def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String,
-      base : URL) : String = {
+      base : URL, backlinks : Seq[(String, String)]) : String = {
     val converter = new JsonLDConverter(Some(base))
     val visitor = new JsonLDVisitor {
       val builder = new StringBuilder()
@@ -160,8 +161,17 @@ object DataConversions {
       
     }
     converter.processJsonLD(data, visitor, context)
-    visitor.builder.toString
-
+    if(backlinks.isEmpty) {
+      visitor.builder.toString
+    } else {
+      visitor.builder.toString + s"""
+      <table class="rdf_table">${
+        backlinks.map({
+          case (uri, link) => s"""<tr><td class="rdf_prop">Is <a href="${uri}" class="rdf_link">${display(uri)}</a> of</td>
+                                      <td><a href="$link" class="rdf_link">${display(link)}</a></td></tr>"""
+        }).mkString("")
+      }</table>"""
+    }
   }
 //    data match {
 //      case JsObject(values) =>
