@@ -3,8 +3,7 @@ package org.insightcentre.nlp.yuzu
 import java.net.URL
 import java.io.File
 import com.hp.hpl.jena.rdf.model.ModelFactory
-import com.hp.hpl.jena.query.QueryExecutionFactory
-import com.hp.hpl.jena.query.Query
+import com.hp.hpl.jena.query.{QueryExecutionFactory, Query, QueryException}
 import com.hp.hpl.jena.sparql.core.Var
 import com.hp.hpl.jena.sparql.engine.binding.Binding
 import org.insightcentre.nlp.yuzu.jsonld._
@@ -49,6 +48,15 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
       t
     }
   }
+  protected trait Loader {
+    def addContext(id : String, json : String) : Unit
+    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) : Unit
+  }
+  protected trait DocumentLoader {
+    def addLabel(label : String) : Unit
+    def addProp(prop : String, obj : RDFNode, isFacet : Boolean) : Unit
+  }
+  protected def load(foo : Loader => Unit) : Unit
 
   protected def search[A](foo : Searcher => A) : A
 
@@ -155,27 +163,32 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
   }
 
   def query(query : String, defaultGraphURI : Option[String]) = search { implicit searcher =>
-    val q = QueryPreprocessor.parseQuery(query, defaultGraphURI.getOrElse(null))
-    val preprocessing = QueryPreprocessor.processQuery(q)
-    val documents = buildFromPreprocessing(preprocessing)
-    documents match {
-      case Some(docs) =>
-        implicit val model = ModelFactory.createDefaultModel()
-        for(doc <- docs) {
-          for((s, p, o) <- doc.triples) {
-            s.toJena.addProperty(p.toJenaProp, o.toJena)
+    try {
+      val q = QueryPreprocessor.parseQuery(query, defaultGraphURI.getOrElse(null))
+      val preprocessing = QueryPreprocessor.processQuery(q)
+      val documents = buildFromPreprocessing(preprocessing)
+      documents match {
+        case Some(docs) =>
+          implicit val model = ModelFactory.createDefaultModel()
+          for(doc <- docs) {
+            for((s, p, o) <- doc.triples) {
+              s.toJena.addProperty(p.toJenaProp, o.toJena)
+            }
           }
-        }
-        val qe = QueryExecutionFactory.create(q, model)
-        q.getQueryType() match {
-          case Query.QueryTypeAsk => BooleanResult(qe.execAsk())
-          case Query.QueryTypeConstruct => ModelResult(qe.execConstruct())
-          case Query.QueryTypeDescribe => ModelResult(qe.execDescribe())
-          case Query.QueryTypeSelect => TableResult(mapResultSet(qe.execSelect()), displayer)
-          case _ => ErrorResult("Unknown query type")
-        }
-      case None =>
-        ErrorResult("Query is too complex")
+          val qe = QueryExecutionFactory.create(q, model)
+          q.getQueryType() match {
+            case Query.QueryTypeAsk => BooleanResult(qe.execAsk())
+            case Query.QueryTypeConstruct => ModelResult(qe.execConstruct())
+            case Query.QueryTypeDescribe => ModelResult(qe.execDescribe())
+            case Query.QueryTypeSelect => TableResult(mapResultSet(qe.execSelect()), displayer)
+            case _ => ErrorResult("Unknown query type")
+          }
+        case None =>
+          ErrorResult("Query is too complex")
+      }
+    } catch {
+      case x : QueryException =>
+        ErrorResult(x.getMessage())
     }
   }
 
@@ -247,16 +260,6 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
         SearchResult(doc.label.getOrElse(displayer.magicString(doc.id)), doc.id)
     }).toSeq
   }
-
-  protected trait Loader {
-    def addContext(id : String, json : String) : Unit
-    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) : Unit
-  }
-  protected trait DocumentLoader {
-    def addLabel(label : String) : Unit
-    def addProp(prop : String, obj : RDFNode, isFacet : Boolean) : Unit
-  }
-  protected def load(foo : Loader => Unit) : Unit
 
   def load(zipFile : File) {
     val zf = new ZipFile(zipFile)

@@ -178,7 +178,12 @@ case class BooleanResult(result : Boolean) extends SPARQLResult
 case class ModelResult(result : Model) extends SPARQLResult
 case class ErrorResult(message : String, cause : Throwable = null) extends SPARQLResult
 
-class ResultSet(val resultVars : Seq[String], val results : Seq[Map[String, Node]]) 
+class ResultSet(val resultVars : Seq[String], val results : Seq[Map[String, Node]])  {
+  override def equals(o : Any) = o match {
+    case r : ResultSet => resultVars == r.resultVars && results == r.results
+    case _ => false
+  }
+}
 
 object ResultSet {
   def apply(resultVars : Seq[String], results : Seq[Map[String, Node]]) =

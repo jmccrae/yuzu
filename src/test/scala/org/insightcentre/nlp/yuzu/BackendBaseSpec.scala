@@ -194,22 +194,22 @@ class LuceneBackendSpec extends Specification {
   }
 
   def listValues = {
-    backend.listValues(0, 0, "http://www.w3.org/2000/01/rdf-schema#label") must_== Seq(
+    backend.listValues(0, 3, "http://www.w3.org/2000/01/rdf-schema#label") must_== (false, Seq(
       SearchResultWithCount("Example with English text", "", 1),
-      SearchResultWithCount("Another example", "", 1))
+      SearchResultWithCount("Another example", "", 1)))
   }
 
   def search = {
     backend.search("text", None, 0, 1) must_== Seq(
-      SearchResult("Example", "example"))
+      SearchResult("Example with English text", "example"))
   }
 
   def query = {
     val n = com.hp.hpl.jena.graph.NodeFactory.createURI(TestSettings.BASE_NAME + "/" + TestSettings.NAME + "/example")
     backend.query("""SELECT ?s WHERE {
       ?s rdfs:label "Example with English text"@en ;
-         <http://www.w3.org/2000/01/rdf-schema#seeAlso> ?o . }""") must_== TableResult(
-         Seq("s"), Seq(Map("s" -> n)))
+         <http://www.w3.org/2000/01/rdf-schema#seeAlso> ?o . }""", None) must_== TableResult(
+         ResultSet(Seq("s"), Seq(Map("s" -> n))), backend.displayer)
   }
 
 

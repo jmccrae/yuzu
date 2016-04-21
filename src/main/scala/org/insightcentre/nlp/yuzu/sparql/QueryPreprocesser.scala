@@ -1,7 +1,7 @@
 package org.insightcentre.nlp.yuzu.sparql
 
 import com.hp.hpl.jena.graph.{Node, NodeFactory, Triple}
-import com.hp.hpl.jena.query.{Query, QueryFactory}
+import com.hp.hpl.jena.query.{Query, QueryFactory, QueryParseException}
 import com.hp.hpl.jena.sparql.core._
 import com.hp.hpl.jena.sparql.expr._
 import com.hp.hpl.jena.sparql.expr.nodevalue._
@@ -45,7 +45,29 @@ object NullFilter extends Filter {
 
 object QueryPreprocessor {
 
-  def parseQuery(query : String, baseURI : String) : Query = QueryFactory.create(query, baseURI)
+  def parseQuery(query : String, baseURI : String) : Query = recParseQuery(query, baseURI, null)
+  
+  private val prefixError = "Line \\d+, column \\d+: Unresolved prefixed name: (.*):.*".r
+  private def recParseQuery(query : String, baseURI : String, rec : String) : Query = 
+    try {
+      QueryFactory.create(query, baseURI)
+    } catch {
+      case x : QueryParseException if x.getMessage().matches(prefixError.toString) =>
+        val prefixError(prefix) = x.getMessage()
+        if(prefix != rec) {
+          try {
+            val full = io.Source.fromURL("http://prefix.cc/%s.file.txt" 
+              format prefix).getLines().next.split("\t")(1)
+            recParseQuery("PREFIX %s: <%s>\n%s" format(prefix, full, query), baseURI, rec)
+          } catch {
+            case x2 : java.io.IOException => 
+              System.err.println("Could not read from prefix.cc: " + x.getMessage())
+              throw x
+          }
+        } else {
+          throw x
+        }
+    }
 
   def processQuery(query : String, baseURI : String) : Filter = processQuery(parseQuery(query, baseURI))
 
