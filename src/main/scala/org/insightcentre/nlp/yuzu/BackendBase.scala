@@ -164,33 +164,46 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
       }).toSeq)
   }
 
-  def query(query : String, defaultGraphURI : Option[String]) = search { implicit searcher =>
-    try {
+  def query(query : String, defaultGraphURI : Option[String]) = SPARQL_ENDPOINT match {
+    case Some(endpoint) =>
       val q = QueryPreprocessor.parseQuery(query, defaultGraphURI.getOrElse(null))
-      val preprocessing = QueryPreprocessor.processQuery(q)
-      val documents = buildFromPreprocessing(preprocessing)
-      documents match {
-        case Some(docs) =>
-          implicit val model = ModelFactory.createDefaultModel()
-          for(doc <- docs) {
-            for((s, p, o) <- doc.triples) {
-              s.toJena.addProperty(p.toJenaProp, o.toJena)
-            }
-          }
-          val qe = QueryExecutionFactory.create(q, model)
-          q.getQueryType() match {
-            case Query.QueryTypeAsk => BooleanResult(qe.execAsk())
-            case Query.QueryTypeConstruct => ModelResult(qe.execConstruct())
-            case Query.QueryTypeDescribe => ModelResult(qe.execDescribe())
-            case Query.QueryTypeSelect => TableResult(mapResultSet(qe.execSelect()), displayer)
-            case _ => ErrorResult("Unknown query type")
-          }
-        case None =>
-          ErrorResult("Query is too complex")
+      val qe = QueryExecutionFactory.sparqlService(endpoint, q) 
+      q.getQueryType() match {
+        case Query.QueryTypeAsk => BooleanResult(qe.execAsk())
+        case Query.QueryTypeConstruct => ModelResult(qe.execConstruct())
+        case Query.QueryTypeDescribe => ModelResult(qe.execDescribe())
+        case Query.QueryTypeSelect => TableResult(mapResultSet(qe.execSelect()), displayer)
+        case _ => ErrorResult("Unknown query type")
       }
-    } catch {
-      case x : QueryException =>
-        ErrorResult(x.getMessage())
+    case None =>
+      search { implicit searcher =>
+      try {
+        val q = QueryPreprocessor.parseQuery(query, defaultGraphURI.getOrElse(null))
+        val preprocessing = QueryPreprocessor.processQuery(q)
+        val documents = buildFromPreprocessing(preprocessing)
+        documents match {
+          case Some(docs) =>
+            implicit val model = ModelFactory.createDefaultModel()
+            for(doc <- docs) {
+              for((s, p, o) <- doc.triples) {
+                s.toJena.addProperty(p.toJenaProp, o.toJena)
+              }
+            }
+            val qe = QueryExecutionFactory.create(q, model)
+            q.getQueryType() match {
+              case Query.QueryTypeAsk => BooleanResult(qe.execAsk())
+              case Query.QueryTypeConstruct => ModelResult(qe.execConstruct())
+              case Query.QueryTypeDescribe => ModelResult(qe.execDescribe())
+              case Query.QueryTypeSelect => TableResult(mapResultSet(qe.execSelect()), displayer)
+              case _ => ErrorResult("Unknown query type")
+            }
+          case None =>
+            ErrorResult("Query is too complex")
+        }
+      } catch {
+        case x : QueryException =>
+          ErrorResult(x.getMessage())
+      }
     }
   }
 
