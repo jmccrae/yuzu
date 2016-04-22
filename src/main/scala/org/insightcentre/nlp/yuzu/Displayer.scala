@@ -2,7 +2,7 @@ package org.insightcentre.nlp.yuzu
 
 import com.hp.hpl.jena.vocabulary._
 
-class Displayer(labelLookup : String => Option[String], settings : YuzuSettings,
+class Displayer(labelLookup : String => Option[String], 
   siteSettings : YuzuSiteSettings) {
   import YuzuConstants._
   def magicString(text : String) = {
@@ -17,8 +17,8 @@ class Displayer(labelLookup : String => Option[String], settings : YuzuSettings,
     } else if(siteSettings.PREFIXES.exists(x => uri.startsWith(x.uri))) {
       val prefix_uri = siteSettings.PREFIXES.find(x => uri.startsWith(x.uri)).get.prefix
       magicString(uri.drop(prefix_uri.size))
-    } else if(uri.startsWith(settings.BASE_NAME)) {
-      val page = uri.drop(settings.BASE_NAME.size)
+    } else if(siteSettings.uri2Id(uri) != None) {
+      val page = siteSettings.uri2Id(uri).get
       labelLookup(page) match {
         case Some(null) => magicString(page)
         case Some(x) => x

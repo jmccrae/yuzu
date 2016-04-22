@@ -2,6 +2,7 @@ package org.insightcentre.nlp.yuzu.jsonld
 
 import spray.json._
 import java.net.URL
+import org.insightcentre.nlp.yuzu.rdf._
 
 class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
   val base : Option[URL], val vocab : Option[String],

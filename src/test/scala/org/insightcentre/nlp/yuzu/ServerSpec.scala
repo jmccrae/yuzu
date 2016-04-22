@@ -3,6 +3,7 @@ import org.mockito.Mockito._
 import org.scalatra.test.specs2._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import org.insightcentre.nlp.yuzu.rdf._
 import org.insightcentre.nlp.yuzu.jsonld._
 import com.hp.hpl.jena.graph.NodeFactory
 
@@ -60,7 +61,7 @@ class ServerSpec extends ScalatraSpec {
    when(backend.lookup("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(data(2)))
 
    when(backend.query("""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT * WHERE {  ?s rdfs:label "Beispiel"@de} LIMIT 100""", None)).thenReturn(TableResult(
-  ResultSet(Seq("s"), Seq(Map("s" -> NodeFactory.createURI(TestSettings.BASE_NAME + "/data/example2")))), new Displayer(s => None, TestSettings, TestSettings)))
+  ResultSet(Seq("s"), Seq(Map("s" -> NodeFactory.createURI(TestSettings.BASE_NAME + "/data/example2")))), new Displayer(s => None, TestSettings)))
    when(backend.backlinks("data/example2")).thenReturn(Seq((
      "http://localhost:8080/ontology#link", "http://localhost:8080/data/example")))
    when(backend.backlinks("data/example")).thenReturn(Nil)

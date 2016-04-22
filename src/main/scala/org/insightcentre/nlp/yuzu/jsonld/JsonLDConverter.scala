@@ -1,9 +1,10 @@
 package org.insightcentre.nlp.yuzu.jsonld
 
 import com.hp.hpl.jena.rdf.model.Model
-import spray.json._
-import DefaultJsonProtocol._
 import java.net.URL
+import org.insightcentre.nlp.yuzu.rdf._
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 trait JsonLDVisitor {
   def startNode(resource : Resource) : Unit
@@ -22,7 +23,7 @@ trait BaseJsonLDVisitor extends JsonLDVisitor {
 
 
 class JsonLDTriplesBuilder extends BaseJsonLDVisitor {
-  var triples = collection.mutable.Seq[RDFUtil.Triple]()
+  var triples = collection.mutable.Seq[Triple]()
   def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
     triples :+= ((subj, prop, obj))
   }
@@ -30,7 +31,6 @@ class JsonLDTriplesBuilder extends BaseJsonLDVisitor {
 
 class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false) {
   import JsonLDConverter._
-  import RDFUtil._
 
   def toTriples(data : JsValue, context : Option[JsonLDContext] = None) : Iterable[Triple] = {
     val builder = new JsonLDTriplesBuilder()

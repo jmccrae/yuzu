@@ -7,7 +7,7 @@ import DefaultJsonProtocol._
 import scala.util.Try
 
 class JsonLDConverterSpec extends ScalatraSpec {
-  import org.insightcentre.nlp.yuzu.jsonld.RDFUtil._
+  import org.insightcentre.nlp.yuzu.rdf._
 
   def is = s2"""
   JsonLDConvert 

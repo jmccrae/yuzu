@@ -37,7 +37,7 @@ abstract class YuzuServlet extends YuzuServletActions {
 
   get("^/(index(\\.html?)?)?$".r) {
     catchErrors {
-      val isTest = request.getRequestURL().toString() != settings.BASE_NAME
+      val isTest = siteSettings.uri2Id(request.getRequestURL().toString()) == None
 
       contentType = "text/html"
       mustache("/index", 

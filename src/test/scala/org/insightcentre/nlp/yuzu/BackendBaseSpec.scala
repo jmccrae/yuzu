@@ -6,11 +6,11 @@ import scala.collection.JavaConversions._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.specs2.mutable.Specification
+import org.insightcentre.nlp.yuzu.rdf._
 import org.insightcentre.nlp.yuzu.jsonld._
 
-class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings) 
-    extends BackendBase(settings, siteSettings) {
-  import settings._
+class TestBackendBase(siteSettings : YuzuSiteSettings) 
+    extends BackendBase(siteSettings) {
   import siteSettings._
 
   class TestSearcher extends BackendSearcher {
@@ -21,14 +21,14 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
     }
     def findContext(id : String) = Some(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString)
     def list(offset : Int, limit : Int) = Seq(ExampleDocument,ExampleDocument2)
-    def list(offset : Int, limit : Int, property : String) = property match {
-      case "http://www.w3.org/2000/01/rdf-schema#seeAlso" =>
+    def listByProp(offset : Int, limit : Int, property : URI) = property match {
+      case URI("http://www.w3.org/2000/01/rdf-schema#seeAlso") =>
         Seq(ExampleDocument)
       case _ =>
         Nil
     }
-    def list(offset : Int, limit : Int, property : String, obj : RDFNode) = property match {
-      case "http://www.w3.org/2000/01/rdf-schema#label" =>
+    def listByPropObj(offset : Int, limit : Int, property : URI, obj : RDFNode) = property match {
+      case URI("http://www.w3.org/2000/01/rdf-schema#label") =>
         obj match {
           case LangLiteral("Example with English text", "en") =>
             Seq(ExampleDocument)
@@ -38,19 +38,19 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
         }
       case _ => Nil
     }
-    def list(offset : Int, limit : Int, obj : RDFNode) = obj match {
+    def listByObj(offset : Int, limit : Int, obj : RDFNode) = obj match {
       case LangLiteral("Example with English text", "en") =>
         Seq(ExampleDocument)
       case LangLiteral("Another example", "en") =>
         Seq(ExampleDocument2)
       case _ => Nil
     }
-    def listVals(offset : Int, limit : Int, property : String) = property match {
-      case "http://www.w3.org/2000/01/rdf-schema#label" =>
+    def listVals(offset : Int, limit : Int, property : URI) = property match {
+      case URI("http://www.w3.org/2000/01/rdf-schema#label") =>
         Seq((1, LangLiteral("Example with English text", "en")), (1, LangLiteral("Another example", "en")))
       case _ => Nil
     }
-    def freeText(query : String, property : Option[String], offset : Int,
+    def freeText(query : String, property : Option[URI], offset : Int,
       limit : Int) = query match {
         case "text" => Seq(ExampleDocument)
         case "another" => Seq(ExampleDocument2)
@@ -75,7 +75,7 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
 }"""
     def label(implicit searcher : Searcher) = Some("Example with English text")
     def facets(implicit searcher : Searcher) = Seq(
-      ("http://www.w3.org/2000/01/rdf-schema#label", LangLiteral("Example with English text", "en"))
+      (URI("http://www.w3.org/2000/01/rdf-schema#label"), LangLiteral("Example with English text", "en"))
     )
     def backlinks(implicit searcher : Searcher) = Nil
   }
@@ -96,7 +96,7 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
 }"""
     def label(implicit searcher : Searcher) = Some("Another example")
     def facets(implicit searcher : Searcher) = Seq(
-      ("http://www.w3.org/2000/01/rdf-schema#label", LangLiteral("Another example", "en"))
+      (URI("http://www.w3.org/2000/01/rdf-schema#label"), LangLiteral("Another example", "en"))
     )
     def backlinks(implicit searcher : Searcher) = Nil
   }
@@ -122,7 +122,7 @@ class TestBackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings)
       foo(dl)
       documents put (id, (content, dl))
     }
-    def addBackLink(id : String, prop : String, fromId : String) { }
+    def addBackLink(id : String, prop : URI, fromId : String) { }
   }
   var theTestLoader = new TestLoader
   def load(foo : Loader => Unit) = foo(theTestLoader)
@@ -145,7 +145,7 @@ class LuceneBackendSpec extends Specification {
     should query                            $query
   """
 
-  val backend = new TestBackendBase(TestSettings, TestSettings)
+  val backend = new TestBackendBase(TestSettings)
 
   def load = {
     backend.load(new File("src/test/resources/example.zip"))
@@ -208,7 +208,7 @@ class LuceneBackendSpec extends Specification {
   }
 
   def query = {
-    val n = com.hp.hpl.jena.graph.NodeFactory.createURI(TestSettings.BASE_NAME + "/" + TestSettings.NAME + "/example")
+    val n = com.hp.hpl.jena.graph.NodeFactory.createURI(TestSettings.id2URI("example"))
     backend.query("""SELECT ?s WHERE {
       ?s rdfs:label "Example with English text"@en ;
          <http://www.w3.org/2000/01/rdf-schema#seeAlso> ?o . }""", None) must_== TableResult(

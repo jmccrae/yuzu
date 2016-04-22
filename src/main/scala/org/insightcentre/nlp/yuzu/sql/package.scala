@@ -5,8 +5,8 @@ import java.sql.{Connection, PreparedStatement, ResultSet => SQLResultSet}
 import scala.reflect.ClassTag
 
 /**
- * Utility package to make SQL easier to work with from Scala. Note slick or
- * scalaquery has some similar functionality, but this implementation has low
+ * Utility package to make SQL easier to work with from Scala. Note Slick or
+ * ScalaQuery has some similar functionality, but this implementation has low
  * dependencies.
  *
  * Usage:

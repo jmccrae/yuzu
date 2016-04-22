@@ -6,6 +6,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory
 import com.hp.hpl.jena.query.{QueryExecutionFactory, Query, QueryException}
 import com.hp.hpl.jena.sparql.core.Var
 import com.hp.hpl.jena.sparql.engine.binding.Binding
+import org.insightcentre.nlp.yuzu.rdf._
 import org.insightcentre.nlp.yuzu.jsonld._
 import org.insightcentre.nlp.yuzu.sparql._
 import spray.json._
@@ -13,20 +14,19 @@ import spray.json.DefaultJsonProtocol._
 import java.util.zip.{ZipFile, ZipException}
 import scala.collection.JavaConversions._
 
-abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSettings) extends Backend {
-  import settings._
+abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   import siteSettings._
-  val displayer = new Displayer(label, settings, siteSettings)
+  val displayer = new Displayer(label, siteSettings)
 
   trait BackendSearcher {
     def find(id : String) : Option[Document]
     def findContext(id : String) : Option[String]
     def list(offset : Int, limit : Int) : Iterable[Document]
-    def list(offset : Int, limit : Int, property : String) : Iterable[Document]
-    def list(offset : Int, limit : Int, property : String, obj : RDFNode) : Iterable[Document]
-    def list(offset : Int, limit : Int, obj : RDFNode) : Iterable[Document]
-    def listVals(offset : Int, limit : Int, property : String) : Iterable[(Int, RDFNode)]
-    def freeText(query : String, property : Option[String], offset : Int,
+    def listByProp(offset : Int, limit : Int, property : URI) : Iterable[Document]
+    def listByPropObj(offset : Int, limit : Int, property : URI, obj : RDFNode) : Iterable[Document]
+    def listByObj(offset : Int, limit : Int, obj : RDFNode) : Iterable[Document]
+    def listVals(offset : Int, limit : Int, property : URI) : Iterable[(Int, RDFNode)]
+    def freeText(query : String, property : Option[URI], offset : Int,
       limit : Int) : Iterable[Document]
   }
 
@@ -36,10 +36,10 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
     def id : String
     def content(implicit searcher : Searcher) : String
     def label(implicit searcher : Searcher) : Option[String]
-    def facets(implicit searcher : Searcher) : Iterable[(String, RDFNode)]
+    def facets(implicit searcher : Searcher) : Iterable[(URI, RDFNode)]
     def triples(implicit searcher : Searcher) = {
       val t = collection.mutable.ListBuffer[(Resource, URI, RDFNode)]()
-      val jsonLDConverter = new JsonLDConverter(Some(new URL(BASE_NAME + "/" + NAME + "/" + id)))
+      val jsonLDConverter = new JsonLDConverter(Some(new URL(id2URI(id))))
       jsonLDConverter.processJsonLD(content.parseJson, new BaseJsonLDVisitor {
         def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
           t.add((subj, prop, obj))
@@ -47,12 +47,12 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
       }, Some(context(id)))
       t
     }
-    def backlinks(implicit searcher : Searcher) : Seq[(String, String)]
+    def backlinks(implicit searcher : Searcher) : Seq[(URI, String)]
   }
   protected trait Loader {
     def addContext(id : String, json : String) : Unit
     def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) : Unit
-    def addBackLink(id : String, prop : String, fromId : String) : Unit
+    def addBackLink(id : String, prop : URI, fromId : String) : Unit
   }
   protected trait DocumentLoader {
     def addLabel(label : String) : Unit
@@ -102,24 +102,24 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
 
   private def buildFromPreprocessing(filter : Filter)(implicit searcher : Searcher) : Option[Iterable[Document]] = filter match {
     case SimpleFilter(triple) => triple.getSubject() match {
-      case n if n != null && n.isURI() && n.getURI().startsWith(BASE_NAME + "/" + NAME) =>
-        val id = n.getURI().drop(BASE_NAME.length + NAME.length + 2)
+      case n if n != null && n.isURI() && uri2Id(n.getURI()) != None =>
+        val id = uri2Id(n.getURI()).get
         Some(searcher.find(id).toSeq)
       case _ =>
         triple.getPredicate() match {
           case n if n != null && n.isURI() =>
             triple.getObject() match {
               case n2 if n2 == null || n2.isInstanceOf[Var] =>
-                failIfOverLimit(searcher.list(0, YUZUQL_LIMIT + 1, n.getURI()))
+                failIfOverLimit(searcher.listByProp(0, YUZUQL_LIMIT + 1, URI(n.getURI())))
               case n2 =>
-                failIfOverLimit(searcher.list(0, YUZUQL_LIMIT + 1, n.getURI(), RDFNode(n2)))
+                failIfOverLimit(searcher.listByPropObj(0, YUZUQL_LIMIT + 1, URI(n.getURI()), RDFNode(n2)))
             }
           case _ =>
             triple.getObject() match {
               case n2 if n2 == null || n2.isInstanceOf[Var] =>
                 None
               case n2 =>
-                failIfOverLimit(searcher.list(0, YUZUQL_LIMIT + 1, RDFNode(n2)))
+                failIfOverLimit(searcher.listByObj(0, YUZUQL_LIMIT + 1, RDFNode(n2)))
           }
         }
     }
@@ -213,7 +213,7 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
         doc.facets.map({
           case (prop, value) =>
             FactValue(
-              RDFValue(displayer.uriToStr(prop), prop),
+              RDFValue(displayer.uriToStr(prop.value), prop.value),
               value match {
                 case URI(u) =>
                     RDFValue(displayer.uriToStr(u), u)
@@ -238,9 +238,9 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
       case Some(p) =>
         obj match {
           case Some(o) =>
-            searcher.list(offset, limit + 1, p, o)
+            searcher.listByPropObj(offset, limit + 1, URI(p), o)
           case None =>
-            searcher.list(offset, limit + 1, p)
+            searcher.listByProp(offset, limit + 1, URI(p))
         }
       case None =>
         searcher.list(offset, limit + 1)
@@ -256,7 +256,7 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
   }
 
   def listValues(offset : Int, limit : Int, prop : String) = search { implicit searcher =>
-    val vals = searcher.listVals(offset, limit + 1, prop)
+    val vals = searcher.listVals(offset, limit + 1, URI(prop))
       
     (vals.size > limit, vals.take(limit).map({
       case (count, URI(u)) =>
@@ -270,7 +270,7 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
 
   def search(query : String, property : Option[String], offset : Int, 
       limit : Int) = search { implicit searcher =>
-    searcher.freeText(query, property, offset, limit).map({
+    searcher.freeText(query, property.map(URI(_)), offset, limit).map({
       doc =>
         SearchResult(doc.label.getOrElse(displayer.magicString(doc.id)), doc.id)
     }).toSeq
@@ -279,7 +279,7 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
   def backlinks(id : String) = search { implicit searcher => 
     searcher.find(id) match {
       case Some(d) => d.backlinks.map({
-        case (link, id2) => (link, BASE_NAME + "/" + NAME + "/" + id2)
+        case (link, id2) => (link.value, id2URI(id2))
       })
       case None => Nil
     }
@@ -338,15 +338,16 @@ abstract class BackendBase(settings : YuzuSettings, siteSettings : YuzuSiteSetti
             val jsonData = io.Source.fromInputStream(zf.getInputStream(entry)).mkString("")
             loader.insertDoc(id, jsonData, document => {
 
-              val jsonLDConverter = new JsonLDConverter(Some(new URL(BASE_NAME + "/" + NAME + "/" + id)))
+              val jsonLDConverter = new JsonLDConverter(Some(new URL(id2URI(id))))
               jsonLDConverter.processJsonLD(jsonData.parseJson, new BaseJsonLDVisitor {
                 def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
                   val isFacet = FACETS.exists(_.uri == prop.value)
                   obj match {
                     case r@URI(u) =>
-                      if(u.startsWith(BASE_NAME + "/" + NAME + "/")) {
-                        loader.addBackLink(u.drop(BASE_NAME.size + NAME.size + 2),
-                          prop.value, id)
+                      uri2Id(u) match {
+                        case Some(u2) =>
+                          loader.addBackLink(u2, prop, id)
+                        case None =>
                       }
                       document.addProp(prop.value, r, isFacet)
                     case r : Resource =>

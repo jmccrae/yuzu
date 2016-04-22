@@ -2,7 +2,7 @@ package org.insightcentre.nlp.yuzu
 
 import spray.json._
 import org.insightcentre.nlp.yuzu.jsonld._
-import org.insightcentre.nlp.yuzu.jsonld.RDFUtil.RDF_TYPE
+import org.insightcentre.nlp.yuzu.rdf._
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import java.net.URL
 import java.io.StringWriter
@@ -11,7 +11,7 @@ import com.hp.hpl.jena.rdf.model.Model
 object DataConversions {
 
   private def toRDF(data : JsValue, context : Option[JsonLDContext], base : URL) = {
-    RDFUtil.toJena(JsonLDConverter(base).toTriples(data, context))
+    toJena(JsonLDConverter(base).toTriples(data, context))
   }
 
   def toJson(data : JsValue, context : Option[JsonLDContext], base : URL) : String = {

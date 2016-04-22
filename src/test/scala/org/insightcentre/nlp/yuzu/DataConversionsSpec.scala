@@ -36,6 +36,7 @@ class DataConversionsSpec extends ScalatraSpec {
   def rdf = {
     val result = DataConversions.toRDFXML(testData, testContext, base, model => {})
     val model = ModelFactory.createDefaultModel()
+    println(result)
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.RDFXML)
     (Seq() ++ model.listStatements) should have size 1
   }

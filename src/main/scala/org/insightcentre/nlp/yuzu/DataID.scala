@@ -49,7 +49,7 @@ object DataID {
     import YuzuConstants._
     import settings._
     import siteSettings._
-    val serverUrl = BASE_NAME + (if(NAME == "") { "" } else { "/" + NAME })
+    val serverUrl = id2URI("").dropRight(1)
     val model = collection.mutable.Map[String, JsValue](
 //      "@context" -> JsString(BASE_NAME + "assets/dataid.json"),
       "@context" -> dataIdJson,

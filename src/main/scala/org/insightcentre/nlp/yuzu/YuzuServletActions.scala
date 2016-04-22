@@ -1,6 +1,7 @@
 package org.insightcentre.nlp.yuzu
 
-import org.insightcentre.nlp.yuzu.jsonld.{RDFNode, JsonLDContext}
+import org.insightcentre.nlp.yuzu.rdf.RDFNode
+import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import com.hp.hpl.jena.query.ResultSetFormatter
 import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.vocabulary._

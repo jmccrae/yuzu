@@ -17,7 +17,7 @@ object YuzuConstants {
 trait YuzuSettings {
   // The root directory of the server
   // BASE_NAME should not end in a /
-  def BASE_NAME : String
+  protected def BASE_NAME : String
   // The maximum number of query results to return
   def YUZUQL_LIMIT = 1000
   // The URL of the Elastic Search instance
@@ -27,11 +27,28 @@ trait YuzuSettings {
 case class Facet(val uri : String, val label : String, val list : Boolean)
 case class PropAbbrev(val uri : String, val prefix : String)
 
-trait YuzuSiteSettings {
+trait YuzuSiteSettings extends YuzuSettings {
   // The identifier for the server
   // The data will be available at BASE_NAME/NAME/file_name
   // Or "" if the resources are at BASE_NAME/file_name
   def NAME : String
+  def id2URI(id : String) = {
+    BASE_NAME + (if(NAME == "") { "/" } else { "/" + NAME + "/" }) + id
+  }
+  def uri2Id(uri : String) = {
+    if(uri.startsWith(BASE_NAME)) {
+      val uri2 = uri.drop(BASE_NAME.length)
+      if(NAME == "") {
+        Some(uri2)
+      } else if(uri2.startsWith("/" + NAME + "/")) {
+        Some(uri2.drop(NAME.length + 2))
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
   // The (readable) name of the server
   def DISPLAY_NAME : String
   // The data file
@@ -167,6 +184,25 @@ object YuzuSiteSettings {
         })
       case Some(_) =>throw new MetadataException("%s must be an array of strings" format fieldName)
       case None => Nil
+    }
+    override val BASE_NAME = {
+      val bn = str("baseName").getOrElse("http://localhost:8080")
+      if(bn.endsWith("/")) {
+        bn.dropRight(1)
+      } else {
+        bn
+      }
+    }
+    override val DATABASE_URL = new URL(str("databaseURL").getOrElse("file:tmp/"))
+    override val YUZUQL_LIMIT = obj.fields.get("yuzuQLLimit") match {
+      case Some(JsNumber(n)) => n.toInt
+      case Some(JsString(s)) => try { 
+        s.toInt
+      } catch { 
+        case x : Exception => throw new MetadataException("Bad number", x)
+      }
+      case None => super.YUZUQL_LIMIT
+      case _ => throw new MetadataException("limit should be a number")
     }
 
     val NAME = str("id").getOrElse(throw new MetadataException("Metadata requires a field \"id\""))

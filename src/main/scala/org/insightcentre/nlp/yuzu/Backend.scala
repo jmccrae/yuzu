@@ -1,13 +1,14 @@
 package org.insightcentre.nlp.yuzu
 
 import com.hp.hpl.jena.graph.Node
-import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.query.{ResultSet => RDFResultSet}
+import com.hp.hpl.jena.rdf.model.Model
 import java.io.{File, FileInputStream}
 import java.util.zip.GZIPInputStream
+import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
+import org.insightcentre.nlp.yuzu.rdf.RDFNode
 import scala.collection.JavaConversions._
 import spray.json.JsValue
-import org.insightcentre.nlp.yuzu.jsonld.{JsonLDContext, RDFNode}
 
 case class SearchResult(label : String, id : String)
 case class SearchResultWithCount(label : String, id : String, count : Int)
@@ -169,7 +170,6 @@ case class TableResult(result : ResultSet, DISPLAYER : Displayer) extends SPARQL
         else /*if(node.isLiteral())*/ {
           binding format (varName, "literal", node.getLiteralLexicalForm(), "") } }).
       mkString(",\n") } ).mkString("\n      }, {\n") + "\n      }")
-
 }
 
 case class BooleanResult(result : Boolean) extends SPARQLResult {
@@ -183,6 +183,7 @@ class ResultSet(val resultVars : Seq[String], val results : Seq[Map[String, Node
     case r : ResultSet => resultVars == r.resultVars && results == r.results
     case _ => false
   }
+  override def toString = "ResultSet(%s,%s)" format (resultVars, results)
 }
 
 object ResultSet {
