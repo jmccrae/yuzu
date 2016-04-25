@@ -4,9 +4,14 @@ import java.sql.DriverManager
 import org.insightcentre.nlp.yuzu._
 import org.insightcentre.nlp.yuzu.rdf._
 
-class SQLiteBack(siteSettings : YuzuSiteSettings) 
+class SQLiteBackend(siteSettings : YuzuSiteSettings) 
     extends BackendBase(siteSettings) {
   import siteSettings._
+  try {
+    Class.forName("org.sqlite.JDBC") }
+  catch {
+    case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x) }
+
 
   protected class SQLiteSearcher(implicit val session : Session) extends BackendSearcher {
     def find(id : String) : Option[Document] = {
@@ -20,50 +25,50 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
     
     def list(offset : Int, limit : Int) = {
       sql"""SELECT pageId, id FROM ids 
-            WHERE pageId!=null
+            WHERE pageId is not null
             LIMIT $limit OFFSET $offset""".as2[String, Int].map({
               case (id, i) => new SQLiteDocument(id, i)
-            })
+            }).toList
     }
 
     def listByProp(offset : Int, limit : Int, property : URI) = {
       sql"""SELECT ids.pageId, ids.id FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids2 ON tripids.pid=ids2.id
-            WHERE pageId!=null AND ids2.n3=$property
+            WHERE ids.pageId is not null AND ids2.n3=${property.toString}
             LIMIT $limit OFFSET $offset""".as2[String, Int].map({
               case (id, i) => new SQLiteDocument(id, i)
-            })
+            }).toList
      }
 
     def listByPropObj(offset : Int, limit : Int, property : URI, obj : RDFNode) = {
       sql"""SELECT ids.pageId, ids.id FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids2 ON tripids.pid=ids2.id
-            JOIN ids AS ids3 ON tripids.oid=ids2.id
-            WHERE pageId!=null AND ids2.n3=$property AND ids3.n3=${obj.toString}
+            JOIN ids AS ids3 ON tripids.oid=ids3.id
+            WHERE ids.pageId is not null AND ids2.n3=${property.toString} AND ids3.n3=${obj.toString}
             LIMIT $limit OFFSET $offset""".as2[String, Int].map({
               case (id, i) => new SQLiteDocument(id, i)
-            })
+            }).toList
      }
       
     def listByObj(offset : Int, limit : Int, obj : RDFNode) = {
       sql"""SELECT ids.pageId, ids.id FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids3 ON tripids.oid=ids2.id
-            WHERE pageId!=null AND ids3.n3=${obj.toString}
+            WHERE ids.pageId is not null AND ids3.n3=${obj.toString}
             LIMIT $limit OFFSET $offset""".as2[String, Int].map({
               case (id, i) => new SQLiteDocument(id, i)
-            })
+            }).toList
      }
 
     def listVals(offset : Int, limit : Int, property : URI) = {
       sql"""SELECT object, count FROM value_cache
-            WHERE property=$property
+            WHERE property=${property.toString}
             ORDER BY count DESC
             LIMIT $limit OFFSET $offset""".as2[String, Int].map({
               case (obj, count) => (count, RDFNode(obj))
-            })
+            }).toList
     }
 
     def freeText(query : String, property : Option[URI], offset : Int,
@@ -73,13 +78,14 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
           sql"""SELECT DISTINCT free_text.sid, ids.pageId FROM free_text
                 JOIN ids ON free_text.sid=ids.id
                 JOIN ids AS pids ON free_text.pid=pids.id
-                WHERE pids.n3=$p
+                WHERE pids.n3=${p.toString} AND OBJECT MATCH $query
                 LIMIT $limit OFFSET $offset""".as2[Int, String].map({
                   case (i, id) => new SQLiteDocument(id, i)
                 })
         case None =>
           sql"""SELECT DISTINCT free_text.sid, sids.pageId FROM free_text
                 JOIN ids AS sids ON free_text.sid=sids.id
+                WHERE object MATCH $query
                 LIMIT $limit OFFSET $offset""".as2[Int, String].map({
                   case (i, id) => new SQLiteDocument(id, i)
                 })
@@ -97,18 +103,18 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
   protected class SQLiteDocument(val id : String, i : Int) extends Document {
     def content(implicit searcher : SQLiteSearcher) = {
       implicit val session = searcher.session
-      sql"""SELECT page FROM pages WHERE id=$id""".as1[String].head
+      sql"""SELECT page FROM pages WHERE id=$i""".as1[String].head
     }
     def label(implicit searcher : Searcher) = {
       implicit val session = searcher.session
-      sql"""SELECT label FROM ids WHERE id=$id""".as1[String].headOption
+      sql"""SELECT label FROM ids WHERE id=$i""".as1[String].headOption
     }
     def facets(implicit searcher : Searcher) = {
       implicit val session = searcher.session
       sql"""SELECT pids.n3, oids.n3 FROM tripids 
             JOIN ids AS pids ON pids.id=tripids.pid
             JOIN ids AS oids ON oids.id=tripids.oid
-            WHERE tripids.sid=$id AND facet=1""".as2[String, String].map({
+            WHERE tripids.sid=$i AND facet=1""".as2[String, String].map({
               case (s, t) => (toURI(s), RDFNode(t))
             })
     }
@@ -119,21 +125,36 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
   protected class SQLiteLoader(implicit session : Session) extends Loader {
     private val pageCache = collection.mutable.Map[String, Int]()
     private val rdfCache = collection.mutable.Map[RDFNode, Int]()
-    var nodes = sql"""SELECT count(*) FROM ids""".as1[Int].head
+    var nodes = sql"""SELECT count(*) FROM ids""".as1[Int].head + 1
     def pageId(id : String) = pageCache.getOrElse(id, {
       val i = nodes
       nodes += 1
+      val rdf = URI(id2URI(id))
       act {
-        insertPageId(id)
+        insertId(rdf.toString, id)
       }
+      rdfCache.put(rdf, i)
       pageCache.put(id, i)
       i
     })
-    def rdfId(rdf : RDFNode) = rdfCache.getOrElse(rdf, {
+    def rdfId(rdf : RDFNode) : Int = rdfCache.getOrElse(rdf, {
       val i = nodes
       nodes += 1
+      val page = rdf match {
+        case URI(u) =>
+          uri2Id(u) match {
+            case Some(id) if id2URI(id) == u => {
+              pageCache.put(id, i)
+              id
+            }
+            case _ => null
+          }
+        case _ => {
+          null
+        }
+      }
       act {
-        insertId(rdf.toString)
+        insertId(rdf.toString, page)
       }
       rdfCache.put(rdf, i)
       i
@@ -143,35 +164,75 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
     def act(foo : => Unit) {
       pending += 1
       if(pending % 10000 == 0) {
-        System.err.print(".")
-        insertPage.execute
-        insertId.execute
-        insertTriples.execute
-        insertPage.execute
-        insertBacklink.execute
-        updateLabel.execute
+        commit
       }
       foo
     }
 
-    val insertPageId = sql"""INSERT INTO ids (pageId) VALUES (?)""".
-      insert1[String]
-    val insertId = sql"""INSERT INTO ids (n3) VALUES (?)""".
-      insert1[String]
+    def commit {
+      System.err.print(".")
+      insertContext.execute
+      insertId.execute
+      insertTriples.execute
+      insertPage.execute
+      insertBacklink.execute
+      insertFreeText.execute
+      updateLabel.execute
+      session.conn.commit()
+    }
+
+    val insertContext = sql"""INSERT INTO contexts VALUES (?, ?)""".
+      insert2[String, String]
+    val insertId = sql"""INSERT INTO ids (n3, pageId) VALUES (?,?)""".
+      insert2[String, String]
     val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?)""".
       insert4[Int, Int, Int, Boolean]
     val insertPage = sql"""INSERT INTO pages VALUES (?, ?)""".
       insert2[Int, String]
     val insertBacklink = sql"""INSERT INTO backlinks VALUES (?, ?, ?)""".
       insert3[Int, Int, Int]
+    val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
+      insert3[Int, Int, String]
     val updateLabel = sql"""UPDATE ids SET LABEL=? WHERE id=?""".
       insert2[String, Int]
-    def addContext(id : String, json : String) { }
-    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) { }
-    def addBackLink(id : String, prop : URI, fromId : String) { }
-    class SQLiteDocumentLoader extends DocumentLoader {
-      def addLabel(label : String) { }
-      def addProp(prop : String, obj : RDFNode, isFacet : Boolean) { }
+
+    def addContext(id : String, json : String) {
+      act {
+        insertContext(id, json)
+      }
+    }
+
+    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) { 
+      act {
+        val i = pageId(id)
+        insertPage(i, content)
+        foo(new SQLiteDocumentLoader(i))
+      }
+    }
+
+    def addBackLink(id : String, prop : URI, fromId : String) { 
+      act {
+        insertBacklink(pageId(id), rdfId(prop), pageId(fromId))
+      }
+    
+    }
+    class SQLiteDocumentLoader(i : Int) extends DocumentLoader {
+      def addLabel(label : String) { 
+        act {
+          updateLabel(label, i)
+        }
+      }
+
+      def addProp(prop : URI, obj : RDFNode, isFacet : Boolean) { 
+        act {
+          insertTriples(i, rdfId(prop), rdfId(obj), isFacet)
+          obj match {
+            case l : Literal if isFacet =>
+              insertFreeText(i, rdfId(prop), l.value)
+            case _ =>
+          }
+        }
+      }
     }
   }
   
@@ -191,17 +252,18 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
     sql"""CREATE INDEX pagesIdx ON pages (id)""".execute
     sql"""CREATE TABLE IF NOT EXISTS contexts (path text not null, page text)""".execute
     sql"""CREATE INDEX contextIdx ON contexts (path)""".execute
-    sql"""CREATE INDEX IF NOT EXISTS backlinks (id integer not null,
+    sql"""CREATE TABLE IF NOT EXISTS backlinks (id integer not null,
                                                 pid integer not null,
                                                 fid integer not null,
                                                 foreign key (id) references ids,
                                                 foreign key (pid) references ids,
                                                 foreign key (fid) references ids)""".execute
-    sql"""CREATE TABLE IF NOT EXISTS tripids (id integer not null,
+    sql"""CREATE INDEX backlinksIdx ON backlinks (id)""".execute
+    sql"""CREATE TABLE IF NOT EXISTS tripids (sid integer not null,
                                               pid integer not null,
                                               oid integer not null,
                                               facet boolean,
-                                              foreign key (id) references ids,
+                                              foreign key (sid) references ids,
                                               foreign key (pid) references ids,
                                               foreign key (oid) references ids)""".execute
     sql"""CREATE INDEX subjects ON tripids(sid)""".execute
@@ -210,7 +272,7 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
     sql"""CREATE VIEW triples AS SELECT sid, pid, oid,
               subj.n3 AS subject, subj.label AS subj_label,
               prop.n3 AS property, prop.label AS prop_label,
-              obj.n3 AS object, obj.label AS obj_label, head
+              obj.n3 AS object, obj.label AS obj_label, facet
               FROM tripids 
               JOIN ids AS subj ON tripids.sid=subj.id
               JOIN ids AS prop ON tripids.pid=prop.id
@@ -225,7 +287,7 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
   def buildCache(implicit session : Session) = {
     sql"""INSERT INTO value_cache 
           SELECT DISTINCT object, count(*), property FROM triples
-          WHERE head=1 GROUP BY oid""".execute
+          WHERE facet=1 GROUP BY oid""".execute
 
     sql"""INSERT INTO free_text
           SELECT sid, pid, label FROM tripids
@@ -239,8 +301,12 @@ class SQLiteBack(siteSettings : YuzuSiteSettings)
     c.setAutoCommit(false)
     withSession(c) { implicit session =>
       createTables
-      foo(new SQLiteLoader)
+      val l = new SQLiteLoader
+      foo(l)
+      l.commit
       buildCache
+      c.commit()
+      System.err.println()
     }
   }
 

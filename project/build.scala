@@ -38,7 +38,8 @@ object YuzuBuild extends Build {
         "io.spray" %%  "spray-json" % "1.3.2",
         "org.mockito" % "mockito-core" % "1.10.19",
         "org.apache.lucene" % "lucene-core" % "6.0.0",
-        "org.apache.lucene" % "lucene-analyzers-common" % "6.0.0"
+        "org.apache.lucene" % "lucene-analyzers-common" % "6.0.0",
+        "org.xerial" % "sqlite-jdbc" % "3.8.11.2"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(

@@ -9,7 +9,7 @@ object TestSettings extends YuzuSettings with YuzuSiteSettings {
   def BASE_NAME = "http://localhost:8080"
   def NAME = ""
   def DISPLAY_NAME = "Test Instance"
-  def DATABASE_URL = new java.net.URL("file:tmp")
+  def DATABASE_URL = "file:tmp"
   def DATA_FILE = new java.io.File("src/test/resources/example.zip")
   override def FACETS = Seq(
     Facet("http://www.w3.org/2000/01/rdf-schema#label", "Label", true)

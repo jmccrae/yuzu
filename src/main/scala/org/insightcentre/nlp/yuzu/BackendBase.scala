@@ -56,7 +56,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   }
   protected trait DocumentLoader {
     def addLabel(label : String) : Unit
-    def addProp(prop : String, obj : RDFNode, isFacet : Boolean) : Unit
+    def addProp(prop : URI, obj : RDFNode, isFacet : Boolean) : Unit
   }
   protected def load(foo : Loader => Unit) : Unit
 
@@ -349,19 +349,19 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                           loader.addBackLink(u2, prop, id)
                         case None =>
                       }
-                      document.addProp(prop.value, r, isFacet)
+                      document.addProp(prop, r, isFacet)
                     case r : Resource =>
-                      document.addProp(prop.value, r, isFacet)
+                      document.addProp(prop, r, isFacet)
                     case l@LangLiteral(lv, lang) =>
                       if(prop.value == LABEL_PROP.toString && lang == LANG) {
                         document.addLabel(lv)
                       }
-                      document.addProp(prop.value, l, isFacet)
+                      document.addProp(prop, l, isFacet)
                     case l : Literal =>
                       if(prop.value == LABEL_PROP.toString) {
                         document.addLabel(l.value)
                       }
-                      document.addProp(prop.value, l, isFacet)
+                      document.addProp(prop, l, isFacet)
                   }
                 }
               }, Some(context(entry.getName())))

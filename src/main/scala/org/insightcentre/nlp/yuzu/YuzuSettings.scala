@@ -20,8 +20,12 @@ trait YuzuSettings {
   protected def BASE_NAME : String
   // The maximum number of query results to return
   def YUZUQL_LIMIT = 1000
-  // The URL of the Elastic Search instance
-  def DATABASE_URL : URL
+  // The URL of the Database
+  // e.g., jdbc:sqlite:/path/to/data
+  //       jdbc:mysql://server/database?user=user&password=password"
+  //       http://localhost:8888/sparql/
+  //       file:datafolder/
+  def DATABASE_URL : String
 }
 
 case class Facet(val uri : String, val label : String, val list : Boolean)
@@ -36,12 +40,17 @@ trait YuzuSiteSettings extends YuzuSettings {
     BASE_NAME + (if(NAME == "") { "/" } else { "/" + NAME + "/" }) + id
   }
   def uri2Id(uri : String) = {
-    if(uri.startsWith(BASE_NAME)) {
-      val uri2 = uri.drop(BASE_NAME.length)
+    if(uri.startsWith(BASE_NAME + "/")) {
+      val uri3 = uri.drop(BASE_NAME.length + 1)
+      val uri2 = if(uri3.contains('#')) {
+        uri3.take(uri3.indexOf('#'))
+      } else {
+        uri3
+      }
       if(NAME == "") {
         Some(uri2)
-      } else if(uri2.startsWith("/" + NAME + "/")) {
-        Some(uri2.drop(NAME.length + 2))
+      } else if(uri2.startsWith(NAME + "/")) {
+        Some(uri2.drop(NAME.length + 1))
       } else {
         None
       }
@@ -130,7 +139,7 @@ object YuzuSettings {
         bn
       }
     }
-    override val DATABASE_URL = new URL(str("databaseURL").getOrElse("file:tmp/"))
+    override val DATABASE_URL = str("databaseURL").getOrElse("file:tmp/")
     override val YUZUQL_LIMIT = obj.fields.get("yuzuQLLimit") match {
       case Some(JsNumber(n)) => n.toInt
       case Some(JsString(s)) => try { 
@@ -193,7 +202,7 @@ object YuzuSiteSettings {
         bn
       }
     }
-    override val DATABASE_URL = new URL(str("databaseURL").getOrElse("file:tmp/"))
+    override val DATABASE_URL = str("databaseURL").getOrElse("file:tmp/")
     override val YUZUQL_LIMIT = obj.fields.get("yuzuQLLimit") match {
       case Some(JsNumber(n)) => n.toInt
       case Some(JsString(s)) => try { 
