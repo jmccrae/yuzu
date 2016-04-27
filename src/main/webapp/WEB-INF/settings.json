@@ -1,5 +1,10 @@
 {
+    "id": "test",
     "baseName": "http://localhost:8080/",
     "name": "Test instance",
-    "data": "src/test/resources/example.zip"
+    "data": "src/test/resources/example.zip",
+    "databaseURL": "jdbc:sqlite:example.db",
+    "facets": [
+      { "uri": "http://www.w3.org/2000/01/rdf-schema#label", "label": "Label" }
+    ]
 }

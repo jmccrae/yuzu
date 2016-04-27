@@ -10,6 +10,7 @@ class YuzuSettingsTest extends ScalatraSpec {
   YuzuSettings should load
     BASE_NAME                            $baseName
     YUZUQL_LIMIT                         $limit
+    DATABASE_URL                         $databaseUrl
   YuzuSiteSettings should load
     NAME                                 $name
     DISPLAY_NAME                         $displayName
@@ -44,6 +45,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     "id": "test",
     "name": "Test Instance",
     "data": "src/test/resources/example.zip",
+    "databaseURL": "file:tmp/",
     "sparqlEndpoint": "http://localhost:8080/sparql/",
     "licensePath": "/mylicense",
     "searchPath": "/mysearch",
@@ -91,6 +93,8 @@ class YuzuSettingsTest extends ScalatraSpec {
   val settings2 = YuzuSettings(data2)
 
   def baseName = settings2.BASE_NAME must_== "http://www.example.com"
+
+  def databaseUrl = settings2.DATABASE_URL must_== "file:tmp/"
 
   def limit = settings2.YUZUQL_LIMIT must_== 10000
     

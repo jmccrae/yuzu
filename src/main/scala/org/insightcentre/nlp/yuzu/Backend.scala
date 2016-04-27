@@ -18,8 +18,10 @@ case class RDFValue(
     display : String,
     link : String = null,
     `type` : RDFValue = null,
-    value : String = null,
     language : String = null) {
+  def literal = link == null
+  def uri = link != null && !link.startsWith("_:")
+  def bnode = link != null && link.startsWith("_:")
 //  def bnode = {
 //    if(link == null) {
 //      `value` == null
@@ -30,6 +32,8 @@ case class RDFValue(
 }
   
 trait Backend {
+  /** The displayer */
+  def displayer : Displayer
   /** Run a SPARQL query on the backend */
   def query(query : String, defaultGraphURI : Option[String]) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
@@ -39,7 +43,7 @@ trait Backend {
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
   /** Get backlinks */
-  def backlinks(id : String) : Seq[(String, String)]
+  def backlinks(id : String) : Seq[(rdf.URI, rdf.URI)]
   /** 
    * List pages by property and object
    * @param offset The query offset

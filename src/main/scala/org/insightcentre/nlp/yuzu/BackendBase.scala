@@ -279,7 +279,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   def backlinks(id : String) = search { implicit searcher => 
     searcher.find(id) match {
       case Some(d) => d.backlinks.map({
-        case (link, id2) => (link.value, id2URI(id2))
+        case (link, id2) => (link, URI(id2URI(id2)))
       })
       case None => Nil
     }
@@ -375,5 +375,24 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         }
       }
     }
+  }
+}
+
+object BackendBase {
+  def main(args : Array[String]) = {
+    if(args.length != 1) {
+      System.err.println("Usage: sbt run settings.json")
+      System.exit(-1)
+    }
+    val settings = YuzuSiteSettings(io.Source.fromFile(args(0)).mkString.parseJson match {
+      case o : JsObject => o
+      case _ => throw new RuntimeException("Setting json is not an object")
+    })
+    val backend = if(settings.DATABASE_URL.startsWith("jdbc:sqlite:")) {
+      new sql.SQLiteBackend(settings)
+    } else {
+      throw new RuntimeException("No backend for %s" format settings.DATABASE_URL)
+    }
+    backend.load(settings.DATA_FILE)
   }
 }

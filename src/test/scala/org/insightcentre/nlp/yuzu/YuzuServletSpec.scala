@@ -69,6 +69,7 @@ class YuzuServletSpec extends ScalatraSpec {
   },
   "label": { "@value": "A test resource", "@language": "en" }
 }""".parseJson))
+   when(backend.displayer).thenReturn(new Displayer(f => Some(f), TestSettings))
    def sites = Nil
    def settings = TestSettings
    def siteSettings = TestSettings

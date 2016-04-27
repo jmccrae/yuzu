@@ -63,9 +63,10 @@ class ServerSpec extends ScalatraSpec {
    when(backend.query("""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT * WHERE {  ?s rdfs:label "Beispiel"@de} LIMIT 100""", None)).thenReturn(TableResult(
   ResultSet(Seq("s"), Seq(Map("s" -> NodeFactory.createURI(TestSettings.BASE_NAME + "/data/example2")))), new Displayer(s => None, TestSettings)))
    when(backend.backlinks("data/example2")).thenReturn(Seq((
-     "http://localhost:8080/ontology#link", "http://localhost:8080/data/example")))
+     URI("http://localhost:8080/ontology#link"), URI("http://localhost:8080/data/example"))))
    when(backend.backlinks("data/example")).thenReturn(Nil)
    when(backend.backlinks("data/saldo/bosättningsstopp..nn.1")).thenReturn(Nil)
+   when(backend.displayer).thenReturn(new Displayer(s => Some(s), TestSettings))
   
 
    def sites = Nil

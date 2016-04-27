@@ -225,7 +225,7 @@ trait YuzuServletActions extends YuzuStack {
           toNTriples(model, context, base, addNamespaces)
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
-          val html = toHtml(model, context, base, backlinks)
+          val html = toHtml(model, context, base, backlinks)(backend.displayer)
           mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()
@@ -246,7 +246,7 @@ trait YuzuServletActions extends YuzuStack {
     } else if(mime == nt) {
       toNTriples(metadata, None, base, addNamespaces)
      } else if (mime == html) {
-      val html = toHtml(metadata, None, base)
+      val html = toHtml(metadata, None, base)(backend.displayer)
       mustache("/rdf", html:_*)      
     } else {
       throw new IllegalArgumentException()

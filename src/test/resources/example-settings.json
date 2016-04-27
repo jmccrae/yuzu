@@ -1,7 +1,6 @@
 {
-    "id": "test",
-    "baseName": "http://localhost:8080/",
-    "name": "Test Instance",
+    "id": "example",
+    "name": "Example Website",
     "data": "src/test/resources/example.zip",
     "databaseURL": "jdbc:sqlite:example.db"
 }

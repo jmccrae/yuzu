@@ -46,7 +46,8 @@ object DataConversions {
   }
 
   def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL,
-      backlinks : Seq[(String, String)] = Nil) : Seq[(String, Any)] = {
+      backlinks : Seq[(URI, URI)] = Nil)(implicit displayer : Displayer) : 
+      Seq[(String, Any)] = {
     val converter = new JsonLDConverter(Some(base))
     val clazz = converter.toTriples(data, context) find ({ 
       case (URI(subjUri), RDF_TYPE, obj : URI) => 
@@ -55,13 +56,13 @@ object DataConversions {
         false
     }) match {
       case Some(triple) =>
-        Some(triple._3.asInstanceOf[URI].value)
+        Some(triple._3.asInstanceOf[URI])
       case None =>
         None
     }
     val rdfBody = defaultToHtml(data, context, "", base, backlinks)
     Seq(
-      "title" -> display(base.toString),
+      "title" -> display(URI(base.toString)),
       "uri" -> base.toString,
       "rdfBody" -> rdfBody,
       "class_of" -> clazz.map(c =>
@@ -74,9 +75,41 @@ object DataConversions {
 
   def literalEncode(string : String) : String = java.net.URLEncoder.encode(string, "UTF-8")
 
-  def htmlEscape(string : String) : String = string
+  def htmlEscape(string : String) = {
+    val sb = new StringBuilder(string)
+    var i = 0
+    while(i < sb.length) {
+      sb(i) match {
+        case '<' =>
+          sb.replace(i, i + 1, "&lt;")
+          i += 4
+        case '>' =>
+          sb.replace(i, i + 1, "&gt;")
+          i += 4
+        case '&' =>
+          sb.replace(i, i + 1, "&amp;")
+          i += 5
+        case '"' =>
+          sb.replace(i, i + 1, "&quot;")
+          i += 6
+        case '\'' =>
+          sb.replace(i, i + 1, "&apos;")
+          i += 6;
+        case _ =>
+          i += 1
+      }
+    }
+    sb.toString
+  }
 
-  def display(string : String) = string
+  def display(node : RDFNode)(implicit displayer : Displayer) = node match {
+    case URI(uri) =>
+      displayer.uriToStr(uri)
+    case BlankNode(id) =>
+      "..."
+    case l : Literal =>
+      l.value
+  }
 
   def propUri(key : String, context : Option[JsonLDContext]) : Option[String] = {
     context match {
@@ -92,10 +125,8 @@ object DataConversions {
     }
   }
 
-  private def valueToHtml(propUri : String, obj : RDFNode, contextUrl : String) : String = {
-//      context : Option[JsonLDContext], contextUrl : String,
-//      base : URL) : String = {
-
+  private def valueToHtml(propUri : String, obj : RDFNode, base : URL, 
+      contextUrl : String)(implicit displayer : Displayer) : String = {
     obj match {
       case LangLiteral(litVal, lang) => 
         s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri)}%3e+%22${literalEncode(litVal)}%22%40$lang+%7d+limit+100" class="more pull-right">
@@ -108,13 +139,15 @@ object DataConversions {
         s"""${htmlEscape(litVal)}<a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri)}%3e+%22${literalEncode(litVal)}%22%5e%5e%3c${uriEncode(datatype)}%3e+%7d+limit+100" class="more pull-right">
                   <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
               </a>
-              <span class="pull-right rdf_datatype"><a href="${datatype}" class="rdf_link">${display(datatype)}</a></span>"""
+              <span class="pull-right rdf_datatype"><a href="$datatype" class="rdf_link">${display(URI(datatype))}</a></span>"""
       case PlainLiteral(litVal) =>
         s"""${htmlEscape(litVal)}<a href= "$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(propUri)}%3e+%22${literalEncode(litVal)}%22+%7d+limit+100" class="more pull-right">
                   <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
               </a>"""
-      case URI(value) => 
-        s"""<a href="$value" class="rdf_link rdf_prop">${display(value.toString)}</a>
+      case u@URI(value) if value.startsWith(base.toString + "#") =>
+        s"""<a href="$value" class="rdf_link">${displayer.magicString(value.drop(base.toString.length + 1))}</a>"""
+      case u@URI(value) => 
+        s"""<a href="$value" class="rdf_link rdf_prop">${display(u)}</a>
             <a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(value)}%3e+%3c${uriEncode(value)}%3e+%7d+limit+100" class="more pull-right">
                  <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
             </a>"""
@@ -126,49 +159,86 @@ object DataConversions {
   }
 
   def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String,
-      base : URL, backlinks : Seq[(String, String)]) : String = {
+      base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : String = {
     val converter = new JsonLDConverter(Some(base))
+    def res2key(res : Resource) = res match {
+      case URI(u) if u.startsWith(base.toString) =>
+        u.drop(base.toString.length)
+      case URI(u) =>
+        "{%s}" format u
+      case BlankNode(Some(id)) =>
+        "{_:%s}" format id
+      case b@BlankNode(None) =>
+        "{__:%d}" format System.identityHashCode(b)
+    }
     val visitor = new JsonLDVisitor {
-      val builder = new StringBuilder()
+      val builders = new {
+        var data = collection.SortedMap[String, StringBuilder]()
+        def apply(s : String) = data.getOrElse(s, {
+          val sb = new StringBuilder()
+          data += (s -> sb)
+          sb
+        })
+        def values = data.values
+      }
+      var lastEmitted : Option[(Resource, URI)] = None
       def startNode(resource : Resource) {
-        builder append s"""<table class="rdf_table" resource=""><tr>"""
+        res2key(resource) match {
+          case "" =>
+            builders("") append s"""<table class="rdf_table">"""
+          case key if key.startsWith("{_") =>
+            builders("") append s"""<table class="rdf_table">"""
+          case key if key.startsWith("{") =>
+            builders(key) append s"""<h3 class="rdf_subheader">
+              <a href="${key.drop(1).dropRight(1)}">${display(resource)}</a>
+            </h3><table class="rdf_table">"""
+          case key if key.startsWith("#") =>
+            builders(key) append s"""<h3 class="rdf_subheader" id="${htmlEscape(key.drop(1))}">
+            ${displayer.magicString(htmlEscape(key.drop(1)))}</h3> <table class="rdf_table">"""
+        }
+        lastEmitted = None
       }
 
       def endNode(resource : Resource) {
-        builder append s"""</tr></table>"""
-
+        builders(res2key(resource)) append s"""</table>"""
+        lastEmitted = None
       }
 
       def startProperty(resource : Resource, property : URI) {
         if(property != null) {
-          builder append s"""<td class="rdf_prop"><a href="${property.value}" class="rdf_link">${display(property.value)}</a></td><td>"""
+          builders(res2key(resource)) append s"""<tr><td class="rdf_prop"><a href="${property.value}" class="rdf_link">${display(property)}</a></td><td>"""
+          lastEmitted = None
         }
-
       }
 
       def endProperty(resource : Resource, property : URI) {
         if(property != null) {
-          builder append """</td>"""
+          builders(res2key(resource)) append """</td></tr>"""
+          lastEmitted = None
         }
       }
 
       def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
         if(prop != null) {
-          builder append valueToHtml(prop.value, obj, contextUrl)
+          if(lastEmitted == Some((subj, prop))) {
+            builders(res2key(subj)) append "</td></tr><tr><td></td><td>"
+          }
+          builders(res2key(subj)) append valueToHtml(prop.value, obj, base, contextUrl)
+          lastEmitted = Some((subj, prop))
         }
-
       }
       
     }
     converter.processJsonLD(data, visitor, context)
+    val html = visitor.builders.values.filter(_.toString.contains("<tr>")).mkString("\n")
     if(backlinks.isEmpty) {
-      visitor.builder.toString
+      html
     } else {
-      visitor.builder.toString + s"""
+      html + s"""
       <table class="rdf_table">${
         backlinks.map({
-          case (uri, link) => s"""<tr><td class="rdf_prop">Is <a href="${uri}" class="rdf_link">${display(uri)}</a> of</td>
-                                      <td><a href="$link" class="rdf_link">${display(link)}</a></td></tr>"""
+          case (uri, link) => s"""<tr><td class="rdf_prop">Is <a href="${uri.value}" class="rdf_link">${display(uri)}</a> of</td>
+                                      <td><a href="${link.value}" class="rdf_link">${display(link)}</a></td></tr>"""
         }).mkString("")
       }</table>"""
     }
