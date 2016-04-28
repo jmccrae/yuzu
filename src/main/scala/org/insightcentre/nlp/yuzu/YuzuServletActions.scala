@@ -127,11 +127,30 @@ trait YuzuServletActions extends YuzuStack {
         RequestTimeout(YZ_TIME_OUT)
     }
   }
+  
+  private def deleteFirst(s1 : String, s2 : String) : String = {
+    s1.indexOf(s2) match {
+      case x if x < 0 =>
+        s1
+      case i =>
+        s1.take(i) + s1.drop(i + s2.length)
+    }
+  }
 
-  def listResources(offset : Int, property : Option[String], obj : 
-                    Option[String], obj_offset : Option[Int]) : Any = {
+  def listResources(offset : Int, properties : Seq[rdf.URI], objects : 
+      Seq[rdf.RDFNode], obj_offset : Option[Int]) : Any = {
+    val propObjs = properties.zipWithIndex map {
+      case (p, i) => (p, if(i < objects.size) { Some(objects(i)) } else { None })
+    }
+    val property = propObjs.lastOption.map(_._1)
+    val obj = propObjs.lastOption.flatMap(_._2)
+    val queryStringBase = (propObjs map {
+      case (p, Some(o)) =>
+        s"prop=${quotePlus(p.value)}&obj=${quotePlus(o.toString)}"
+      case _ => ""
+      }).mkString("&")
     val limit = 20
-    val (hasMore, results) = backend.listResources(offset, limit, property, obj.map(RDFNode.apply))
+    val (hasMore, results) = backend.listResources(offset, limit, propObjs)
     val hasPrev = if(offset > 0) { "" } else { "disabled" }
     val prev = math.max(offset - limit, 0)
     val hasNext = if(hasMore) { "" } else { "disabled" }
@@ -139,30 +158,53 @@ trait YuzuServletActions extends YuzuStack {
     val pages = "%d - %d" format(offset + math.min(1, results.size), offset + math.min(limit, results.size))
     val facets = siteSettings.FACETS.filter(_.list == true).map { facet =>
       val uri_enc = quotePlus(facet.uri.toString)
-      if(property != None && ("<" + facet.uri + ">") == property.get) {
+      val objVal = propObjs.filter(_._1.value == facet.uri).flatMap(_._2)
+      if(property != None && facet.uri == property.get.value) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
         Map(
           "uri" -> facet.uri,
           "label" -> facet.label,
           "uri_enc" -> uri_enc, 
-          "values" -> vs.map { v => Map[String,String](
+          "values" -> vs.map { v => 
+            val v2 = Map[String,String](
                   "prop_uri" -> uri_enc,
-                  "value_enc" -> quotePlus(request.getServletContext().getContextPath() + "/" + v.id),
+                  "value_enc" -> quotePlus(v.id.toString),
                   "value" -> v.label.take(100),
                   "count" -> v.count.toString,
-                  "offset" -> obj_offset.getOrElse(0).toString
-                )},
+                  "offset" -> obj_offset.getOrElse(0).toString)
+            if(objVal contains (v.id)) {
+              v2 + ("selected" -> true,
+                "link_qs" -> deleteFirst(deleteFirst(queryStringBase,
+                    "prop=" + quotePlus(facet.uri)),
+                    "obj=" + quotePlus(v.id.toString)))
+            } else {
+              v2 + ("link_qs" -> s"$queryStringBase&prop=${quotePlus(facet.uri)}&obj=${quotePlus(v.id.toString)}")
+            }
+          },
           "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
+      } else if(objVal != Nil) {
+        Map("uri" -> facet.uri, 
+            "label" -> facet.label, 
+            "uri_enc" -> uri_enc,
+            "values" -> objVal.map(v => {
+                val vlabel = backend.displayer.display(v)
+                Map(
+                  "prop_uri" -> uri_enc,
+                  "value_enc" -> quotePlus(vlabel),
+                  "value" -> vlabel.take(100),
+                  "selected" -> true)
+            }))
       } else {
         Map("uri" -> facet.uri, "label" -> facet.label, "uri_enc" -> uri_enc)
       }
     } 
-    val queryString = (property match {
-        case Some(p) => "&prop=" + quotePlus(p.drop(1).dropRight(1))
-        case None => "" }) + 
-      (obj match {
-        case Some(o) => "&obj=" + quotePlus(o)
-        case None => "" }) +
+    // queryString is used by pagers for results
+    val queryString : String = queryStringBase + 
+      (if(property != None && obj == None) {
+        "prop=" + quotePlus(property.get.value)
+      } else {
+        ""
+      }) +
       (obj_offset match {
         case Some(o) => "&obj_offset=" + o
         case None => "" })
@@ -182,6 +224,7 @@ trait YuzuServletActions extends YuzuStack {
       "has_next" -> hasNext,
       "next" -> next.toString,
       "pages" -> pages,
+      "qsb" -> queryStringBase,
       "query" -> queryString)
   }
 

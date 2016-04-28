@@ -1,12 +1,13 @@
 package org.insightcentre.nlp.yuzu
 
-import spray.json._
+import com.hp.hpl.jena.rdf.model.Model
+import java.io.StringWriter
+import java.net.URL
+import org.apache.jena.riot.{RDFDataMgr, Lang}
 import org.insightcentre.nlp.yuzu.jsonld._
 import org.insightcentre.nlp.yuzu.rdf._
-import org.apache.jena.riot.{RDFDataMgr, Lang}
-import java.net.URL
-import java.io.StringWriter
-import com.hp.hpl.jena.rdf.model.Model
+import scala.collection.mutable.{Map => MutMap, ListBuffer}
+import spray.json._
 
 object DataConversions {
 
@@ -145,22 +146,65 @@ object DataConversions {
                   <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
               </a>"""
       case u@URI(value) if value.startsWith(base.toString + "#") =>
-        s"""<a href="$value" class="rdf_link">${displayer.magicString(value.drop(base.toString.length + 1))}</a>"""
+        s"""<a href="$value" class="rdf_link">${displayer.magicString(value.drop(base.toString.length + 1))}\u2193</a>"""
       case u@URI(value) => 
         s"""<a href="$value" class="rdf_link rdf_prop">${display(u)}</a>
             <a href="$contextUrl/sparql/?query=select+distinct+%2a+%7b+%3fResource+%3C${uriEncode(value)}%3e+%3c${uriEncode(value)}%3e+%7d+limit+100" class="more pull-right">
                  <img src="$contextUrl/assets/more.png" title="Resources with this property"/>
             </a>"""
-      case BlankNode(_) => 
-        """-"""
-//      case (node : Resource, triples) =>
-//        defaultToHtml(value, context, contextUrl, base)
+      case BlankNode(Some(id)) => 
+        s"""<a href="#__bnode__$id">\u2193</a>"""
+      case b@BlankNode(None) =>
+        s"""<a href="#__bnode__${System.identityHashCode(b)}">\u2193</a>"""
     }
   }
 
-  def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String,
-      base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : String = {
-    val converter = new JsonLDConverter(Some(base))
+  class HtmlBuilderJsonLDVistor(contextUrl : String, base : URL)  extends BaseJsonLDVisitor {
+    val model = MutMap[Resource, MutMap[URI, ListBuffer[RDFNode]]]()
+
+    def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
+      if(prop != null) {
+        model.get(subj) match {
+          case Some(p) =>
+            p.get(prop) match {
+              case Some(o) =>
+                o.append(obj)
+              case None =>
+                val os = ListBuffer[RDFNode](obj)
+                p.put(prop, os)
+            }
+          case None =>
+            val p = MutMap(prop -> ListBuffer(obj))
+            model.put(subj, p)
+        }
+      }
+    }
+
+    def toHtml(implicit displayer : Displayer) = (for(subj <- model.keys.toSeq.sortBy(res2key)) yield {
+      val props = model(subj)
+      (res2key(subj) match {
+        case "" => ""
+        case key if key.startsWith("{_") => "<span id=\"__bnode__" + key.drop(3).dropRight(1) + "\"></span>"
+        case key if key.startsWith("{") =>
+          s"""
+<h3 class="rdf_subheader"><a href="${key.drop(1).dropRight(1)}">${display(subj)}</a></h3>
+"""
+        case key if key.startsWith("#") =>
+          s"""<h3 class="rdf_subheader" id="${htmlEscape(key.drop(1))}">${displayer.magicString(htmlEscape(key.drop(1)))}</h3>
+"""
+        case _ => ""
+      }) +
+      s"""<table class="rdf_table">${(for((p, objs) <- props) yield {
+        s"""  <tr>
+                <td class="rdf_prop"><a href="${p.value}" class="rdf_link">${display(p)}</a></td>
+                ${
+                  objs.map(obj => "<td>" + valueToHtml(p.value, obj, base, contextUrl) + "</td>").mkString("</tr>\n  <tr>\n    <td></td>\n    ")
+                }
+              </tr>"""
+        }).mkString("\n")
+      }</table>"""
+    }).mkString("\n\n")
+
     def res2key(res : Resource) = res match {
       case URI(u) if u.startsWith(base.toString) =>
         u.drop(base.toString.length)
@@ -169,68 +213,16 @@ object DataConversions {
       case BlankNode(Some(id)) =>
         "{_:%s}" format id
       case b@BlankNode(None) =>
-        "{__:%d}" format System.identityHashCode(b)
+        "{_:%d}" format System.identityHashCode(b)
     }
-    val visitor = new JsonLDVisitor {
-      val builders = new {
-        var data = collection.SortedMap[String, StringBuilder]()
-        def apply(s : String) = data.getOrElse(s, {
-          val sb = new StringBuilder()
-          data += (s -> sb)
-          sb
-        })
-        def values = data.values
-      }
-      var lastEmitted : Option[(Resource, URI)] = None
-      def startNode(resource : Resource) {
-        res2key(resource) match {
-          case "" =>
-            builders("") append s"""<table class="rdf_table">"""
-          case key if key.startsWith("{_") =>
-            builders("") append s"""<table class="rdf_table">"""
-          case key if key.startsWith("{") =>
-            builders(key) append s"""<h3 class="rdf_subheader">
-              <a href="${key.drop(1).dropRight(1)}">${display(resource)}</a>
-            </h3><table class="rdf_table">"""
-          case key if key.startsWith("#") =>
-            builders(key) append s"""<h3 class="rdf_subheader" id="${htmlEscape(key.drop(1))}">
-            ${displayer.magicString(htmlEscape(key.drop(1)))}</h3> <table class="rdf_table">"""
-        }
-        lastEmitted = None
-      }
+  }
 
-      def endNode(resource : Resource) {
-        builders(res2key(resource)) append s"""</table>"""
-        lastEmitted = None
-      }
-
-      def startProperty(resource : Resource, property : URI) {
-        if(property != null) {
-          builders(res2key(resource)) append s"""<tr><td class="rdf_prop"><a href="${property.value}" class="rdf_link">${display(property)}</a></td><td>"""
-          lastEmitted = None
-        }
-      }
-
-      def endProperty(resource : Resource, property : URI) {
-        if(property != null) {
-          builders(res2key(resource)) append """</td></tr>"""
-          lastEmitted = None
-        }
-      }
-
-      def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
-        if(prop != null) {
-          if(lastEmitted == Some((subj, prop))) {
-            builders(res2key(subj)) append "</td></tr><tr><td></td><td>"
-          }
-          builders(res2key(subj)) append valueToHtml(prop.value, obj, base, contextUrl)
-          lastEmitted = Some((subj, prop))
-        }
-      }
-      
-    }
+  def defaultToHtml(data : JsValue, context : Option[JsonLDContext], contextUrl : String,
+      base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : String = {
+    val converter = new JsonLDConverter(Some(base))
+    val visitor = new HtmlBuilderJsonLDVistor(contextUrl, base)
     converter.processJsonLD(data, visitor, context)
-    val html = visitor.builders.values.filter(_.toString.contains("<tr>")).mkString("\n")
+    val html = visitor.toHtml
     if(backlinks.isEmpty) {
       html
     } else {
@@ -243,37 +235,4 @@ object DataConversions {
       }</table>"""
     }
   }
-//    data match {
-//      case JsObject(values) =>
-//        s"""<table class="rdf_table" resource=""><tr>${
-//          (for((key, value) <- values if !key.startsWith("@")) yield {
-//            s"""<td class="rdf_prop">${
-//              propUri(key, context) match {
-//                case Some(value) =>
-//                  s"""<a href="$value" class="rdf_link">${display(key)}</a>"""
-//                case None =>
-//                  s"""${display(key)}"""
-//              }
-//            }</td><td class="rdf_value">${value match {
-//              case JsArray(values) =>
-//                values.map(valueToHtml(key, _, context, contextUrl, base)).mkString("<br/>")
-//              case value =>
-//                valueToHtml(key, value, context, contextUrl, base)
-//            }}</td>"""
-//          }).mkString("</tr><tr>")
-//        }</tr></table>"""
-//      case JsString(s) =>
-//        s"<p>$s</p>"
-//      case JsNumber(n) =>
-//        s"<p>$n</p>"
-//      case JsFalse =>
-//        "<p>false</p>"
-//      case JsTrue =>
-//        "<p>true</p>"
-//      case JsNull =>
-//        "<p>null</p>"
-//      case JsArray(elems) =>
-//        s"<div>${elems.map(defaultToHtml(_, context, contextUrl, base)).mkString("</div><div>")}</div>"
-//    }
-//  }
 }

@@ -106,6 +106,7 @@ object DataID {
       case Some(pn) =>
         model += "publisher" -> (JsObject(Map(
           "@type" -> JsArray(JsString("foaf:Agent"), JsString("prov:Agent")),
+          "@id" -> JsString("#publisher"),
           "name" -> JsString(pn)) ++
         (PUBLISHER_EMAIL match {
           case Some(pe) =>
@@ -120,6 +121,7 @@ object DataID {
      (for(((cn, ce), id) <- (CREATOR_NAMES zip CREATOR_EMAILS).zipWithIndex) yield {
       JsObject(Map(
         "@type" -> JsArray(JsString("foaf:Agent"), JsString("prov:Agent")),
+        "@id" -> JsString("#creator_" + id),
         "name" -> JsString(cn)) ++
       (if(ce != "") { Map("email" -> JsString(ce)) } else { Map() }))
     }).toList)
@@ -128,12 +130,14 @@ object DataID {
       (for(((cn, ce), id) <- (CONTRIBUTOR_NAMES zip CONTRIBUTOR_EMAILS).zipWithIndex) yield {
       JsObject(Map(
         "@type" -> JsArray(JsString("foaf:Agent"), JsString("prov:Agent")),
+        "@id" -> JsString("#contributor_" + id),
         "name" -> JsString(cn)) ++
       (if(ce != "") { Map("email" -> JsString(ce)) } else { Map() }))
     }).toList)
 
     model += "distribution" -> JsObject(
       "@type" -> JsString("dcat:Distribution"),
+      "@id" -> JsString("#distribution"),
       "downloadURL" -> JsString(serverUrl + "/" + DATA_FILE.getName()),
 //      "triples" -> JsNumber(backend.tripleCount),
       "format" -> JsString("application/x-gzip"))

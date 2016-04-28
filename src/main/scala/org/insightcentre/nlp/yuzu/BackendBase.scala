@@ -25,6 +25,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     def listByProp(offset : Int, limit : Int, property : URI) : Iterable[Document]
     def listByPropObj(offset : Int, limit : Int, property : URI, obj : RDFNode) : Iterable[Document]
     def listByObj(offset : Int, limit : Int, obj : RDFNode) : Iterable[Document]
+    def listByPropObjs(offset : Int, limit : Int, propObj : Seq[(URI, Option[RDFNode])]) : Iterable[Document] 
     def listVals(offset : Int, limit : Int, property : URI) : Iterable[(Int, RDFNode)]
     def freeText(query : String, property : Option[URI], offset : Int,
       limit : Int) : Iterable[Document]
@@ -104,7 +105,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     case SimpleFilter(triple) => triple.getSubject() match {
       case n if n != null && n.isURI() && uri2Id(n.getURI()) != None =>
         val id = uri2Id(n.getURI()).get
-        Some(searcher.find(id).toSeq)
+        Some(searcher.find(id).toList)
       case _ =>
         triple.getPredicate() match {
           case n if n != null && n.isURI() =>
@@ -156,12 +157,12 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   private def mapResultSet(rs : com.hp.hpl.jena.query.ResultSet) = {
     def bindings : Stream[Binding] = rs.nextBinding() #:: (if(rs.hasNext()) { bindings } else { Stream[Binding]() })
-    ResultSet(rs.getResultVars().toSeq,
+    ResultSet(rs.getResultVars().toList,
       (for(b <- bindings) yield {
         (for(v <- b.vars) yield {
           v.getVarName() -> b.get(v)
         }).toMap
-      }).toSeq)
+      }).toList)
   }
 
   def query(query : String, defaultGraphURI : Option[String]) = SPARQL_ENDPOINT match {
@@ -207,10 +208,17 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     }
   }
 
+  private def isInAppLang(node : RDFNode) = node match {
+    case LangLiteral(l, lang) if lang != siteSettings.LANG =>
+      false
+    case _ =>
+      true
+  }
+
   def summarize(id : String) = search { implicit searcher =>
     searcher.find(id) match {
       case Some(doc) =>
-        doc.facets.map({
+        doc.facets.filter(e => isInAppLang(e._2)).map({
           case (prop, value) =>
             FactValue(
               RDFValue(displayer.uriToStr(prop.value), prop.value),
@@ -226,46 +234,41 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                 case PlainLiteral(lit) =>
                   RDFValue(lit)
               })
-        }).toSeq
+        }).toList
       case None =>
         Nil
     }
   }
 
-  def listResources(offset : Int, limit : Int, prop : Option[String] = None, 
-    obj : Option[RDFNode] = None) = search { implicit searcher =>
-    val docs = prop match {
-      case Some(p) =>
-        obj match {
-          case Some(o) =>
-            searcher.listByPropObj(offset, limit + 1, URI(p), o)
-          case None =>
-            searcher.listByProp(offset, limit + 1, URI(p))
-        }
-      case None =>
+  def listResources(offset : Int, limit : Int, 
+      propObj : Seq[(URI, Option[RDFNode])] = Nil) = search { implicit searcher =>
+    val docs = propObj match {
+      case Nil =>
         searcher.list(offset, limit + 1)
+      case propObjs =>
+        searcher.listByPropObjs(offset, limit + 1, propObjs)
     }
     (docs.size > limit,
       docs.take(limit).map({ doc =>
         SearchResult(doc.label.getOrElse(displayer.magicString(doc.id)), doc.id)
-      }).toSeq)
+      }).toList)
   }
 
   def label(id : String) : Option[String] = search { implicit searcher =>
     searcher.find(id).flatMap(_.label)
   }
 
-  def listValues(offset : Int, limit : Int, prop : String) = search { implicit searcher =>
-    val vals = searcher.listVals(offset, limit + 1, URI(prop))
+  def listValues(offset : Int, limit : Int, prop : URI) = search { implicit searcher =>
+    val vals = searcher.listVals(offset, limit + 1, prop)
       
-    (vals.size > limit, vals.take(limit).map({
-      case (count, URI(u)) =>
-        SearchResultWithCount(displayer.uriToStr(u), u, count)
-      case (count, BlankNode(id)) =>
-        SearchResultWithCount("Blank Node", "", count)
+    (vals.size > limit, vals.take(limit).flatMap({
+      case (count, n@URI(u)) =>
+        Some(SearchResultWithCount(displayer.uriToStr(u), n, count))
+      case (count, n@BlankNode(id)) =>
+        None
       case (count, l : Literal) =>
-        SearchResultWithCount(l.value, "", count)
-    }).toSeq)
+        Some(SearchResultWithCount(l.value, l, count))
+    }).toList)
   }
 
   def search(query : String, property : Option[String], offset : Int, 
@@ -273,7 +276,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     searcher.freeText(query, property.map(URI(_)), offset, limit).map({
       doc =>
         SearchResult(doc.label.getOrElse(displayer.magicString(doc.id)), doc.id)
-    }).toSeq
+    }).toList
   }
 
   def backlinks(id : String) = search { implicit searcher => 

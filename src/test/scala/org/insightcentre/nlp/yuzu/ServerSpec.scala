@@ -36,19 +36,19 @@ class ServerSpec extends ScalatraSpec {
      ))
    when(backend.search("", None, 0, 21)).thenReturn(Nil)
 
-   when(backend.listResources(0, 20, None, None)).thenReturn((false, Seq(
+   when(backend.listResources(0, 20, Nil)).thenReturn((false, Seq(
      SearchResult("Example", "data/example"),
      SearchResult("Example 2", "data/example2"),
      SearchResult("bosättningsstopp..nn.1", "data/bosättningsstopp..nn.1"))))
-   when(backend.listResources(0, 20, Some("<http://www.w3.org/2000/01/rdf-schema#label>"), None)).thenReturn((false, Seq(
+   when(backend.listResources(0, 20, Seq((URI("http://www.w3.org/2000/01/rdf-schema#label"), None)))).thenReturn((false, Seq(
      SearchResult("Example", "data/example"),
      SearchResult("Beispiel (2)", "data/example2"))))
-   when(backend.listResources(0, 20, Some("<http://www.w3.org/2000/01/rdf-schema#label>"), Some(LangLiteral("Beispiel","de")))).thenReturn((false, Seq(
+   when(backend.listResources(0, 20, Seq((URI("http://www.w3.org/2000/01/rdf-schema#label"), Some(LangLiteral("Beispiel","de")))))).thenReturn((false, Seq(
      SearchResult("Example", "data/example"))))
 
-   when(backend.listValues(0,20,"<http://www.w3.org/2000/01/rdf-schema#label>")).thenReturn((
+   when(backend.listValues(0,20,URI("http://www.w3.org/2000/01/rdf-schema#label"))).thenReturn((
      true, Seq(
-       SearchResultWithCount("Example", "", 10))))
+       SearchResultWithCount("Example", PlainLiteral("Example"), 10))))
      
 
    when(backend.context("data/example")).thenReturn(context)
@@ -130,8 +130,7 @@ class ServerSpec extends ScalatraSpec {
       (response.body must not contain(">data/example2<"))
     }
     def test_list_by_value = get("/list/?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label") {
-      (response.body must contain("Beispiel (2)")) and
-      (response.body must contain("obj_offset=0"))
+      (response.body must contain("Beispiel (2)"))
     }
 
     def test_list_by_value_object = get("/list?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label&obj=%22Beispiel%22%40de") {
@@ -280,7 +279,7 @@ class ServerSpec extends ScalatraSpec {
 //        (response.body must contain("Link Set")) and
         (response.body must contain("Instance of")) and
  //       (response.body must contain("Distribution"))
-        (response.body must contain("distribution"))
+        (response.body must contain("Distribution"))
     }
 
     def test_dataid_rdf = get("/about.rdf") {

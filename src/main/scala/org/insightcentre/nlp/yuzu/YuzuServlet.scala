@@ -22,7 +22,8 @@ abstract class YuzuServlet extends YuzuServletActions {
       pass()
     } else if(findTemplate("/" + params("splat"), Set("mustache")) != None) {
       contentType = "text/html"
-      mustache("/" + params("splat"))
+      mustache("/" + params("splat"),
+        "DATA_FILE" -> siteSettings.DATA_FILE.getName())
     } else {
       val (resource, ext) = params("splat") match {
         case pathWithExtension(r, ext) =>
@@ -42,7 +43,8 @@ abstract class YuzuServlet extends YuzuServletActions {
       contentType = "text/html"
       mustache("/index", 
         "is_test" -> isTest,
-        "title" -> siteSettings.DISPLAY_NAME)
+        "title" -> siteSettings.DISPLAY_NAME,
+        "property_facets" -> siteSettings.FACETS)
     }
   }
 
@@ -101,22 +103,20 @@ abstract class YuzuServlet extends YuzuServletActions {
         case _ =>
           0
       }
-      val property = params.get("prop") match {
-        case Some(prop) if prop.matches("<.*>") =>
-          Some(prop)
-        case Some(prop) =>
-          Some("<%s>" format prop)
-        case None =>
-          None
+      val properties = multiParams("prop").map {
+        case prop if prop.matches("<.*>") =>
+          rdf.URI(prop.drop(1).dropRight(1))
+        case prop =>
+          rdf.URI(prop)
       }
-      val obj = params.get("obj")
+      val objs = multiParams("obj").map(rdf.RDFNode.apply)
       val objOffset = params.get("obj_offset") match {
         case Some(num) if num.matches("[0-9]+") =>
           Some(num.toInt)
         case _ =>
           None
       }
-      listResources(offset, property, obj, objOffset)
+      listResources(offset, properties, objs, objOffset)
     }
   }
 

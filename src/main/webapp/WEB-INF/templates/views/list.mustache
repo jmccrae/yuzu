@@ -10,15 +10,18 @@
                     <h4>List by:</h4>
                     <div class="list-group">
                         {{#facets}}
-                        <a href='{{context.getContextPath()}}/list/?prop={{uri_enc}}' class="list-group-item active rdf_link">{{label}}</a>
+                        <a href='{{context.getContextPath()}}/list/?prop={{uri_enc}}&amp;{{qsb}}' class="list-group-item active rdf_link">{{label}}</a>
                         {{#values?}}
                             <div class="list-group">
                         {{/values?}}
                             {{#values}}
-                            <a href='{{context.getContextPath()}}/list?prop={{prop_uri}}%26obj={{value_enc}}%26obj_offset={{offset}}' class="list-group-item" style="word-wrap:break-word;">{{value}} ({{count}})</a>
+                            <a href="{{context.getContextPath()}}/list?{{link_qs}}" class="list-group-item {{#selected}}selected{{/selected}}" style="word-wrap:break-word;">{{value}} ({{count}}) 
+                            {{#selected}}<span class="badge">&#215;</span>{{/selected}}
+                            {{^selected}}<span class="badge badge_hidden">+</span>{{/selected}}
+                            </a>
                             {{/values}}
                             {{#more_values}}
-                            <a href='{{context.getContextPath()}}/list/?prop={{uri_enc}}%26obj_offset={{more_values}}' class="list-group-item">More values...</a>
+                            <a href="{{context.getContextPath()}}/list/?prop={{uri_enc}}&amp;obj_offset={{more_values}}&amp;{{qsb}}" class="list-group-item">More values...</a>
                             {{/more_values}}
                             {{#values?}}
                             </div>

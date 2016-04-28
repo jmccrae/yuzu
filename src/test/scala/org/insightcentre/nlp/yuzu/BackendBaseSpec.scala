@@ -45,6 +45,14 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
         Seq(ExampleDocument2)
       case _ => Nil
     }
+    def listByPropObjs(offset : Int, limit : Int, propObjs : Seq[(URI, Option[RDFNode])]) = propObjs match {
+      case Seq((p, Some(o))) =>
+        listByPropObj(offset, limit, p, o)
+      case Seq((p, None)) =>
+        listByProp(offset, limit, p)
+      case _ =>
+        Nil
+    }
     def listVals(offset : Int, limit : Int, property : URI) = property match {
       case URI("http://www.w3.org/2000/01/rdf-schema#label") =>
         Seq((1, LangLiteral("Example with English text", "en")), (1, LangLiteral("Another example", "en")),
@@ -163,24 +171,26 @@ trait BackendBaseSpec extends Specification {
   }
 
   def list = {
-    val (more, result) = backend.listResources(0, 10, None, None)
+    val (more, result) = backend.listResources(0, 10, Nil)
     (more must_== false) and 
     (result must have size(3))
   }
 
  def listByOffset = {
-    val (more, result) = backend.listResources(1, 1, None, None)
+    val (more, result) = backend.listResources(1, 1, Nil)
     (more must_== true) and
     (result must have size(1))
   }
 
   def listByProp = {
-    val (more, result) = backend.listResources(0, 10, Some("http://www.w3.org/2000/01/rdf-schema#seeAlso"), None)
+    val (more, result) = backend.listResources(0, 10, Seq((URI("http://www.w3.org/2000/01/rdf-schema#seeAlso"),None)))
     (result must have size(1))
   }
 
   def listByValue = {
-    val (more, result) = backend.listResources(0, 10, Some("http://www.w3.org/2000/01/rdf-schema#label"), Some(LangLiteral("Example with English text", "en")))
+    val (more, result) = backend.listResources(0, 10, Seq((
+        URI("http://www.w3.org/2000/01/rdf-schema#label"), 
+        Some(LangLiteral("Example with English text", "en")))))
     (result must have size(1))
   }
 
@@ -196,12 +206,12 @@ trait BackendBaseSpec extends Specification {
   }
 
   def listValues = {
-    (backend.listValues(0, 3, "http://www.w3.org/2000/01/rdf-schema#label") match {
+    (backend.listValues(0, 3, URI("http://www.w3.org/2000/01/rdf-schema#label")) match {
       case (b, vs) => vs.sortBy(_.label)
     }) must_== Seq(
-      SearchResultWithCount("Another example", "", 1),
-      SearchResultWithCount("Beispiel", "", 1),
-      SearchResultWithCount("Example with English text", "", 1))
+      SearchResultWithCount("Another example", LangLiteral("Another example", "en"), 1),
+      SearchResultWithCount("Beispiel", LangLiteral("Beispiel", "de"), 1),
+      SearchResultWithCount("Example with English text", LangLiteral("Example with English text", "en"), 1))
   }
 
   def search = {

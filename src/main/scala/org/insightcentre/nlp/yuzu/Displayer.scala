@@ -57,4 +57,13 @@ class Displayer(labelLookup : String => Option[String],
       uri
     }
   }
+
+  def display(node : rdf.RDFNode) : String = node match {
+    case rdf.URI(u) =>
+      uriToStr(u)
+    case b : rdf.BlankNode =>
+      "..."
+    case l : rdf.Literal =>
+      l.value
+  }
 }

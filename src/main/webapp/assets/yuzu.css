@@ -42,4 +42,30 @@ td.rdf_prop {
 .rdf_lang {
    float:right !important
 } 
-
+.rdf_header {
+    border-bottom: 1px solid #eee;
+    margin-top: 30px;
+    overflow: hidden;
+    word-wrap: break-word;
+}
+.rdf_header h1 {
+    font-weight: bold;
+}
+div.footer_link {
+    border-right: 1px solid #ccc;
+    text-align: right;
+}
+a.footer_link {
+    font-variant: small-caps;
+    font-weight: bold;
+}
+.badge_hidden {
+    display: none;
+}
+a:hover .badge_hidden {
+    display: inline-block;
+}
+.list-group-item.selected {
+    background-color: #adebad;
+    border-color: #adebad;
+}

@@ -32,7 +32,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     }
 
     def listByProp(offset : Int, limit : Int, property : URI) = {
-      sql"""SELECT ids.pageId, ids.id FROM ids
+      sql"""SELECT DISTINCT ids.pageId, ids.id FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids2 ON tripids.pid=ids2.id
             WHERE ids.pageId is not null AND ids2.n3=${property.toString}
@@ -42,7 +42,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
      }
 
     def listByPropObj(offset : Int, limit : Int, property : URI, obj : RDFNode) = {
-      sql"""SELECT ids.pageId, ids.id FROM ids
+      sql"""SELECT DISTINCT ids.pageId, ids.id FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids2 ON tripids.pid=ids2.id
             JOIN ids AS ids3 ON tripids.oid=ids3.id
@@ -62,6 +62,33 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             }).toList
      }
 
+    def listByPropObjs(offset : Int, limit : Int, propObjs : Seq[(URI, Option[RDFNode])]) = {
+      if(propObjs.size > 10) throw new RuntimeException("Too many clauses for SQLite")
+      val sb1 = new StringBuilder("""SELECT DISTINCT ids.pageId, ids.id FROM ids
+          JOIN tripids ON tripids.sid=ids.id""")
+      val sb2 = new StringBuilder(""" WHERE ids.pageId is not null""")
+      val elems = collection.mutable.ListBuffer[Any]()
+      for((p, o) <- propObjs) {
+        val i = elems.size
+        sb1.append(s" JOIN ids AS ids$i ON tripids.pid=ids$i.id")
+        sb2.append(s" AND ids$i.n3=?")
+        elems.append(p.toString)
+        o match {
+          case Some(o) =>
+            sb1.append(s" JOIN ids AS ids${i+1} ON tripids.oid=ids${i+1}.id")
+            sb2.append(s" AND ids${i+1}.n3=?")
+            elems.append(o.toString)
+          case None =>
+        }
+      }
+      val q = sb1.toString + sb2.toString + " LIMIT ? OFFSET ?"
+      elems.append(limit)
+      elems.append(offset)
+      sql.apply(q, elems:_*).as2[String, Int].map({
+        case (id, i) => new SQLiteDocument(id, i)
+      }).toList
+    }
+
     def listVals(offset : Int, limit : Int, property : URI) = {
       sql"""SELECT object, count FROM value_cache
             WHERE property=${property.toString}
@@ -78,7 +105,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
           sql"""SELECT DISTINCT free_text.sid, ids.pageId FROM free_text
                 JOIN ids ON free_text.sid=ids.id
                 JOIN ids AS pids ON free_text.pid=pids.id
-                WHERE pids.n3=${p.toString} AND OBJECT MATCH $query
+                WHERE pids.n3=${p.toString} AND object MATCH $query
                 LIMIT $limit OFFSET $offset""".as2[Int, String].map({
                   case (i, id) => new SQLiteDocument(id, i)
                 })

@@ -9,8 +9,20 @@ import spray.json.DefaultJsonProtocol._
 trait JsonLDVisitor {
   def startNode(resource : Resource) : Unit
   def endNode(resource : Resource) : Unit
+  final def visitingNode[A](resource : Resource)(foo :  => A) = {
+    startNode(resource)
+    val a : A = foo
+    endNode(resource)
+    a
+  }
   def startProperty(resource : Resource, property : URI) : Unit
   def endProperty(resource : Resource, property : URI) : Unit
+  final def visitingProperty[A](resource : Resource, property : URI)(foo :  => A) = {
+    startProperty(resource, property)
+    val a : A = foo
+    endProperty(resource, property)
+    a
+  }
   def emitValue(subj : Resource, prop : URI, obj : RDFNode) : Unit
 }
 
@@ -448,12 +460,12 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
           case l : Literal =>
             l
           case r : Resource =>
-            visitor.startNode(r)
-            data.fields.foreach({
-              case (key, value) => resolveField(key, value, visitor, r, context, inverse)
-            })
-            visitor.endNode(r)
-            r
+            visitor.visitingNode(r) {
+              data.fields.foreach({
+                case (key, value) => resolveField(key, value, visitor, r, context, inverse)
+              })
+              r
+            }
         }
       }
     }
@@ -462,34 +474,34 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : Boolean = false
   private def resolveField(key : String, value : JsValue, visitor : JsonLDVisitor,
       subj : Resource, context : Option[JsonLDContext], inverse : Boolean = false) {
     val prop = propType(key, context)
-    visitor.startProperty(subj, prop.uri)
-    if(key == "@reverse") {
-      value match {
-        case data : JsObject => {
-          data.fields.foreach({
-            case (key, value) => resolveField(key, value, visitor, subj, context, true)
-          })
+    visitor.visitingProperty(subj, prop.uri) {
+      if(key == "@reverse") {
+        value match {
+          case data : JsObject => {
+            data.fields.foreach({
+              case (key, value) => resolveField(key, value, visitor, subj, context, true)
+            })
+          }
+          case _ =>
+            throw new JsonLDException("@reverse must have object as object")
         }
-        case _ =>
-          throw new JsonLDException("@reverse must have object as object")
-      }
-    } else {
-      prop match {
-        case StdProp(prop, typing, lang) => 
-          resolveStdProp(visitor, value, prop, typing, lang, key, subj, context, inverse)
-        case LangContainer(prop) =>
-          resolveLangContainer(visitor, value, prop, subj, context, inverse)
-        case ListContainer(prop) =>
-          resolveStdProp(visitor, JsObject("@list" -> value), prop, None, None, key, subj, context, inverse)
-        case IDContainer(prop) =>
-          resolveIdProp(visitor, value, prop, subj, context, inverse)
-        case ReverseProp(prop) =>
-          resolveReverseProp(visitor, value, prop, subj, context)
-        case IgnoreProp =>
-          Nil
+      } else {
+        prop match {
+          case StdProp(prop, typing, lang) => 
+            resolveStdProp(visitor, value, prop, typing, lang, key, subj, context, inverse)
+          case LangContainer(prop) =>
+            resolveLangContainer(visitor, value, prop, subj, context, inverse)
+          case ListContainer(prop) =>
+            resolveStdProp(visitor, JsObject("@list" -> value), prop, None, None, key, subj, context, inverse)
+          case IDContainer(prop) =>
+            resolveIdProp(visitor, value, prop, subj, context, inverse)
+          case ReverseProp(prop) =>
+            resolveReverseProp(visitor, value, prop, subj, context)
+          case IgnoreProp =>
+            Nil
+        }
       }
     }
-    visitor.endProperty(subj, prop.uri)
   }
 
   private def emit2(visitor : JsonLDVisitor, subj : Resource, prop : URI, 

@@ -3,19 +3,19 @@
         <title>Search Results</title>
 </head>
 <body>    
-    <h1>Search Results</h1>
     <div class="container">
         <div class="row">
+            <h1>Search Results</h1>
             {{^results}}
             No Results
             {{/results}}
             {{#results}}
-            <div class="panel panel-default">
-                <div class="panel-heading">
+            <div class="panel panel-default rdf_embedded_table">
+                <div class="panel-heading rdf_embedded_table_heading">
                     <a href="{{link}}" class="rdf_link">{{title}}</a>
                 </div>
-                <table class="panel-body rdf_embedded_table">
-                        {{#model}} {{#triples}}
+                <table class="panel-body">
+                        {{#model}} 
                     <tr>
                         <td class="rdf_prop">
                                 {{#prop}}
@@ -24,38 +24,19 @@
                         </td>
                         <td class="rdf_value">
                                 {{#obj}}
-                                {{#value}}
-                                <span property="{{#prop}}{{id}}{{/prop}}" 
-                                 {{#language}}xml:lang="{{language}}"{{/language}}
-                                 {{#type}}datatype="{{id}}"{{/type}}>
-                                  {{display}}
-                                </span>
-                                {{#language}}
-                                <span class="pull-right">
-                                    <img src="{{context.getContextPath()}}/assets/flag/{{lang}}.gif" 
-                                         onError="flagFallBack(this)"/>
-                                </span>
-                                {{/language}}
-                                {{#type}}
-                                <span class="pull-right rdf_datatype">
-                                    <a href="{{id}}" 
-                                       class="rdf_link">{{display}}</a></span>
-                                {{/type}}
-                                {{/value}}
-                                {{#id}}
-                                {{#bnode}}
-                                <i>Anonymous Node</i>
-                                {{/bnode}}
-                                {{^bnode}}
-                                <a href="{{id}}" 
-                                   property="{{#prop}}{{id}}{{/prop}}" 
-                                   class="rdf_link rdf_prop">{{display}}</a>
-                                {{/bnode}}
-                                {{/id}}
+                                {{#uri}}
+                                <a href="{{link}}" class="rdf_link">{{display}}</a>
+                                {{/uri}}
+                                {{#literal}}
+                                {{display}}
+                                {{#type}}<a href="{{link}}" class="rdf_type">{{display}}</a>{{/type}}
+                                {{#language}}<img class="rdf_lang" src="{{context.getContextPath()}}/assets/flag/{{language}}.gif" onError="flagFallBack(this)"/>{{/language}}
+                                {{/literal}}
+                                {{#bnode}}...{{/bnode}}
                                 {{/obj}}
                         </td>
                     </tr>
-                        {{/triples}} {{/model}} 
+                        {{/model}} 
                 </table>
             </div>
             {{/results}}

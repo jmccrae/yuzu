@@ -623,79 +623,85 @@ package sql {
 }
 
 package object sql {
+  def apply(query : String, args : Any*)(implicit session : Session) = {
+    val conn = session.conn
+    val ps = conn.prepareStatement(query)
+    session.monitor(ps)
+    for((arg, idx) <- args.zipWithIndex) {
+      arg match {
+        case array : java.sql.Array =>
+          ps.setArray(idx + 1, array)
+        case is : java.io.InputStream =>
+          ps.setBinaryStream(idx + 1, is)
+        case bd : java.math.BigDecimal =>
+          ps.setBigDecimal(idx + 1, bd)
+        case b : java.sql.Blob =>
+          ps.setBlob(idx + 1, b)
+        case b : Boolean =>
+          ps.setBoolean(idx + 1, b)
+        case b : java.lang.Boolean =>
+          ps.setBoolean(idx + 1, b)
+        case b : Byte =>
+          ps.setByte(idx + 1, b)
+        case b : Array[Byte] =>
+          ps.setBytes(idx + 1, b)
+        case b : java.io.Reader =>
+          ps.setCharacterStream(idx + 1, b)
+        case b : java.sql.Clob =>
+          ps.setClob(idx + 1, b)
+        case b : java.sql.Date =>
+          ps.setDate(idx + 1, b)
+        case b : Double =>
+          ps.setDouble(idx + 1, b)
+        case b : java.lang.Double =>
+          ps.setDouble(idx + 1, b.doubleValue())
+        case b : Float =>
+          ps.setFloat(idx + 1, b)
+        case b : java.lang.Float =>
+          ps.setFloat(idx + 1, b.floatValue())
+        case b : Int =>
+          ps.setInt(idx + 1, b)
+        case b : java.lang.Integer =>
+          ps.setInt(idx + 1, b.intValue())
+        case b : Long =>
+          ps.setLong(idx + 1, b)
+        case b : java.lang.Long =>
+          ps.setLong(idx + 1, b.longValue())
+        case b : java.sql.Ref =>
+          ps.setRef(idx + 1, b)
+        case b : java.sql.RowId =>
+          ps.setRowId(idx + 1, b)
+        case b : Short =>
+          ps.setShort(idx + 1, b)
+        case b : java.lang.Short =>
+          ps.setShort(idx + 1, b.shortValue())
+        case b : java.sql.SQLXML =>
+          ps.setSQLXML(idx + 1, b)
+        case b : String =>
+          ps.setString(idx + 1, b)
+        case b : java.sql.Time =>
+          ps.setTime(idx + 1, b)
+        case b : java.sql.Timestamp =>
+          ps.setTimestamp(idx + 1, b)
+        case b : java.net.URL =>
+          ps.setURL(idx + 1, b)
+        case null =>
+          ps.setNull(idx + 1, java.sql.Types.NULL)
+        case _ =>
+          throw new IllegalArgumentException(
+            "Not an SQL type: " + arg.getClass().getName()) 
+      }
+    }
+    new SQLQuery(ps, session) 
+
+  }
 
   /** Implicit class for SQL string interpolation */
   implicit class RDFSQLHelper(val sc : StringContext) extends AnyVal {
     def sql(args : Any*)(implicit session : Session) = {
-      val conn = session.conn
       val query = sc.parts.mkString("?")
-      val ps = conn.prepareStatement(query)
-      session.monitor(ps)
-      for((arg, idx) <- args.zipWithIndex) {
-        arg match {
-          case array : java.sql.Array =>
-            ps.setArray(idx + 1, array)
-          case is : java.io.InputStream =>
-            ps.setBinaryStream(idx + 1, is)
-          case bd : java.math.BigDecimal =>
-            ps.setBigDecimal(idx + 1, bd)
-          case b : java.sql.Blob =>
-            ps.setBlob(idx + 1, b)
-          case b : Boolean =>
-            ps.setBoolean(idx + 1, b)
-          case b : java.lang.Boolean =>
-            ps.setBoolean(idx + 1, b)
-          case b : Byte =>
-            ps.setByte(idx + 1, b)
-          case b : Array[Byte] =>
-            ps.setBytes(idx + 1, b)
-          case b : java.io.Reader =>
-            ps.setCharacterStream(idx + 1, b)
-          case b : java.sql.Clob =>
-            ps.setClob(idx + 1, b)
-          case b : java.sql.Date =>
-            ps.setDate(idx + 1, b)
-          case b : Double =>
-            ps.setDouble(idx + 1, b)
-          case b : java.lang.Double =>
-            ps.setDouble(idx + 1, b.doubleValue())
-          case b : Float =>
-            ps.setFloat(idx + 1, b)
-          case b : java.lang.Float =>
-            ps.setFloat(idx + 1, b.floatValue())
-          case b : Int =>
-            ps.setInt(idx + 1, b)
-          case b : java.lang.Integer =>
-            ps.setInt(idx + 1, b.intValue())
-          case b : Long =>
-            ps.setLong(idx + 1, b)
-          case b : java.lang.Long =>
-            ps.setLong(idx + 1, b.longValue())
-          case b : java.sql.Ref =>
-            ps.setRef(idx + 1, b)
-          case b : java.sql.RowId =>
-            ps.setRowId(idx + 1, b)
-          case b : Short =>
-            ps.setShort(idx + 1, b)
-          case b : java.lang.Short =>
-            ps.setShort(idx + 1, b.shortValue())
-          case b : java.sql.SQLXML =>
-            ps.setSQLXML(idx + 1, b)
-          case b : String =>
-            ps.setString(idx + 1, b)
-          case b : java.sql.Time =>
-            ps.setTime(idx + 1, b)
-          case b : java.sql.Timestamp =>
-            ps.setTimestamp(idx + 1, b)
-          case b : java.net.URL =>
-            ps.setURL(idx + 1, b)
-          case null =>
-            ps.setNull(idx + 1, java.sql.Types.NULL)
-          case _ =>
-            throw new IllegalArgumentException(
-              "Not an SQL type: " + arg.getClass().getName()) }}
-
-      new SQLQuery(ps, session) }
+        apply(query, args:_*)
+      }
   }
 
   /** Implicit type conversion object */

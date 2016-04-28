@@ -28,7 +28,7 @@ class ScalatraBootstrap extends LifeCycle {
 
     val sitePaths = context.getResourcePaths("/WEB-INF/sites/") 
     for(path <- sitePaths if path.matches("/WEB-INF/sites/\\w+\\.json")) {
-      val name = path.drop("/WEB-INF/sites".length).dropRight(".json".length)
+      val name = path.drop("/WEB-INF/sites/".length).dropRight(".json".length)
       val siteSettings = YuzuSiteSettings(toObj(io.Source.fromURL(context.getResource(path)).mkString("").parseJson))
       System.err.println("Mounting %s at /%s/" format (siteSettings.NAME, name))
       context.mount(new StandardYuzuServlet(name, siteSettings), "/%s/*" format name)

@@ -11,7 +11,7 @@ import scala.collection.JavaConversions._
 import spray.json.JsValue
 
 case class SearchResult(label : String, id : String)
-case class SearchResultWithCount(label : String, id : String, count : Int)
+case class SearchResultWithCount(label : String, id : RDFNode, count : Int)
 
 case class FactValue(prop : RDFValue, obj : RDFValue)
 case class RDFValue(
@@ -48,17 +48,16 @@ trait Backend {
    * List pages by property and object
    * @param offset The query offset
    * @param limit The query limit
-   * @param prop The property (if any)
-   * @param obj The object value (if any)
+   * @param propObj The properties and optional object values
    */
-  def listResources(offset : Int, limit : Int, prop : Option[String] = None, obj : Option[RDFNode] = None) : (Boolean,Seq[SearchResult])
+  def listResources(offset : Int, limit : Int, propObj : Seq[(rdf.URI, Option[RDFNode])] = Nil) : (Boolean,Seq[SearchResult])
   /**
    * List all values of a property
    * @param offset The query offset
    * @param limit The query limit
    * @param prop The property
    */
-  def listValues(offset : Int, limit : Int, prop : String) : (Boolean,Seq[SearchResultWithCount])
+  def listValues(offset : Int, limit : Int, prop : rdf.URI) : (Boolean,Seq[SearchResultWithCount])
   /**
    * Find pages containing a given search
    * @param query The search terms

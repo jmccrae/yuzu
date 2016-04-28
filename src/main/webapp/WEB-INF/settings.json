@@ -1,5 +1,5 @@
 {
-    "id": "test",
+    "id": "",
     "baseName": "http://localhost:8080/",
     "name": "Test instance",
     "data": "src/test/resources/example.zip",

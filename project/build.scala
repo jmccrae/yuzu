@@ -12,6 +12,8 @@ object YuzuBuild extends Build {
   val ScalaVersion = "2.10.6"
   val ScalatraVersion = "2.4.0"
 
+  scalacOptions ++= Seq("-unchecked", "-deprecation")
+
   lazy val project = Project (
     "yuzu",
     file("."),
