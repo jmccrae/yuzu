@@ -3,6 +3,7 @@ package org.insightcentre.nlp.yuzu
 import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode, AnonId, ModelFactory}
 import com.hp.hpl.jena.graph.Node
 import scala.collection.JavaConversions._
+import scala.language.dynamics
   
 package rdf {
   trait RDFNode {
@@ -74,7 +75,11 @@ package rdf {
     override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\"^^<" + datatype + ">"
     def toJena(implicit model : Model) = model.createTypedLiteral(value, datatype)
   }
-
+  class Namespace(val prefix : String) extends Dynamic {                        
+    def selectDynamic(name : String) = this + name                              
+    def +(name : String) =                                                      
+      URI(prefix + name)
+  } 
 }
 
 package object rdf {
