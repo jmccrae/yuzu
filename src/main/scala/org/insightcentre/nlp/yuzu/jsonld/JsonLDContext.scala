@@ -141,15 +141,11 @@ object JsonLDContext {
   }
 
 
-  def apply(contexts : JsArray, resolveRemote : Boolean) : JsonLDContext = {
+  def apply(contexts : JsArray, resolveRemote : RemoteResolver) : JsonLDContext = {
     contexts.elements.foldLeft(new JsonLDContext(Map(),None,None,None))({
       (l, r) => r match {
         case JsString(s) =>
-          if(resolveRemote) {
-            l ++ loadContext(s)
-          } else {
-            throw new JsonLDException("Remote URL but resolveRemote is false")
-          }
+          l ++ resolveRemote.resolve(s)
         case o : JsObject =>
           l ++ apply(o)
         case _ =>

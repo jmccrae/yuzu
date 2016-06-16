@@ -76,11 +76,11 @@ class JsonLDConverterSpec extends ScalatraSpec {
             "homepage": "http://manu.sporny.org/",
               "image": "http://manu.sporny.org/images/manu.png"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     (triples must have size 3) and
-    (triples must contain ((BlankNode(), URI("http://schema.org/name"), PlainLiteral("Manu Sporny")))) and
-    (triples must contain ((BlankNode(), URI("http://schema.org/url"), URI("http://manu.sporny.org/")))) and
-    (triples must contain ((BlankNode(), URI("http://schema.org/image"), URI("http://manu.sporny.org/images/manu.png"))))
+    (triplesMustContain(triples) ((BlankNode(), URI("http://schema.org/name"), PlainLiteral("Manu Sporny")))) and
+    (triplesMustContain(triples) ((BlankNode(), URI("http://schema.org/url"), URI("http://manu.sporny.org/")))) and
+    (triplesMustContain(triples) ((BlankNode(), URI("http://schema.org/image"), URI("http://manu.sporny.org/images/manu.png"))))
   }
 
   def e5 = {
@@ -101,11 +101,11 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "homepage": "http://manu.sporny.org/",
   "image": "http://manu.sporny.org/images/manu.png"
 }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     (triples must have size 3) and
-    (triples must contain ((BlankNode(), URI("http://schema.org/name"), PlainLiteral("Manu Sporny")))) and
-    (triples must contain ((BlankNode(), URI("http://schema.org/url"), URI("http://manu.sporny.org/")))) and
-    (triples must contain ((BlankNode(), URI("http://schema.org/image"), URI("http://manu.sporny.org/images/manu.png"))))
+    (triplesMustContain(triples) ((BlankNode(), URI("http://schema.org/name"), PlainLiteral("Manu Sporny")))) and
+    (triplesMustContain(triples) ((BlankNode(), URI("http://schema.org/url"), URI("http://manu.sporny.org/")))) and
+    (triplesMustContain(triples) ((BlankNode(), URI("http://schema.org/image"), URI("http://manu.sporny.org/images/manu.png"))))
   }
 
   def e11 = {
@@ -117,9 +117,9 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "@id": "http://me.markus-lanthaler.com/",
   "name": "Markus Lanthaler"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     (triples must have size 1) and
-    (triples must contain ((URI("http://me.markus-lanthaler.com/"), URI("http://schema.org/name"), PlainLiteral("Markus Lanthaler"))))
+    (triplesMustContain(triples) ((URI("http://me.markus-lanthaler.com/"), URI("http://schema.org/name"), PlainLiteral("Markus Lanthaler"))))
   }
 
   def e12 = {
@@ -127,9 +127,9 @@ class JsonLDConverterSpec extends ScalatraSpec {
 "@id": "http://example.org/places#BrewEats",
   "@type": "http://schema.org/Restaurant"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     (triples must have size 1) and
-    (triples must contain ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant")))) 
+    (triplesMustContain(triples) ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant")))) 
   }
 
 
@@ -138,9 +138,9 @@ class JsonLDConverterSpec extends ScalatraSpec {
       "@id": "http://example.org/places#BrewEats",
   "@type": [ "http://schema.org/Restaurant", "http://schema.org/Brewery" ]
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     (triples must have size 2) and
-    (triples must contain ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant"))))
+    (triplesMustContain(triples) ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant"))))
   }
 
 
@@ -153,9 +153,9 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "@id": "http://example.org/places#BrewEats",
   "@type": [ "Restaurant", "Brewery" ]
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     (triples must have size 2) and
-    (triples must contain ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant"))))
+    (triplesMustContain(triples) ((URI("http://example.org/places#BrewEats"), RDF_TYPE, URI("http://schema.org/Restaurant"))))
   }
 
   def e15 = {
@@ -168,7 +168,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://example.com/"))).toTriples(data, None)
     triples must have size 1
-    triples must contain ((URI("http://example.com/"), URI("http://www.w3.org/2000/01/rdf-schema#label"), PlainLiteral("Just a simple document")))
+    triplesMustContain(triples) ((URI("http://example.com/"), URI("http://www.w3.org/2000/01/rdf-schema#label"), PlainLiteral("Just a simple document")))
   }
 
 
@@ -182,7 +182,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "label": "Just a simple document"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://example.com/"))).toTriples(data, None)
-    triples must contain ((URI("http://example.com/document.jsonld"), URI("http://www.w3.org/2000/01/rdf-schema#label"), PlainLiteral("Just a simple document")))
+    triplesMustContain(triples) ((URI("http://example.com/document.jsonld"), URI("http://www.w3.org/2000/01/rdf-schema#label"), PlainLiteral("Just a simple document")))
   }
 
   def e17 = {
@@ -195,7 +195,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "name": "Brew Eats"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://example.com/"))).toTriples(data, None)
-    triples must contain ((URI("http://example.org/places#BrewEats"), URI("http://schema.org/name"), PlainLiteral("Brew Eats")))
+    triplesMustContain(triples) ((URI("http://example.org/places#BrewEats"), URI("http://schema.org/name"), PlainLiteral("Brew Eats")))
   }
 
   def e18 = {
@@ -224,8 +224,8 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "foaf:name": "Dave Longley"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    (triples must contain ((BlankNode(), RDF_TYPE, URI("http://xmlns.com/foaf/0.1/Person")))) and
-    (triples must contain ((BlankNode(), URI("http://xmlns.com/foaf/0.1/name"), PlainLiteral("Dave Longley"))))
+    (triplesMustContain(triples) ((BlankNode(), RDF_TYPE, URI("http://xmlns.com/foaf/0.1/Person")))) and
+    (triplesMustContain(triples) ((BlankNode(), URI("http://xmlns.com/foaf/0.1/name"), PlainLiteral("Dave Longley"))))
   }
 
   def e20 = {
@@ -245,8 +245,8 @@ class JsonLDConverterSpec extends ScalatraSpec {
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
     (triples must have size 4) and
-    (triples must contain ((URI("http://me.markus-lanthaler.com/"), URI("http://xmlns.com/foaf/0.1/depiction"), URI("http://twitter.com/account/profile_image/markuslanthaler")))) and
-    (triples must contain ((URI("http://me.markus-lanthaler.com/"), URI("http://xmlns.com/foaf/0.1/homepage"), URI("http://www.markus-lanthaler.com/"))))
+    (triplesMustContain(triples) ((URI("http://me.markus-lanthaler.com/"), URI("http://xmlns.com/foaf/0.1/depiction"), URI("http://twitter.com/account/profile_image/markuslanthaler")))) and
+    (triplesMustContain(triples) ((URI("http://me.markus-lanthaler.com/"), URI("http://xmlns.com/foaf/0.1/homepage"), URI("http://www.markus-lanthaler.com/"))))
   }
 
   def e21 = {
@@ -263,7 +263,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "modified": "2010-05-29T14:17:39+02:00"
 }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((URI("http://example.com/docs/1"), URI("http://purl.org/dc/terms/modified"),
+    triplesMustContain(triples) ((URI("http://example.com/docs/1"), URI("http://purl.org/dc/terms/modified"),
       TypedLiteral("2010-05-29T14:17:39+02:00", "http://www.w3.org/2001/XMLSchema#dateTime")))
   }
 
@@ -283,7 +283,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
 }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://purl.org/dc/terms/modified"),
+    triplesMustContain(triples) ((BlankNode(), URI("http://purl.org/dc/terms/modified"),
       TypedLiteral("2010-05-29T14:17:39+02:00", "http://www.w3.org/2001/XMLSchema#dateTime")))
   }
 
@@ -299,8 +299,8 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
 }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain((URI("http://example.org/posts#TripToWestVirginia"), URI("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),URI("http://schema.org/BlogPosting"))) 
-    triples must contain((URI("http://example.org/posts#TripToWestVirginia"), URI("http://purl.org/dc/terms/modified"), TypedLiteral("2010-05-29T14:17:39+02:00", "http://www.w3.org/2001/XMLSchema#dateTime")))
+    triplesMustContain(triples)((URI("http://example.org/posts#TripToWestVirginia"), URI("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),URI("http://schema.org/BlogPosting"))) 
+    triplesMustContain(triples)((URI("http://example.org/posts#TripToWestVirginia"), URI("http://purl.org/dc/terms/modified"), TypedLiteral("2010-05-29T14:17:39+02:00", "http://www.w3.org/2001/XMLSchema#dateTime")))
   }
 
   def e24 = {
@@ -330,10 +330,10 @@ class JsonLDConverterSpec extends ScalatraSpec {
   ]
 }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    (triples must contain ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/name"),PlainLiteral("John Smith")))) and
-    (triples must contain ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("41","http://www.w3.org/2001/XMLSchema#integer")))) and
-    (triples must contain ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://personal.example.org/")))) and
-    (triples must contain ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://work.example.com/jsmith/"))))
+    (triplesMustContain(triples) ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/name"),PlainLiteral("John Smith")))) and
+    (triplesMustContain(triples) ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("41","http://www.w3.org/2001/XMLSchema#integer")))) and
+    (triplesMustContain(triples) ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://personal.example.org/")))) and
+    (triplesMustContain(triples) ((URI("http://example.com/people#john"),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://work.example.com/jsmith/"))))
   }
 
   def e25 = {
@@ -361,10 +361,10 @@ class JsonLDConverterSpec extends ScalatraSpec {
   ]
 }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    (triples must contain ((BlankNode(),URI("http://xmlns.com/foaf/0.1/name"),PlainLiteral("John Smith")))) and
-    (triples must contain ((BlankNode(),URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("41","http://www.w3.org/2001/XMLSchema#integer")))) and
-    (triples must contain ((BlankNode(),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://personal.example.org/")))) and
-    (triples must contain ((BlankNode(),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://work.example.com/jsmith/"))))
+    (triplesMustContain(triples) ((BlankNode(),URI("http://xmlns.com/foaf/0.1/name"),PlainLiteral("John Smith")))) and
+    (triplesMustContain(triples) ((BlankNode(),URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("41","http://www.w3.org/2001/XMLSchema#integer")))) and
+    (triplesMustContain(triples) ((BlankNode(),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://personal.example.org/")))) and
+    (triplesMustContain(triples) ((BlankNode(),URI("http://xmlns.com/foaf/0.1/homepage"),URI("http://work.example.com/jsmith/"))))
   }
 
   def e28 = {
@@ -385,7 +385,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://example.com/organization#name"), PlainLiteral("Graz University of Technology")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://example.com/organization#name"), PlainLiteral("Graz University of Technology")))
   }
 
   def e29 = {
@@ -400,7 +400,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "homepage": "http://manu.sporny.org/",
   "pic": "http://twitter.com/account/profile_image/manusporny"
     }""".parseJson.asInstanceOf[JsObject]
-    val triples = new JsonLDConverter(resolveRemote=true).toTriples(data, None)
+    val triples = new JsonLDConverter(resolveRemote=ResolveRemote).toTriples(data, None)
     triples must have size 3
   }
 
@@ -415,7 +415,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "occupation": "科学者"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://www.example.com/name"), LangLiteral("花澄", "ja")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://www.example.com/name"), LangLiteral("花澄", "ja")))
   }
 
 
@@ -435,7 +435,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://www.example.com/occupation"), PlainLiteral("Ninja")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://www.example.com/occupation"), PlainLiteral("Ninja")))
   }
 
   def e33 = {
@@ -454,7 +454,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "occupation_cs": "Nindža"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://example.com/vocab/occupation"), LangLiteral("Ninja", "en")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://example.com/vocab/occupation"), LangLiteral("Ninja", "en")))
   }
 
   def e34 = {
@@ -473,7 +473,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://example.com/vocab/occupation"), LangLiteral("Ninja", "en")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://example.com/vocab/occupation"), LangLiteral("Ninja", "en")))
   }
 
   def e35 = {
@@ -489,7 +489,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://example.com/vocab/occupation"), LangLiteral("Scientist", "en")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://example.com/vocab/occupation"), LangLiteral("Scientist", "en")))
   }
 
   def e36 = {
@@ -509,7 +509,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "speciality": "手裏剣"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://example.com/vocab/name"), PlainLiteral("Frank")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://example.com/vocab/name"), PlainLiteral("Frank")))
   }
 
   def e37 = {
@@ -532,7 +532,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "age": 5
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("5", "http://www.w3.org/2001/XMLSchema#integer")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("5", "http://www.w3.org/2001/XMLSchema#integer")))
   }
 
   def e38 = {
@@ -556,7 +556,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "age": 5
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("5", "http://www.w3.org/2001/XMLSchema#integer")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("5", "http://www.w3.org/2001/XMLSchema#integer")))
   }
 
 
@@ -579,7 +579,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "foaf:age": 5
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("5", "http://www.w3.org/2001/XMLSchema#integer")))
+    triplesMustContain(triples) ((BlankNode(), URI("http://xmlns.com/foaf/0.1/age"), TypedLiteral("5", "http://www.w3.org/2001/XMLSchema#integer")))
   }
 
   def e40 = {
@@ -602,7 +602,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "http://xmlns.com/foaf/0.1/homepage": "http://www.example.com"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain((BlankNode(), URI("http://xmlns.com/foaf/0.1/homepage"), URI("http://www.example.com")))
+    triplesMustContain(triples)((BlankNode(), URI("http://xmlns.com/foaf/0.1/homepage"), URI("http://www.example.com")))
   }
 
   def e41 = {
@@ -675,7 +675,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "nick": [ "joe", "bob", "jaybee" ]
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter().toTriples(data, None)
-    triples must contain ((BlankNode(), RDF_FIRST, PlainLiteral("bob")))
+    triplesMustContain(triples) ((BlankNode(), RDF_FIRST, PlainLiteral("bob")))
   }
 
   def e46 = {
@@ -696,7 +696,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
   ]""".parseJson.asInstanceOf[JsArray]
   val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-  triples must contain ((URI("http://www.example.com/#bart"),URI("http://example.com/vocab#parent"),
+  triplesMustContain(triples) ((URI("http://www.example.com/#bart"),URI("http://example.com/vocab#parent"),
     URI("http://www.example.com/#homer")))
   }
 
@@ -718,7 +718,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-  triples must contain ((URI("http://www.example.com/#bart"),URI("http://example.com/vocab#parent"),
+  triplesMustContain(triples) ((URI("http://www.example.com/#bart"),URI("http://example.com/vocab#parent"),
     URI("http://www.example.com/#homer")))
   }
 
@@ -742,7 +742,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   ]
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-  triples must contain ((URI("http://www.example.com/#bart"),URI("http://example.com/vocab#parent"),
+  triplesMustContain(triples) ((URI("http://www.example.com/#bart"),URI("http://example.com/vocab#parent"),
     URI("http://www.example.com/#homer")))
   }
 
@@ -799,7 +799,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   ]
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-    triples must contain ((URI("http://manu.sporny.org/about#manu"), URI("http://example.com/vocab/name"),
+    triplesMustContain(triples) ((URI("http://manu.sporny.org/about#manu"), URI("http://example.com/vocab/name"),
       PlainLiteral("Manu Sporny")))
   }
 
@@ -815,7 +815,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
      }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-    triples must contain ((BlankNode(Some("n1")), URI("http://example.com/vocab/name"), PlainLiteral("Secret Agent 1")))
+    triplesMustContain(triples) ((BlankNode(Some("n1")), URI("http://example.com/vocab/name"), PlainLiteral("Secret Agent 1")))
   }
 
   def e53 = {
@@ -831,7 +831,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   "name": "Gregg Kellogg"
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-    triples must contain  ((URI("http://example.com/about#gregg"), RDF_TYPE, URI("http://xmlns.com/foaf/0.1/Person")))
+    triplesMustContain(triples)  ((URI("http://example.com/about#gregg"), RDF_TYPE, URI("http://xmlns.com/foaf/0.1/Person")))
   }
 
   def e54 = {
@@ -864,7 +864,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   }
     }""".parseJson.asInstanceOf[JsObject]
     val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
-    triples must contain ((URI("http://example.com/"), URI("http://schema.org/blogPost"), URI("http://www.example.com/en")))
+    triplesMustContain(triples) ((URI("http://example.com/"), URI("http://schema.org/blogPost"), URI("http://www.example.com/en")))
   }
     
     
@@ -881,5 +881,12 @@ class JsonLDConverterSpec extends ScalatraSpec {
 
   def iri2 = {
     JsonLDConverter.isAbsoluteIRI("test") must_== false
+  }
+
+  def triplesMustContain(triples : Iterable[Triple])(t2 : Triple) = {
+    triples must contain((t : Triple) => t match {
+      case (s2, p2, o2) => t2._1 =?= s2 && t2._2 =?= p2 && t2._3 =?= o2
+    }).setMessage("Triple missing: %s %s %s" format(t2._1, t2._2, t2._3))
+
   }
 }

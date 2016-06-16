@@ -12,7 +12,7 @@ package schema {
     /** id — an identifier for this group of tables, or null if this is undefined. */
     val id : Option[String],
     /** notes — any number of additional annotations on the group of tables. This annotation may be empty. */
-    val notes : Seq[RDFNode],
+    val notes : Seq[(URI, Seq[RDFTree])] = Nil,
     /** tables — the list of tables in the group of tables. A group of tables must have one or more tables. */
     val tables : Seq[Table],
     /** An object property that provides a single dialect description. If provided, dialect provides hints to processors about how to parse the referenced files to create tabular data models for the tables in the group. This may be provided as an embedded object or as a URL reference. See section 5.9 Dialect Descriptions for more details. */
@@ -20,7 +20,7 @@ package schema {
     /** An atomic property that must have a single string value that is one of "rtl", "ltr", or "auto". Indicates whether the tables in the group should be displayed with the first column on the right, on the left, or based on the first character in the table that has a specific direction. The value of this property becomes the value of the table direction annotation for all the tables in the table group. See Bidirectional Tables in [tabular-data-model] for details. The default value for this property is "auto".*/
     val tableDirection : TableDirection = TableDirection.auto,
     /** An object property that provides a single schema description as described in section 5.5 Schemas, used as the default for all the tables in the group. This may be provided as an embedded object within the JSON metadata or as a URL reference to a separate JSON object that is a schema description. */
-    val tableSchema : Option[TableSchema] = None,
+    val tableSchema : TableSchema = TableSchema(),
     /** An array property of transformation definitions that provide mechanisms to transform the tabular data into other formats. The value of this property becomes the value of the transformations annotation for all the tables in the table group. */
     val transformations : Seq[Transformation] = Nil
     )  {
@@ -39,7 +39,7 @@ package schema {
     /** An object property that provides a single dialect description. If provided, dialect provides hints to processors about how to parse the referenced files to create tabular data models for the tables in the group. This may be provided as an embedded object or as a URL reference. See section 5.9 Dialect Descriptions for more details. */
     val dialect : Dialect = Dialect(),
     /** notes — any number of additional annotations on the table. This annotation may be empty. */
-    val notes : Seq[RDFNode] = Nil,
+    val notes : Seq[(URI, Seq[RDFTree])] = Nil,
     /** suppress output — a boolean that indicates whether or not this table should be suppressed in any output generated from converting the group of tables, that this table belongs to, into another format, as described in section 6.7 Converting Tables. */
     val suppressOutput : Boolean = false,
     /** table direction — the direction in which the columns in the table should be displayed, as described in section 6.5.1 Bidirectional Tables; the value of this annotation may also become the value of the text direction annotation on columns and cells within the table, if the textDirection property is set to inherit (the default). */
@@ -69,7 +69,7 @@ package schema {
 
 
     /** A column reference property that holds either a single reference to a column description object or an array of references. The value of this property determines the titles annotation for each row within a table that uses this schema. The titles annotation holds the list of the values of the cells in that row that are in the referenced columns; if the value is not a string or has no associated language, it is interpreted as a string with an undefined language (und). */
-    val rowTitles : Seq[(String, String)] = Nil)
+    val rowTitles : Seq[(String, Option[String])] = Nil)
 
   /** A column represents a vertical arrangement of cells within a table. */
   case class Column(
@@ -86,7 +86,7 @@ package schema {
     /** A URI template property that may be used to indicate what a cell contains information about. The value of this property becomes the about URL annotation for the described column and is used to create the value of the about URL annotation for the cells within that column as described in section 5.1.3 URI Template Properties. 
       * NOTE
       * aboutUrl is typically defined on a schema description or table description to indicate what each row is about. If defined on individual column descriptions, care must be taken to ensure that transformed cell values maintain a semantic relationship. */
-    aboutUrl : Option[URLTemplate] = None,
+    aboutUrl : Option[AboutURLTemplate] = None,
 
 
     /** An atomic property that contains either a single string that is the main datatype of the values of the cell or a datatype description object. If the value of this property is a string, it must be the name of one of the built-in datatypes defined in section 5.11.1 Built-in Datatypes and this value is normalized to an object whose base property is the original string value. If it is an object then it describes a more specialized datatype. If a cell contains a sequence (i.e. the separator property is specified and not null) then this property specifies the datatype of each value within that sequence. See 5.11 Datatypes and Parsing Cells in [tabular-data-model] for more details.
@@ -95,7 +95,7 @@ package schema {
     datatype : Option[Datatype] = None,
 
     /** An atomic property holding a single string that is used to create a default value for the cell in cases where the original string value is an empty string. See Parsing Cells in [tabular-data-model] for more details. If not specified, the default for the default property is the empty string, "". The value of this property becomes the default annotation for the described column. */
-    `default` : Option[String] = None,
+    default : Option[String] = None,
 
     /** An atomic property giving a single string language code as defined by [BCP47]. Indicates the language of the value within the cell. See Parsing Cells in [tabular-data-model] for more details. The value of this property becomes the lang annotation for the described column. The default is und. */
     lang : Option[String] = None,
@@ -122,7 +122,7 @@ package schema {
     textDirection : TableDirection = TableDirection.inherit,
 
     /** A URI template property that is used to map the values of cells into URLs. The value of this property becomes the value URL annotation for the described column and is used to create the value of the value URL annotation for the cells within that column as described in section 5.1.3 URI Template Properties. */
-    valueUrl : Option[Map[String, String] => String] = None)
+    valueUrl : Option[ValueURLTemplate] = None)
 
   case class Transformation(
     val id : Option[String],
@@ -157,10 +157,10 @@ package schema {
     /** An object property that identifies a referenced table and a set of referenced columns within that table. Its properties are: */
   case class ForeignKeyReference(
     /** A link property holding a URL that is the identifier for a specific table that is being referenced. If this property is present then schemaReference must not be present. The table group must contain a table whose url annotation is identical to the expanded value of this property. That table is the referenced table. */
-    val resource : URL,
+    val resource : Option[URL] = None,
 
     /** A link property holding a URL that is the identifier for a schema that is being referenced. If this property is present then resource must not be present. The table group must contain a table with a tableSchema having a @id that is identical to the expanded value of this property, and there must not be more than one such table. That table is the referenced table. */
-    val schemaReference : URL,
+    val schemaReference : Option[URL] = None,
 
     /** A column reference property that holds either a single reference (by name) to a column description object within the tableSchema of the referenced table, or an array of such references.
 
@@ -170,45 +170,45 @@ package schema {
 
   NOTE
   It is not required for the table or schema referenced from a foreignKeys property to have a similarly defined primaryKey, though frequently it will. */
-    val columnReference : URL)
+    val columnReference : Seq[URL] = Nil)
 
   sealed trait Datatype
   case class BaseDatatype(
     val url : String) extends Datatype
   case class ComplexDatatype(
-    val id : Option[String],
     /** An atomic property that contains a single string: the name of one of the built-in datatypes, as listed above (and which are defined as terms in the default context). Its default is string. All values of the datatype must be valid values of the base datatype. The value of this property becomes the base annotation for the described datatype.*/
     val base : String,
+    val id : Option[String] = None,
 
     /** An atomic property that contains either a single string or an object that defines the format of a value of this type, used when parsing a string value as described in Parsing Cells in [tabular-data-model]. The value of this property becomes the format annotation for the described datatype. */
-    val format : Option[Either[String, NumericFormat]],
+    val format : Option[Either[String, NumericFormat]] = None,
 
     /** A numeric atomic property that contains a single integer that is the exact length of the value. The value of this property becomes the length annotation for the described datatype. See Length Constraints in [tabular-data-model] for details.*/
-    val length : Option[Int],
+    val length : Option[Int] = None,
 
     /** An atomic property that contains a single integer that is the minimum length of the value. The value of this property becomes the minimum length annotation for the described datatype. See Length Constraints in [tabular-data-model] for details. */
-    val minLength : Option[Int],
+    val minLength : Option[Int] = None,
 
     /** A numeric atomic property that contains a single integer that is the maximum length of the value. The value of this property becomes the maximum length annotation for the described datatype. See Length Constraints in [tabular-data-model] for details. */
-    val maxLength : Option[Int],
+    val maxLength : Option[Int] = None,
 
     /** An atomic property that contains a single number or string that is the minimum valid value (inclusive); equivalent to minInclusive. The value of this property becomes the minimum annotation for the described datatype. See Value Constraints in [tabular-data-model] for details. */
-    val minimum : Option[Int],
+    val minimum : Option[Int] = None,
 
     /** An atomic property that contains a single number or string that is the maximum valid value (inclusive); equivalent to maxInclusive. The value of this property becomes the maximum annotation for the described datatype. See Value Constraints in [tabular-data-model] for details. */
-    val maximum : Option[Int],
+    val maximum : Option[Int] = None,
 
     /** An atomic property that contains a single number or string that is the minimum valid value (inclusive). The value of this property becomes the minimum annotation for the described datatype. See Value Constraints in [tabular-data-model] for details. */
-    val minInclusive : Option[Int],
+    val minInclusive : Option[Int] = None,
 
     /** An atomic property that contains a single number or string that is the maximum valid value (inclusive). The value of this property becomes the maximum annotation for the described datatype. See Value Constraints in [tabular-data-model] for details. */
-    val maxInclusive : Option[Int],
+    val maxInclusive : Option[Int] = None,
 
     /** An atomic property that contains a single number or string that is the minimum valid value (exclusive). The value of this property becomes the minimum exclusive annotation for the described datatype. See Value Constraints in [tabular-data-model] for details. */
-    val minExclusive : Option[Int],
+    val minExclusive : Option[Int] = None,
 
     /** An atomic property that contains a single number or string that is the maximum valid value (exclusive). The value of this property becomes the maximum exclusive annotation for the described datatype. See Value Constraints in [tabular-data-model] for details. */
-    val maxExclusive : Option[Int])
+    val maxExclusive : Option[Int] = None) extends Datatype
 
   case class NumericFormat(
     /** A string whose value is used to represent a decimal point within the number. The default value is ".". If the supplied value is not a string, implementations must issue a warning and proceed as if the property had not been specified. */
@@ -219,7 +219,17 @@ package schema {
     val pattern : Option[String] = None) extends Datatype
 
 
-  case class URLTemplate(template : String) {
+  case class ValueURLTemplate(template : String) {
+    def apply(values : Map[String, String]) = {
+      var t = template
+      for((key, repl) <- values) {
+        t = t.replaceAll("\\{%s\\}" format java.util.regex.Pattern.quote(key),
+          java.util.regex.Matcher.quoteReplacement(repl))
+      }
+      t
+    }
+  }
+  case class AboutURLTemplate(template : String) {
     def apply(
       _column : Int,
       _sourceColumn : Int,

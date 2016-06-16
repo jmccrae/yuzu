@@ -8,6 +8,8 @@ import scala.language.dynamics
 package rdf {
   trait RDFNode {
     def toJena(implicit model : Model) : JenaRDFNode
+    /** Check RDF matching equivalence, i.e., BlankNodes match any RDFNode */
+    def =?=(o : RDFNode) : Boolean
   }
   object RDFNode {
     private val langLit  = "\"(.*)\"@(.*)".r
@@ -39,7 +41,9 @@ package rdf {
   trait Resource extends RDFNode {
     def toJena(implicit model : Model) : JenaResource
   }
-  case class BlankNode(id : Option[String] = None) extends Resource {
+
+  class BlankNode(val id : Option[String]) extends Resource {
+    val defId : String = id.getOrElse(util.Random.nextLong.toHexString)
     override def toString = id match {
       case Some(s) =>
         "_:" + s
@@ -54,14 +58,34 @@ package rdf {
           model.createResource()
       })
     val jenaVal = collection.mutable.Map[Model, JenaResource]()
+    override def equals(a : Any) = a match {
+      case b : BlankNode =>
+        this.defId == b.defId
+      case _ =>
+        false
+    }
+    override def hashCode = 7 * defId.hashCode + 3
+    def =?=(a : RDFNode) = a match {
+      case _ : Resource => true
+      case _ : Literal => false
+    }
+  }
+  object BlankNode {
+    def apply(id : Option[String] = None) = new BlankNode(id)
+    def unapply(v : BlankNode) : Option[Option[String]] = Some(v.id)
   }
   case class URI(value : String) extends Resource {
     override def toString = "<" + value + ">"
     def toJena(implicit model : Model) = model.createResource(value)
     def toJenaProp(implicit model : Model) = model.createProperty(value)
+    def =?=(a : RDFNode) = a match {
+      case b : BlankNode => true
+      case a => this == a
+    }
   }
   trait Literal extends RDFNode {
     def value : String
+    def =?=(a : RDFNode) = this == a
   }
   case class PlainLiteral(val value : String) extends Literal {
     override def toString = "\"" + value.replaceAll("\\\"","\\\\\"") + "\""
@@ -80,6 +104,31 @@ package rdf {
     def +(name : String) =                                                      
       URI(prefix + name)
   } 
+  sealed trait RDFTree
+  case class RDFTreeNode(resource : Resource, properties : Map[URI, Seq[RDFTree]]) extends RDFTree
+  case class RDFTreeLeaf(rdfNode : RDFNode) extends RDFTree
+
+  object RDFTree {
+    def apply(head : Resource, triples : Iterable[Triple]) : RDFTree = 
+      buildRDFTree(head, triples, Nil)
+
+    private def buildRDFTree(head : RDFNode, triples : Iterable[Triple],
+        stack : Seq[Resource]) : RDFTree = head match {
+      case l : Literal =>
+        RDFTreeLeaf(l)
+      case r : Resource =>
+        if(stack contains head) {
+          RDFTreeLeaf(r)
+        } else {
+          RDFTreeNode(r, triples.flatMap({
+            case (s, p, o) if s == r =>
+              Some(p -> buildRDFTree(o, triples, r +: stack))
+            case _ =>
+              None
+          }).groupBy(_._1).mapValues(_.map(_._2).toSeq))
+        }
+    }
+  }
 }
 
 package object rdf {
