@@ -186,6 +186,19 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
     }
   }
 
+  private def resolveVocab(id : String, context : Option[JsonLDContext]) : Resource = {
+    if(id.contains(":")) {
+      resolve(id, context)
+    } else {
+      context flatMap (_.vocab) match {
+        case Some(c) =>
+          URI(c + id)
+        case None =>
+          resolve(id, context)
+      }
+    }
+  }
+
 
   private def remapKeywords(data : JsValue, inverse : Map[String, String]) : JsValue = {
     data match {
@@ -269,6 +282,8 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
                   StdProp(URI(s), None, None)
                 case Some(JsonLDURIProperty(s)) =>
                   StdProp(URI(s), Some("@id"), None)
+                case Some(JsonLDVocabProperty(s)) =>
+                  StdProp(URI(s), Some("@vocab"), None)
                 case Some(JsonLDTypedProperty(s, t)) =>
                   StdProp(URI(s), Some(t), None)
                 case Some(JsonLDLangProperty(s, t)) =>
@@ -289,6 +304,8 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
                       StdProp(URI(s + suf), None, None)
                     case Some(JsonLDURIProperty(s)) =>
                       StdProp(URI(s + suf), Some("@id"), None)
+                    case Some(JsonLDVocabProperty(s)) =>
+                      StdProp(URI(s + suf), Some("@vocab"), None)
                     case Some(JsonLDTypedProperty(s, t)) =>
                       StdProp(URI(s + suf), Some(t), None)
                     case Some(JsonLDLangProperty(s, t)) =>
@@ -325,6 +342,8 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
               StdProp(URI(s), None, None)
             case Some(JsonLDURIProperty(s)) =>
               StdProp(URI(s), Some("@id"), None)
+            case Some(JsonLDVocabProperty(s)) =>
+              StdProp(URI(s), Some("@vocab"), None)
             case Some(JsonLDTypedProperty(s, t)) =>
               StdProp(URI(s), Some(t), None)
             case Some(JsonLDLangProperty(s, t)) =>
@@ -479,6 +498,8 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
         subjType match {
           case Some("@id") =>
             resolve(s, context)
+          case Some("@vocab") =>
+            resolveVocab(s, context)
           case Some(t) =>
             TypedLiteral(s, t)
           case None =>

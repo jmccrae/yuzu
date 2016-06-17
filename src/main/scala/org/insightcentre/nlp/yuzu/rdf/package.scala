@@ -105,8 +105,8 @@ package rdf {
       URI(prefix + name)
   } 
   sealed trait RDFTree
-  case class RDFTreeNode(resource : Resource, properties : Map[URI, Seq[RDFTree]]) extends RDFTree
-  case class RDFTreeLeaf(rdfNode : RDFNode) extends RDFTree
+  case class RDFTreeNode(resource : Resource, properties : Map[URI, Seq[RDFTree]]) extends RDFTree 
+  case class RDFTreeLeaf(rdfNode : RDFNode) extends RDFTree 
 
   object RDFTree {
     def apply(head : Resource, triples : Iterable[Triple]) : RDFTree = 
@@ -120,12 +120,18 @@ package rdf {
         if(stack contains head) {
           RDFTreeLeaf(r)
         } else {
-          RDFTreeNode(r, triples.flatMap({
+          val ts = triples.flatMap({
             case (s, p, o) if s == r =>
               Some(p -> buildRDFTree(o, triples, r +: stack))
             case _ =>
               None
-          }).groupBy(_._1).mapValues(_.map(_._2).toSeq))
+          }).groupBy(_._1).mapValues(_.map(_._2).toSeq)
+
+          if(ts.isEmpty) {
+            RDFTreeLeaf(r)
+          } else {
+            RDFTreeNode(r, ts)
+          }
         }
     }
   }

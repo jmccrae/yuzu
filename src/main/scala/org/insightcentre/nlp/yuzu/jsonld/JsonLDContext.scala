@@ -231,6 +231,8 @@ object JsonLDContext {
               }
             case JsObject(data) if (data.get("@type") == Some(JsString("@id"))) =>
               JsonLDURIProperty(resolveFull(key, context))
+            case JsObject(data) if (data.get("@type") == Some(JsString("@vocab"))) =>
+              JsonLDVocabProperty(resolveFull(key, context))
             case JsObject(data) if (data.contains("@type")) =>
               data("@type") match {
                 case JsString(t) =>
@@ -292,4 +294,5 @@ case class JsonLDLangContainer(val full : String) extends JsonLDDefnWithId
 case class JsonLDListContainer(val full : String) extends JsonLDDefnWithId
 case class JsonLDIDContainer(val full : String) extends JsonLDDefnWithId
 case class JsonLDReverseProperty(val full : String) extends JsonLDDefnWithId
+case class JsonLDVocabProperty(val full : String) extends JsonLDDefnWithId
 object JsonLDIgnore extends JsonLDDefinition

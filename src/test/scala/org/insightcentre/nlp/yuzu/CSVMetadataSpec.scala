@@ -23,12 +23,10 @@ class CSVMetadataSpec extends ScalatraSpec {
     should work on example 19 ${parseExample(example19, SchemaReader.readDialect)}
     should work on example 20 ${parseExample(example20, SchemaReader.readDialect)}
     should work on example 27 ${parseExample(example27, SchemaReader.readTableGroup)}
-    should work on example 30 ${parseExample(example30, SchemaReader.readTableGroup)}
     should work on example 31 ${parseExample(example31, SchemaReader.readTable)}
     should work on example 32 ${parseExample(example32, SchemaReader.readTable)}
     should work on example 33 ${parseExample(example33, SchemaReader.readTable)}
     should work on example 34 ${parseExample(example34, SchemaReader.readForeignKey)}
-    should work on example 35 ${parseExample(example35, SchemaReader.readTable)}
     should work on example 37 ${parseExample(example37, SchemaReader.readTable)}
     should work on example 38 ${parseExample(example38, SchemaReader.readTable)}
     should work on example 39 ${parseExample(example39, SchemaReader.readTable)}
@@ -39,7 +37,8 @@ class CSVMetadataSpec extends ScalatraSpec {
     should work on example 44 ${parseExample(example44, SchemaReader.readTable)}
     should work on example 45 ${parseExample(example45, SchemaReader.readTable)}
     should work on example 46 ${parseExample(example46, SchemaReader.readTable)}
-
+  CSV2RDF should produce correct result for
+    should work on example 2  ${compareExample(example2, example2expected)}
     """
     
   val example2 = """{
@@ -523,12 +522,10 @@ class CSVMetadataSpec extends ScalatraSpec {
           name="inventory_date",
           titles=Seq(("Inventory Date", None)),
           datatype=Some(ComplexDatatype(
-            base=xsd.date.value,
+            base="date",
             format=Some(Left("M/d/yyyy")))))),
-      primaryKey=Seq("GID")//,
-//      aboutUrl=Some(AboutURLTemplate("#gid-{GID}"))))
-))
-
+      primaryKey=Seq("GID"),
+      aboutUrl=Some(AboutURLTemplate("http://example.com/test.csv#gid-{GID}"))))
 
   val csvwContext = JsonLDContext.loadContext("file:src/main/resources/csvw.jsonld")
 
@@ -546,5 +543,25 @@ class CSVMetadataSpec extends ScalatraSpec {
       val head = converter.rootValue(example.parseJson).head
       foo(RDFTree(head, triples))
       1 === 1
+  }
+
+  def compareExample(example : String, expected : Table) = {
+      val converter = new JsonLDConverter(base=Some(new URL("http://example.com/test.csv")),
+        resolveRemote=new RemoteResolver {
+        def resolve(uri : String) = uri match {
+          case "http://www.w3.org/ns/csvw" =>
+            csvwContext
+          case _ =>
+            throw new RuntimeException()
+        }
+      })
+      val triples = converter.toTriples(example.parseJson, Some(csvwContext))
+      val head = converter.rootValue(example.parseJson).head
+      println("Triples: " + triples)
+      println("Head   : " + head)
+      println("Tree   : " + RDFTree(head, triples))
+      val result = SchemaReader.readTable(RDFTree(head, triples))
+      (result.tableSchema.columns must_== expected.tableSchema.columns) and
+      (result.copy(notes=Seq()) must_== expected)
   }
 }

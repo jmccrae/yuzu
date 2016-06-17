@@ -22,8 +22,20 @@ package schema {
     /** An object property that provides a single schema description as described in section 5.5 Schemas, used as the default for all the tables in the group. This may be provided as an embedded object within the JSON metadata or as a URL reference to a separate JSON object that is a schema description. */
     val tableSchema : TableSchema = TableSchema(),
     /** An array property of transformation definitions that provide mechanisms to transform the tabular data into other formats. The value of this property becomes the value of the transformations annotation for all the tables in the table group. */
-    val transformations : Seq[Transformation] = Nil
-    )  {
+    val transformations : Seq[Transformation] = Nil,
+    val aboutUrl : Option[AboutURLTemplate] = None,
+    val datatype : Option[Datatype] = None,
+    val default : Option[String] = None,
+    val lang : Option[String] = None,
+    val `null` : Seq[String] = Nil,
+    val ordered : Boolean = false,
+    val propertyUrl : Option[URL] = None,
+    val required : Boolean = false,
+    val separator : Option[String] = None,
+    val textDirection : TableDirection = TableDirection.inherit,
+    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+      aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
+      required, separator, textDirection, valueUrl) {
   lazy val tablesByName = tables.map({
     table => (table.id -> table)
   }).toMap
@@ -47,8 +59,20 @@ package schema {
     /** An object property that provides a single schema description as described in section 5.5 Schemas, used as the default for all the tables in the group. This may be provided as an embedded object within the JSON metadata or as a URL reference to a separate JSON object that is a schema description. */
     val tableSchema : TableSchema = TableSchema(),
   /** transformations — a (possibly empty) list of specifications for converting this table into other formats, as defined in [tabular-metadata]. */
-    val transformations : Seq[Transformation] = Nil
-  )
+    val transformations : Seq[Transformation] = Nil,
+    val aboutUrl : Option[AboutURLTemplate] = None,
+    val datatype : Option[Datatype] = None,
+    val default : Option[String] = None,
+    val lang : Option[String] = None,
+    val `null` : Seq[String] = Nil,
+    val ordered : Boolean = false,
+    val propertyUrl : Option[URL] = None,
+    val required : Boolean = false,
+    val separator : Option[String] = None,
+    val textDirection : TableDirection = TableDirection.inherit,
+    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+      aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
+      required, separator, textDirection, valueUrl) 
 
   // https://www.w3.org/TR/2015/REC-tabular-metadata-20151217/#schemas
   case class TableSchema(
@@ -69,7 +93,20 @@ package schema {
 
 
     /** A column reference property that holds either a single reference to a column description object or an array of references. The value of this property determines the titles annotation for each row within a table that uses this schema. The titles annotation holds the list of the values of the cells in that row that are in the referenced columns; if the value is not a string or has no associated language, it is interpreted as a string with an undefined language (und). */
-    val rowTitles : Seq[(String, Option[String])] = Nil)
+    val rowTitles : Seq[(String, Option[String])] = Nil,
+    val aboutUrl : Option[AboutURLTemplate] = None,
+    val datatype : Option[Datatype] = None,
+    val default : Option[String] = None,
+    val lang : Option[String] = None,
+    val `null` : Seq[String] = Nil,
+    val ordered : Boolean = false,
+    val propertyUrl : Option[URL] = None,
+    val required : Boolean = false,
+    val separator : Option[String] = None,
+    val textDirection : TableDirection = TableDirection.inherit,
+    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+      aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
+      required, separator, textDirection, valueUrl) 
 
   /** A column represents a vertical arrangement of cells within a table. */
   case class Column(
@@ -82,6 +119,22 @@ package schema {
     val titles : Seq[(String, Option[String])] = Nil,
     /** virtual — a boolean that indicates whether the column is a virtual column. Virtual columns are used to extend the source data with additional empty columns to support more advanced conversions; when this annotation is false, the column is a real column, which exists in the source data for the table. */
     val virtual : Boolean = false,
+    val aboutUrl : Option[AboutURLTemplate] = None,
+    val datatype : Option[Datatype] = None,
+    val default : Option[String] = None,
+    val lang : Option[String] = None,
+    val `null` : Seq[String] = Nil,
+    val ordered : Boolean = false,
+    val propertyUrl : Option[URL] = None,
+    val required : Boolean = false,
+    val separator : Option[String] = None,
+    val textDirection : TableDirection = TableDirection.inherit,
+    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+      aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
+      required, separator, textDirection, valueUrl)
+
+
+abstract class CSVInherited (
     
     /** A URI template property that may be used to indicate what a cell contains information about. The value of this property becomes the about URL annotation for the described column and is used to create the value of the about URL annotation for the cells within that column as described in section 5.1.3 URI Template Properties. 
       * NOTE
