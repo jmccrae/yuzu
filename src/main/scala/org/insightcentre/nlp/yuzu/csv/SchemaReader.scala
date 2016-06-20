@@ -75,20 +75,21 @@ object SchemaReader {
     case RDFTreeNode(head, props) =>
       TableGroup(
         id=head match {
-          case b : BlankNode => 
+          case BlankNode(None) =>
             None
-          case URI(uri) =>
-            Some(uri)
+          case other =>
+            Some(other)
         },
-        notes=props.filter({
+        annotations=props.filter({
           case (URI(uri), _) => !uri.startsWith(csvw.prefix)
         }).toSeq,
+        notes=props.get(csvw.note) getOrElse Nil,
         tables=props.get(csvw.table) getOrElse Nil map readTable,
         dialect=props.get(csvw.dialect) map asSingle map readDialect getOrElse (Dialect()),
         tableDirection=props.get(csvw.tableDirection) map asTableDirection getOrElse TableDirection.inherit,
         tableSchema=props.get(csvw.tableSchema) map asSingle map readTableSchema getOrElse TableSchema(),
         transformations=props.get(csvw.transformation) getOrElse(Nil) map readTransformation,
-        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (AboutURLTemplate),
+        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (URLTemplate),
         datatype=props.get(csvw.datatype) map asSingle map readDatatype,
         default=props.get(csvw.default) map asStr,
         lang=props.get(csvw.lang) map asStr,
@@ -98,7 +99,7 @@ object SchemaReader {
         required=props.get(csvw.required) map asBool getOrElse false,
         separator=props.get(csvw.separator) map asStr,
         textDirection=props.get(csvw.textDirection) map asTableDirection getOrElse TableDirection.inherit,
-        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (ValueURLTemplate)
+        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (URLTemplate)
 
         )
     case RDFTreeLeaf(_) =>
@@ -110,21 +111,22 @@ object SchemaReader {
     case RDFTreeNode(head, props) =>
       Table(
         id=head match {
-          case b : BlankNode => 
+          case BlankNode(None) =>
             None
-          case URI(uri) =>
-            Some(uri)
+          case other =>
+            Some(other)
         },
         url=props.get(csvw.url) map asURL,
         dialect=props.get(csvw.dialect) map asSingle map readDialect getOrElse (Dialect()),
-        notes=props.filter({
+        annotations=props.filter({
           case (URI(uri), _) => !uri.startsWith(csvw.prefix)
         }).toSeq,
+        notes=props.get(csvw.note) getOrElse Nil,
         suppressOutput=props.get(csvw.suppressOutput) map asBool getOrElse (false),
         tableDirection=props.get(csvw.tableDirection) map asTableDirection getOrElse TableDirection.inherit,
         tableSchema=props.get(csvw.tableSchema) map asSingle map readTableSchema getOrElse TableSchema(),
         transformations=props.get(csvw.transformation) getOrElse(Nil) map readTransformation,
-        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (AboutURLTemplate),
+        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (URLTemplate),
         datatype=props.get(csvw.datatype) map asSingle map readDatatype,
         default=props.get(csvw.default) map asStr,
         lang=props.get(csvw.lang) map asStr,
@@ -134,7 +136,7 @@ object SchemaReader {
         required=props.get(csvw.required) map asBool getOrElse false,
         separator=props.get(csvw.separator) map asStr,
         textDirection=props.get(csvw.textDirection) map asTableDirection getOrElse TableDirection.inherit,
-        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (ValueURLTemplate)
+        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (URLTemplate)
 
 
         )
@@ -170,16 +172,16 @@ object SchemaReader {
     case RDFTreeNode(head, props) =>
       TableSchema(
         id=head match {
-          case b : BlankNode => 
+          case BlankNode(None) =>
             None
-          case URI(uri) =>
+          case uri =>
             Some(uri)
         },
         columns=props.get(csvw.column) getOrElse Nil map readColumn,
         foreignKeys=props.get(csvw.foreignKey) getOrElse Nil map readForeignKey,
         primaryKey=props.get(csvw.primaryKey) getOrElse Nil map asStr,
         rowTitles=props.get(csvw.rowTitle) getOrElse Nil map asLangStr,
-        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (AboutURLTemplate),
+        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (URLTemplate),
         datatype=props.get(csvw.datatype) map asSingle map readDatatype,
         default=props.get(csvw.default) map asStr,
         lang=props.get(csvw.lang) map asStr,
@@ -189,7 +191,7 @@ object SchemaReader {
         required=props.get(csvw.required) map asBool getOrElse false,
         separator=props.get(csvw.separator) map asStr,
         textDirection=props.get(csvw.textDirection) map asTableDirection getOrElse TableDirection.inherit,
-        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (ValueURLTemplate)
+        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (URLTemplate)
 
         )
     case RDFTreeLeaf(URI(uri)) =>
@@ -202,16 +204,16 @@ object SchemaReader {
     case RDFTreeNode(head, props) =>
       Column(
         id=head match {
-          case b : BlankNode => 
+          case BlankNode(None) =>
             None
-          case URI(uri) =>
-            Some(uri)
+          case other =>
+            Some(other)
         },
         name=props.get(csvw.name) map asStr getOrElse (throw new CSVOnTheWebSchemaException("Column without a name")),
         suppressOutput=props.get(csvw.suppressOutput) map asBool getOrElse (false),
         titles=props.get(csvw.title) getOrElse Nil map asLangStr,
         virtual=props.get(csvw.virtual) map asBool getOrElse false,
-        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (AboutURLTemplate),
+        aboutUrl=props.get(csvw.aboutUrl) map asURL map (_.toString) map (URLTemplate),
         datatype=props.get(csvw.datatype) map asSingle map readDatatype,
         default=props.get(csvw.default) map asStr,
         lang=props.get(csvw.lang) map asStr,
@@ -221,7 +223,7 @@ object SchemaReader {
         required=props.get(csvw.required) map asBool getOrElse false,
         separator=props.get(csvw.separator) map asStr,
         textDirection=props.get(csvw.textDirection) map asTableDirection getOrElse TableDirection.inherit,
-        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (ValueURLTemplate)
+        valueUrl=props.get(csvw.valueUrl) map asURL map (_.toString) map (URLTemplate)
       )
     case RDFTreeLeaf(URI(uri)) =>
       throw new CSVOnTheWebSchemaException("Reference to external schema cannot be resolved")
@@ -251,17 +253,28 @@ object SchemaReader {
       throw new CSVOnTheWebSchemaException("Empty foreign key")
   }
 
+  private def readBaseType(str : String) = str match {
+    case "number" => "http://www.w3.org/2001/XMLSchema#double"
+    case "binary" => "http://www.w3.org/2001/XMLSchema#base64Binary"
+    case "datetime" => "http://www.w3.org/2001/XMLSchema#dateTime"
+    case "any" => "http://www.w3.org/2001/XMLSchema#anyAtomicType"
+    case "xml" => "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+    case "html" => "http://www.w3.org/1999/02/22-rdf-syntax-ns#HTML"
+    case "json" => "http://www.w3.org/ns/csvw#JSON"
+    case x if x.startsWith("http") => x
+    case other => "http://www.w3.org/2001/XMLSchema#" + other
+  }
 
   def readDatatype(rdfTree : RDFTree) : Datatype = rdfTree match {
     case RDFTreeNode(head, props) =>
       ComplexDatatype(
         id=head match {
-          case b : BlankNode => 
+          case BlankNode(None) =>
             None
-          case URI(uri) =>
+          case uri =>
             Some(uri)
         },
-        base=props.get(csvw.base) map asStr getOrElse {
+        base=props.get(csvw.base) map asStr map readBaseType getOrElse {
           throw new CSVOnTheWebSchemaException("Complex datatype requires a base")
         },
         format=props.get(csvw.format) map asSingle map ({
@@ -284,7 +297,7 @@ object SchemaReader {
       uri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" ||
       uri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#HTML" ||
       uri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString") =>
-      BaseDatatype(uri)
+      BaseDatatype(readBaseType(uri))
     case RDFTreeLeaf(other) =>
       throw new CSVOnTheWebSchemaException("Unsupported datatype %s" format other)
   }
@@ -303,9 +316,9 @@ object SchemaReader {
     case RDFTreeNode(head, props) =>
       Transformation(
         id=head match {
-          case b : BlankNode => 
+          case BlankNode(None) =>
             None
-          case URI(uri) =>
+          case uri =>
             Some(uri)
         },
         url=props.get(csvw.url) map asURL getOrElse {

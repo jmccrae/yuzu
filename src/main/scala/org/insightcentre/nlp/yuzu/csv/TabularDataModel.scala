@@ -10,9 +10,10 @@ package schema {
    */
   case class TableGroup(
     /** id — an identifier for this group of tables, or null if this is undefined. */
-    val id : Option[String],
+    val id : Option[Resource],
     /** notes — any number of additional annotations on the group of tables. This annotation may be empty. */
-    val notes : Seq[(URI, Seq[RDFTree])] = Nil,
+    val annotations : Seq[(URI, Seq[RDFTree])] = Nil,
+    val notes : Seq[RDFTree] = Nil,
     /** tables — the list of tables in the group of tables. A group of tables must have one or more tables. */
     val tables : Seq[Table],
     /** An object property that provides a single dialect description. If provided, dialect provides hints to processors about how to parse the referenced files to create tabular data models for the tables in the group. This may be provided as an embedded object or as a URL reference. See section 5.9 Dialect Descriptions for more details. */
@@ -23,7 +24,7 @@ package schema {
     val tableSchema : TableSchema = TableSchema(),
     /** An array property of transformation definitions that provide mechanisms to transform the tabular data into other formats. The value of this property becomes the value of the transformations annotation for all the tables in the table group. */
     val transformations : Seq[Transformation] = Nil,
-    val aboutUrl : Option[AboutURLTemplate] = None,
+    val aboutUrl : Option[URLTemplate] = None,
     val datatype : Option[Datatype] = None,
     val default : Option[String] = None,
     val lang : Option[String] = None,
@@ -33,7 +34,7 @@ package schema {
     val required : Boolean = false,
     val separator : Option[String] = None,
     val textDirection : TableDirection = TableDirection.inherit,
-    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+    val valueUrl : Option[URLTemplate] = None) extends CSVInherited(
       aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
       required, separator, textDirection, valueUrl) {
   lazy val tablesByName = tables.map({
@@ -45,13 +46,14 @@ package schema {
    * An annotated table is a table that is annotated with additional metadata. 
    */
   case class Table(
-    val id : Option[String] = None,
+    val id : Option[Resource] = None,
     /** url — the URL of the source of the data in the table, or null if this is undefined. */
     val url : Option[URL] = None,
     /** An object property that provides a single dialect description. If provided, dialect provides hints to processors about how to parse the referenced files to create tabular data models for the tables in the group. This may be provided as an embedded object or as a URL reference. See section 5.9 Dialect Descriptions for more details. */
     val dialect : Dialect = Dialect(),
     /** notes — any number of additional annotations on the table. This annotation may be empty. */
-    val notes : Seq[(URI, Seq[RDFTree])] = Nil,
+    val annotations : Seq[(URI, Seq[RDFTree])] = Nil,
+    val notes : Seq[RDFTree] = Nil,
     /** suppress output — a boolean that indicates whether or not this table should be suppressed in any output generated from converting the group of tables, that this table belongs to, into another format, as described in section 6.7 Converting Tables. */
     val suppressOutput : Boolean = false,
     /** table direction — the direction in which the columns in the table should be displayed, as described in section 6.5.1 Bidirectional Tables; the value of this annotation may also become the value of the text direction annotation on columns and cells within the table, if the textDirection property is set to inherit (the default). */
@@ -60,7 +62,7 @@ package schema {
     val tableSchema : TableSchema = TableSchema(),
   /** transformations — a (possibly empty) list of specifications for converting this table into other formats, as defined in [tabular-metadata]. */
     val transformations : Seq[Transformation] = Nil,
-    val aboutUrl : Option[AboutURLTemplate] = None,
+    val aboutUrl : Option[URLTemplate] = None,
     val datatype : Option[Datatype] = None,
     val default : Option[String] = None,
     val lang : Option[String] = None,
@@ -70,13 +72,13 @@ package schema {
     val required : Boolean = false,
     val separator : Option[String] = None,
     val textDirection : TableDirection = TableDirection.inherit,
-    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+    val valueUrl : Option[URLTemplate] = None) extends CSVInherited(
       aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
       required, separator, textDirection, valueUrl) 
 
   // https://www.w3.org/TR/2015/REC-tabular-metadata-20151217/#schemas
   case class TableSchema(
-    val id : Option[String] = None,
+    val id : Option[Resource] = None,
     /** An array property of column descriptions as described in section 5.6 Columns. These are matched to columns in tables that use the schema by position: the first column description in the array applies to the first column in the table, the second to the second and so on. 
      *
      * The name properties of the column descriptions must be unique within a given table description. */
@@ -94,7 +96,7 @@ package schema {
 
     /** A column reference property that holds either a single reference to a column description object or an array of references. The value of this property determines the titles annotation for each row within a table that uses this schema. The titles annotation holds the list of the values of the cells in that row that are in the referenced columns; if the value is not a string or has no associated language, it is interpreted as a string with an undefined language (und). */
     val rowTitles : Seq[(String, Option[String])] = Nil,
-    val aboutUrl : Option[AboutURLTemplate] = None,
+    val aboutUrl : Option[URLTemplate] = None,
     val datatype : Option[Datatype] = None,
     val default : Option[String] = None,
     val lang : Option[String] = None,
@@ -104,7 +106,7 @@ package schema {
     val required : Boolean = false,
     val separator : Option[String] = None,
     val textDirection : TableDirection = TableDirection.inherit,
-    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+    val valueUrl : Option[URLTemplate] = None) extends CSVInherited(
       aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
       required, separator, textDirection, valueUrl) 
 
@@ -112,14 +114,14 @@ package schema {
   case class Column(
     /** name — the name of the column. */
     val name : String,
-    val id : Option[String] = None,
+    val id : Option[Resource] = None,
     /** suppress output — a boolean that indicates whether or not this column should be suppressed in any output generated from converting the table, as described in section 6.7 Converting Tables. */
     val suppressOutput : Boolean = false,
     /** titles — any number of human-readable titles for the column, each of which may have an associated language code as defined by [BCP47]. */
     val titles : Seq[(String, Option[String])] = Nil,
     /** virtual — a boolean that indicates whether the column is a virtual column. Virtual columns are used to extend the source data with additional empty columns to support more advanced conversions; when this annotation is false, the column is a real column, which exists in the source data for the table. */
     val virtual : Boolean = false,
-    val aboutUrl : Option[AboutURLTemplate] = None,
+    val aboutUrl : Option[URLTemplate] = None,
     val datatype : Option[Datatype] = None,
     val default : Option[String] = None,
     val lang : Option[String] = None,
@@ -129,7 +131,7 @@ package schema {
     val required : Boolean = false,
     val separator : Option[String] = None,
     val textDirection : TableDirection = TableDirection.inherit,
-    val valueUrl : Option[ValueURLTemplate] = None) extends CSVInherited(
+    val valueUrl : Option[URLTemplate] = None) extends CSVInherited(
       aboutUrl, datatype, default, lang, `null`, ordered, propertyUrl,
       required, separator, textDirection, valueUrl)
 
@@ -139,7 +141,7 @@ abstract class CSVInherited (
     /** A URI template property that may be used to indicate what a cell contains information about. The value of this property becomes the about URL annotation for the described column and is used to create the value of the about URL annotation for the cells within that column as described in section 5.1.3 URI Template Properties. 
       * NOTE
       * aboutUrl is typically defined on a schema description or table description to indicate what each row is about. If defined on individual column descriptions, care must be taken to ensure that transformed cell values maintain a semantic relationship. */
-    aboutUrl : Option[AboutURLTemplate] = None,
+    aboutUrl : Option[URLTemplate] = None,
 
 
     /** An atomic property that contains either a single string that is the main datatype of the values of the cell or a datatype description object. If the value of this property is a string, it must be the name of one of the built-in datatypes defined in section 5.11.1 Built-in Datatypes and this value is normalized to an object whose base property is the original string value. If it is an object then it describes a more specialized datatype. If a cell contains a sequence (i.e. the separator property is specified and not null) then this property specifies the datatype of each value within that sequence. See 5.11 Datatypes and Parsing Cells in [tabular-data-model] for more details.
@@ -175,10 +177,10 @@ abstract class CSVInherited (
     textDirection : TableDirection = TableDirection.inherit,
 
     /** A URI template property that is used to map the values of cells into URLs. The value of this property becomes the value URL annotation for the described column and is used to create the value of the value URL annotation for the cells within that column as described in section 5.1.3 URI Template Properties. */
-    valueUrl : Option[ValueURLTemplate] = None)
+    valueUrl : Option[URLTemplate] = None)
 
   case class Transformation(
-    val id : Option[String],
+    val id : Option[Resource],
     /** A link property giving the single URL of the file that the script or template is held in, relative to the location of the metadata document.*/
     val url : URL,
 
@@ -231,7 +233,7 @@ abstract class CSVInherited (
   case class ComplexDatatype(
     /** An atomic property that contains a single string: the name of one of the built-in datatypes, as listed above (and which are defined as terms in the default context). Its default is string. All values of the datatype must be valid values of the base datatype. The value of this property becomes the base annotation for the described datatype.*/
     val base : String,
-    val id : Option[String] = None,
+    val id : Option[Resource] = None,
 
     /** An atomic property that contains either a single string or an object that defines the format of a value of this type, used when parsing a string value as described in Parsing Cells in [tabular-data-model]. The value of this property becomes the format annotation for the described datatype. */
     val format : Option[Either[String, NumericFormat]] = None,
@@ -269,32 +271,40 @@ abstract class CSVInherited (
     /** A string whose value is used to group digits within the number. The default value is null. If the supplied value is not a string, implementations must issue a warning and proceed as if the property had not been specified. */
     val groupChar : Option[String] = None,
     /** A number format pattern as defined in [UAX35]. Implementations must recognise number format patterns containing the symbols 0, #, the specified decimalChar (or "." if unspecified), the specified groupChar (or "," if unspecified), E, +, % and ‰. Implementations may additionally recognise number format patterns containing other special pattern characters defined in [UAX35]. If the supplied value is not a string, or if it contains an invalid number format pattern or uses special pattern characters that the implementation does not recognise, implementations must issue a warning and proceed as if the property had not been specified. */
-    val pattern : Option[String] = None) extends Datatype
-
-
-  case class ValueURLTemplate(template : String) {
-    def apply(values : Map[String, String]) = {
-      var t = template
-      for((key, repl) <- values) {
-        t = t.replaceAll("\\{%s\\}" format java.util.regex.Pattern.quote(key),
-          java.util.regex.Matcher.quoteReplacement(repl))
+    val pattern : Option[String] = None) extends Datatype {
+    lazy val numberFormat = {
+      val df = pattern match {
+        case Some(p) => new java.text.DecimalFormat(p)
+        case None => new java.text.DecimalFormat()
       }
-      t
+      df.getDecimalFormatSymbols().setDecimalSeparator(decimalChar.charAt(0))
+      groupChar match {
+        case Some(g) if g != "" => df.getDecimalFormatSymbols().setGroupingSeparator(g.charAt(0))
+        case None => 
+      }
+      df
     }
   }
-  case class AboutURLTemplate(template : String) {
+
+  case class URLTemplate(template : String) {
     def apply(
       _column : Int,
       _sourceColumn : Int,
       _row : Int,
       _sourceRow : Int,
-      _name : String) = {
-      template.
+      _name : String,
+      values : Map[String, String]) = {
+      var t = template.
         replaceAll("\\{_column\\}", "%d" format _column).
         replaceAll("\\{_sourceColumn\\}", "%d" format _sourceColumn).
         replaceAll("\\{_row\\}", "%d" format _row).
         replaceAll("\\{_sourceRow\\}", "%d" format _sourceRow).
         replaceAll("\\{_name\\}", java.util.regex.Matcher.quoteReplacement(_name))
+      for((key, repl) <- values) {
+        t = t.replaceAll("\\{%s\\}" format java.util.regex.Pattern.quote(key),
+          java.util.regex.Matcher.quoteReplacement(repl))
+      }
+      t
     }
   }
 

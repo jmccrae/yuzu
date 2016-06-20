@@ -486,8 +486,9 @@ class CSVMetadataSpec extends ScalatraSpec {
   import schema._
 
   val example2expected = Table(
+    id=Some(BlankNode(Some("root"))),
     url=Some(new URL("file:tree-ops.csv")),
-    notes=Seq(),
+    annotations=Seq(),
 //      Map(
 //      dc.title -> Seq(RDFTreeLeaf(PlainLiteral("Tree Operations"))),
 //      dcat.keyword -> Seq(RDFTreeLeaf(PlainLiteral("tree")), 
@@ -522,10 +523,10 @@ class CSVMetadataSpec extends ScalatraSpec {
           name="inventory_date",
           titles=Seq(("Inventory Date", None)),
           datatype=Some(ComplexDatatype(
-            base="date",
+            base=xsd.date.value,
             format=Some(Left("M/d/yyyy")))))),
       primaryKey=Seq("GID"),
-      aboutUrl=Some(AboutURLTemplate("http://example.com/test.csv#gid-{GID}"))))
+      aboutUrl=Some(URLTemplate("http://example.com/test.csv#gid-{GID}"))))
 
   val csvwContext = JsonLDContext.loadContext("file:src/main/resources/csvw.jsonld")
 
@@ -557,11 +558,8 @@ class CSVMetadataSpec extends ScalatraSpec {
       })
       val triples = converter.toTriples(example.parseJson, Some(csvwContext))
       val head = converter.rootValue(example.parseJson).head
-      println("Triples: " + triples)
-      println("Head   : " + head)
-      println("Tree   : " + RDFTree(head, triples))
       val result = SchemaReader.readTable(RDFTree(head, triples))
       (result.tableSchema.columns must_== expected.tableSchema.columns) and
-      (result.copy(notes=Seq()) must_== expected)
+      (result.copy(annotations=Seq()) must_== expected)
   }
 }

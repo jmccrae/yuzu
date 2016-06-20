@@ -431,7 +431,10 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
           case Some(JsString(s)) =>
             data.fields.get("@type") match {
               case Some(JsString(t)) =>
-                return TypedLiteral(s, t)
+                return TypedLiteral(s, resolve(t, context) match {
+                  case URI(uri) => uri
+                  case _ => throw new JsonLDException("Datatype is not a URI")
+                })
               case Some(_) =>
                 throw new JsonLDException("@type must be a string")
               case None =>
