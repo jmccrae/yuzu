@@ -247,7 +247,6 @@ trait YuzuServletActions extends YuzuStack {
 
   def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
-    val context = Some(backend.context(id))
     val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
     val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
     modelOption match {
@@ -255,25 +254,27 @@ trait YuzuServletActions extends YuzuStack {
         NotFound()
       case None => 
         NotFound()
-      case Some(model) => {
+      case Some(JsDocument(model, context)) => {
         contentType = mime.mime
         val base = getBase
         respondVary(if(mime == json) {
-          toJson(model, context, base)
+          toJson(model, Some(context), base)
         } else if(mime == rdfxml) {
-          toRDFXML(model, context, base, addNamespaces)
+          toRDFXML(model, Some(context), base, addNamespaces)
         } else if(mime == turtle) {
-          toTurtle(model, context, base, addNamespaces)
+          toTurtle(model, Some(context), base, addNamespaces)
         } else if(mime == nt) {
-          toNTriples(model, context, base, addNamespaces)
+          toNTriples(model, Some(context), base, addNamespaces)
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
-          val html = toHtml(model, context, base, backlinks)(backend.displayer)
+          val html = toHtml(model, Some(context), base, backlinks)(backend.displayer)
           mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()
         })
       }
+      case _ =>
+        throw new UnsupportedOperationException("TODO")
     }
   } 
 

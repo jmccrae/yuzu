@@ -71,6 +71,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   type Searcher = TestSearcher
 
   object ExampleDocument extends Document {
+    def format = json
     def id = "example"
     def content(implicit searcher : Searcher) = """{
     "@id": "",
@@ -92,6 +93,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   }
 
   object ExampleDocument2 extends Document {
+    def format = json
     def id = "example2"
     def content(implicit searcher : Searcher) = """{
     "@id": "", 
@@ -112,6 +114,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
     def backlinks(implicit searcher : Searcher) = Nil
   }
   object ExampleDocument3 extends Document {
+    def format = json
     def id = "saldo/bosättningsstopp..n.1"
     def content(implicit searcher : Searcher) = """{
     "@id": "",
@@ -163,7 +166,18 @@ trait BackendBaseSpec extends Specification {
   }
 
   def lookup = {
-    backend.lookup("example") must_== Some(io.Source.fromFile("src/test/resources/server-spec-data/example.json").mkString("").parseJson)
+    backend.lookup("example") must_== Some(JsDocument(io.Source.fromFile("src/test/resources/server-spec-data/example.json").mkString("").parseJson, 
+      new JsonLDContext(Map(
+        "dbpedia" -> JsonLDAbbreviation("http://dbpedia.org/resource/"), 
+        "label" -> JsonLDLangProperty("http://www.w3.org/2000/01/rdf-schema#label","en"), 
+        "creator" -> JsonLDAbbreviation("http://purl.org/dc/elements/1.1/creator"), 
+        "language" -> JsonLDAbbreviation("http://purl.org/dc/elements/1.1/language"), 
+        "link" -> JsonLDURIProperty("http://localhost:8080/ontology#link"), 
+        "title" -> JsonLDAbbreviation("http://purl.org/dc/elements/1.1/title"), 
+        "seeAlso" -> JsonLDURIProperty("http://www.w3.org/2000/01/rdf-schema#seeAlso")), 
+          None, None, None)))
+
+
   }
 
   def label = {

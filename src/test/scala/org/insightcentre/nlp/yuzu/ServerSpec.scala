@@ -51,14 +51,11 @@ class ServerSpec extends ScalatraSpec {
        SearchResultWithCount("Example", PlainLiteral("Example"), 10))))
      
 
-   when(backend.context("data/example")).thenReturn(context)
-   when(backend.context("data/example2")).thenReturn(context)
-   when(backend.context("data/saldo/bosättningsstopp..nn.1")).thenReturn(context)
 
    when(backend.lookup("notaresource")).thenReturn(None)
-   when(backend.lookup("data/example")).thenReturn(Some(data(0)))
-   when(backend.lookup("data/example2")).thenReturn(Some(data(1)))
-   when(backend.lookup("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(data(2)))
+   when(backend.lookup("data/example")).thenReturn(Some(JsDocument(data(0),context)))
+   when(backend.lookup("data/example2")).thenReturn(Some(JsDocument(data(1),context)))
+   when(backend.lookup("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(JsDocument(data(2),context)))
 
    when(backend.query("""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT * WHERE {  ?s rdfs:label "Beispiel"@de} LIMIT 100""", None)).thenReturn(TableResult(
   ResultSet(Seq("s"), Seq(Map("s" -> NodeFactory.createURI(TestSettings.BASE_NAME + "/data/example2")))), new Displayer(s => None, TestSettings)))

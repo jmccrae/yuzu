@@ -60,15 +60,13 @@ class YuzuServletSpec extends ScalatraSpec {
    when(backend.search("test", None, 0, 21)).thenReturn(Nil)
    when(backend.listResources(0, 20, Nil)).thenReturn((false, Nil))
    when(backend.lookup("notaresource")).thenReturn(None)
-   when(backend.context("notaresource")).thenReturn(DEFAULT_CONTEXT)
-   when(backend.context("test")).thenReturn(DEFAULT_CONTEXT)
    when(backend.backlinks("test")).thenReturn(Nil)
-   when(backend.lookup("test")).thenReturn(Some("""{
+   when(backend.lookup("test")).thenReturn(Some(JsDocument("""{
   "@context": {
       "label": "http://www.w3.org/2000/01/rdf-schema#label"
   },
   "label": { "@value": "A test resource", "@language": "en" }
-}""".parseJson))
+}""".parseJson, DEFAULT_CONTEXT)))
    when(backend.displayer).thenReturn(new Displayer(f => Some(f), TestSettings))
    def sites = Nil
    def settings = TestSettings

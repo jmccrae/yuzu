@@ -35,6 +35,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   protected trait Document {
     def id : String
+    def format : ResultType
     def content(implicit searcher : Searcher) : String
     def label(implicit searcher : Searcher) : Option[String]
     def facets(implicit searcher : Searcher) : Iterable[(URI, RDFNode)]
@@ -64,7 +65,15 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   protected def search[A](foo : Searcher => A) : A
 
   def lookup(id : String) = search { implicit searcher =>
-    searcher.find(id).map(_.content.parseJson)
+    searcher.find(id).map({ 
+      doc => 
+        doc.format match {
+          case `json` =>
+            JsDocument(doc.content.parseJson, context(id))
+          case _ =>
+            throw new UnsupportedOperationException("TODO")
+        }
+    })
   }
 
   def context(id : String) : JsonLDContext = search { searcher =>

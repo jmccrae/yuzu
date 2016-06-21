@@ -82,8 +82,25 @@ class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
     }
   }
   
-  override def toString = "JsonLDDefintion(%s, %s, %s, %s)" format(
+  override def toString = "JsonLDContext(%s, %s, %s, %s)" format(
     definitions, base, vocab, language)
+
+  override def equals(other : Any) = other match {
+    case null =>
+      false
+    case o : JsonLDContext =>
+      definitions == o.definitions && base == o.base && vocab == o.vocab &&
+        language == o.language && keywords == o.keywords
+    case _ =>
+      false
+  }
+
+  override def hashCode = 
+    definitions.hashCode * 7 +
+    base.hashCode * 7 +
+    vocab.hashCode * 7 +
+    language.hashCode * 7 +
+    keywords.hashCode
 }
 
 object JsonLDContext {

@@ -128,6 +128,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
   }
 
   protected class SQLiteDocument(val id : String, i : Int) extends Document {
+    def format = json
     def content(implicit searcher : SQLiteSearcher) = {
       implicit val session = searcher.session
       sql"""SELECT page FROM pages WHERE id=$i""".as1[String].head

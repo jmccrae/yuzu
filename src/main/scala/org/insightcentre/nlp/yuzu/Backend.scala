@@ -3,9 +3,10 @@ package org.insightcentre.nlp.yuzu
 import com.hp.hpl.jena.graph.Node
 import com.hp.hpl.jena.query.{ResultSet => RDFResultSet}
 import com.hp.hpl.jena.rdf.model.Model
-import java.io.{File, FileInputStream}
+import java.io.{File, FileInputStream, Reader}
 import java.util.zip.GZIPInputStream
 import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
+import org.insightcentre.nlp.yuzu.csv.schema.{Table, TableGroup}
 import org.insightcentre.nlp.yuzu.rdf.RDFNode
 import scala.collection.JavaConversions._
 import spray.json.JsValue
@@ -31,15 +32,19 @@ case class RDFValue(
 //  }
 }
   
+sealed trait BackendDocument
+
+case class JsDocument(value : JsValue, context : JsonLDContext) extends BackendDocument
+case class CsvDocument(value : Reader, context : Either[TableGroup, Table]) extends BackendDocument
+case class RdfDocument(value : Reader, format : ResultType) extends BackendDocument
+
 trait Backend {
   /** The displayer */
   def displayer : Displayer
   /** Run a SPARQL query on the backend */
   def query(query : String, defaultGraphURI : Option[String]) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
-  def lookup(id : String) : Option[JsValue]
-  /** Get the context document for a given page */
-  def context(id : String) : JsonLDContext
+  def lookup(id : String) : Option[BackendDocument]
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
   /** Get backlinks */
