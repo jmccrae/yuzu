@@ -2,7 +2,9 @@ package org.insightcentre.nlp.yuzu
 
 import org.apache.jena.riot.RDFFormat
 
-sealed class ResultType(val mime : String, val jena : Option[RDFFormat], val name : String)
+sealed class ResultType(val mime : String, val jena : Option[RDFFormat], val name : String) {
+  def lang = jena.getOrElse(throw new RuntimeException("Not a RDF format")).getLang()
+}
 
 object sparqlresults extends ResultType("application/sparql-results+xml", None, "sparql")
 object sparqljson extends ResultType("application/sparql-results+json", None, "sparqlj")

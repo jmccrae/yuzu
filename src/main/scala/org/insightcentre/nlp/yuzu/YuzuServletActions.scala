@@ -276,39 +276,37 @@ trait YuzuServletActions extends YuzuStack {
           throw new IllegalArgumentException()
         })
       }
-      case Some(CsvDocument(reader, context)) => {
+      case Some(CsvDocument(content, context)) => {
         contentType = mime.mime
         val base = getBase
         respondVary(if(mime == csvw) {
-          val br = new java.io.BufferedReader(reader)
-          Stream.continually(br.readLine()).takeWhile(_ != null).mkString("\n")
+          content
         } else if(mime == json) {
-          toJson(reader, context, base, addNamespaces _)
+          toJson(content, context, base, addNamespaces _)
         } else if(mime == rdfxml) {
-          toRDFXML(reader, context, base, addNamespaces _)
+          toRDFXML(content, context, base, addNamespaces _)
         } else if(mime == turtle) {
-          toTurtle(reader, context, base, addNamespaces _)
+          toTurtle(content, context, base, addNamespaces _)
         } else if(mime == nt) {
-          toNTriples(reader, context, base, addNamespaces _)
+          toNTriples(content, context, base, addNamespaces _)
         } else if(mime == html) {
-          val html = toHtml(reader, context, base)(backend.displayer)
+          val html = toHtml(content, context, base)(backend.displayer)
           mustache("/csv", html:_*)
         } else {
           throw new IllegalArgumentException()
         })
       }
-      case Some(RdfDocument(reader, format)) => {
+      case Some(RdfDocument(content, format)) => {
         contentType = mime.mime
         val base = getBase
         lazy val model = {
           val m = ModelFactory.createDefaultModel()
-          RDFDataMgr.read(m, reader, base.toString, format.jena.getOrElse(throw new RuntimeException()).getLang())
+          RDFDataMgr.read(m, content, base.toString, format.lang)
           addNamespaces(m)
           m
         }
         respondVary(if(mime == format) {
-          val br = new java.io.BufferedReader(reader)
-          Stream.continually(br.readLine()).takeWhile(_ != null).mkString("\n")
+          content
         } else if(mime == json) {
           toJson(model)
         } else if(mime == rdfxml) {

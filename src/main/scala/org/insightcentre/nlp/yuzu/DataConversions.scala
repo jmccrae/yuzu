@@ -2,7 +2,6 @@ package org.insightcentre.nlp.yuzu
 
 import com.hp.hpl.jena.rdf.model.Model
 import java.io.StringWriter
-import java.io.Reader
 import java.net.URL
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import org.insightcentre.nlp.yuzu.jsonld._
@@ -19,16 +18,16 @@ object DataConversions {
     toJena(JsonLDConverter(base).toTriples(data, context))
   }
 
-  private def toRDF(data : Reader, table : Table,
+  private def toRDF(data : String, table : Table,
      base : URL) : Model = {
-    toJena(new CSVConverter(Some(base)).convertTable(data, base, table))
+    toJena(new CSVConverter(Some(base)).convertTable(new java.io.StringReader(data), base, table))
   }
 
   def toJson(data : JsValue, context : Option[JsonLDContext], base : URL) : String = {
     data.prettyPrint
   }
 
-  def toJson(data : Reader, schema : Table, base : URL,
+  def toJson(data : String, schema : Table, base : URL,
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, schema, base)
     addNamespaces(rdf)
@@ -49,7 +48,7 @@ object DataConversions {
     toRDFXML(rdf)
   }
 
-  def toRDFXML(data : Reader, schema : Table, base : URL,
+  def toRDFXML(data : String, schema : Table, base : URL,
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, schema, base)
     addNamespaces(rdf)
@@ -70,7 +69,7 @@ object DataConversions {
     toTurtle(rdf)
   }
 
-  def toTurtle(data : Reader, schema : Table, base : URL,
+  def toTurtle(data : String, schema : Table, base : URL,
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, schema, base)
     addNamespaces(rdf)
@@ -90,7 +89,7 @@ object DataConversions {
     toNTriples(rdf)
   }
 
-  def toNTriples(data : Reader, schema : Table, base : URL,
+  def toNTriples(data : String, schema : Table, base : URL,
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, schema, base)
     addNamespaces(rdf)
@@ -125,7 +124,7 @@ object DataConversions {
           Map("uri" -> c, "display" -> display(c))).getOrElse(null))
   }
 
-  def toHtml(reader : Reader, schema : Table, base : URL)(implicit displayer : Displayer) : Seq[(String, Any)] = {
+  def toHtml(reader : String, schema : Table, base : URL)(implicit displayer : Displayer) : Seq[(String, Any)] = {
     throw new UnsupportedOperationException("TODO")
   }
 

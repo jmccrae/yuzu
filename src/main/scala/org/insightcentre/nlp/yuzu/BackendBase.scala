@@ -1,20 +1,23 @@
 package org.insightcentre.nlp.yuzu
 
-import java.net.URL
-import java.io.File
-import java.io.StringReader
-import com.hp.hpl.jena.rdf.model.ModelFactory
 import com.hp.hpl.jena.query.{QueryExecutionFactory, Query, QueryException}
+import com.hp.hpl.jena.rdf.model.ModelFactory
+import com.hp.hpl.jena.rdf.model.ModelFactory
 import com.hp.hpl.jena.sparql.core.Var
 import com.hp.hpl.jena.sparql.engine.binding.Binding
-import org.apache.jena.riot.RDFDataMgr
-import org.insightcentre.nlp.yuzu.rdf._
-import org.insightcentre.nlp.yuzu.jsonld._
-import org.insightcentre.nlp.yuzu.sparql._
-import spray.json._
-import spray.json.DefaultJsonProtocol._
+import java.io.File
+import java.io.StringReader
+import java.net.URL
 import java.util.zip.{ZipFile, ZipException}
+import org.apache.jena.riot.RDFDataMgr
+import org.apache.jena.riot.RDFDataMgr
+import org.insightcentre.nlp.yuzu.csv.schema.Table
+import org.insightcentre.nlp.yuzu.jsonld._
+import org.insightcentre.nlp.yuzu.rdf._
+import org.insightcentre.nlp.yuzu.sparql._
 import scala.collection.JavaConversions._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   import siteSettings._
@@ -37,19 +40,31 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   protected trait Document {
     def id : String
-    def format : ResultType
-    def content(implicit searcher : Searcher) : String
+    def content(implicit searcher : Searcher) : (String, ResultType)
     def label(implicit searcher : Searcher) : Option[String]
     def facets(implicit searcher : Searcher) : Iterable[(URI, RDFNode)]
-    def triples(implicit searcher : Searcher) = {
-      val t = collection.mutable.ListBuffer[(Resource, URI, RDFNode)]()
-      val jsonLDConverter = new JsonLDConverter(Some(new URL(id2URI(id))))
-      jsonLDConverter.processJsonLD(content.parseJson, new BaseJsonLDVisitor {
-        def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
-          t.add((subj, prop, obj))
-        }
-      }, Some(context(id)))
-      t
+    def triples(implicit searcher : Searcher) : Seq[Triple] = {
+      content match {
+        case (content, `json`) =>
+          val t = collection.mutable.ListBuffer[Triple]()
+          val jsonLDConverter = new JsonLDConverter(Some(new URL(id2URI(id))))
+          jsonLDConverter.processJsonLD(content.parseJson, new BaseJsonLDVisitor {
+            def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
+              t.add((subj, prop, obj))
+            }
+          }, Some(context(id)))
+          t.toSeq
+        case (content, `csvw`) =>
+          val base = new URL(id2URI(id))
+          val converter = new csv.CSVConverter(Some(base))
+          converter.convertTable(new StringReader(content), base,
+            schema(id).getOrElse(Table())).toSeq
+        case (content, format) =>
+          val base = id2URI(id)
+          val model = ModelFactory.createDefaultModel()
+          RDFDataMgr.read(model, content, base, format.lang)
+          model.listStatements.map(fromJena).toSeq
+      }
     }
     def backlinks(implicit searcher : Searcher) : Seq[(URI, String)]
   }
@@ -69,9 +84,10 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   def lookup(id : String) = search { implicit searcher =>
     searcher.find(id).map({ 
       doc => 
-        doc.format match {
+        val (content, format) = doc.content
+        format match {
           case `json` =>
-            JsDocument(doc.content.parseJson, context(id))
+            JsDocument(content.parseJson, context(id))
           case _ =>
             throw new UnsupportedOperationException("TODO")
         }
@@ -97,6 +113,11 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
       case _ =>
         DEFAULT_CONTEXT
     }).getOrElse(DEFAULT_CONTEXT)
+  }
+
+  def schema(id : String) : Option[Table] = search { searcher =>
+    searcher.findContext(id).map(data => csv.SchemaReader.readTable(
+      csv.SchemaReader.readTree(data)))
   }
 
   private def intersect(l : Iterable[Document], r : Iterable[Document]) : Iterable[Document] = {

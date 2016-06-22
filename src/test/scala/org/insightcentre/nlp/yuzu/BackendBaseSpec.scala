@@ -73,7 +73,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   object ExampleDocument extends Document {
     def format = json
     def id = "example"
-    def content(implicit searcher : Searcher) = """{
+    def content(implicit searcher : Searcher) = ("""{
     "@id": "",
     "label": [{
         "@value": "Example with English text",
@@ -84,7 +84,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
     }],
     "seeAlso": "dbpedia:Example",
     "link": "example2"
-}"""
+}""", json)
     def label(implicit searcher : Searcher) = Some("Example with English text")
     def facets(implicit searcher : Searcher) = Seq(
       (URI("http://www.w3.org/2000/01/rdf-schema#label"), LangLiteral("Example with English text", "en"))
@@ -95,7 +95,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   object ExampleDocument2 extends Document {
     def format = json
     def id = "example2"
-    def content(implicit searcher : Searcher) = """{
+    def content(implicit searcher : Searcher) = ("""{
     "@id": "", 
     "label": {
         "@value": "Another example",
@@ -106,7 +106,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
         "title": "John McCrae"
     },
     "language": "English"
-}"""
+}""", json)
     def label(implicit searcher : Searcher) = Some("Another example")
     def facets(implicit searcher : Searcher) = Seq(
       (URI("http://www.w3.org/2000/01/rdf-schema#label"), LangLiteral("Another example", "en"))
@@ -116,10 +116,10 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   object ExampleDocument3 extends Document {
     def format = json
     def id = "saldo/bosättningsstopp..n.1"
-    def content(implicit searcher : Searcher) = """{
+    def content(implicit searcher : Searcher) = ("""{
     "@id": "",
     "label": ["Unicode test \u263a", "Unicode test ✓"]
-}"""
+}""",json)
     def label(implicit searcher : Searcher) = Some("Unicode test \u263a")
     def facets(implicit searcher : Searcher) = Nil
     def backlinks(implicit searcher : Searcher) = Nil

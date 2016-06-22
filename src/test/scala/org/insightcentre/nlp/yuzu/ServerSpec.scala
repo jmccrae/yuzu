@@ -1,11 +1,13 @@
 package org.insightcentre.nlp.yuzu
+
+import com.hp.hpl.jena.graph.NodeFactory
+import org.insightcentre.nlp.yuzu.csv.SchemaReader
+import org.insightcentre.nlp.yuzu.jsonld._
+import org.insightcentre.nlp.yuzu.rdf._
 import org.mockito.Mockito._
 import org.scalatra.test.specs2._
-import spray.json._
 import spray.json.DefaultJsonProtocol._
-import org.insightcentre.nlp.yuzu.rdf._
-import org.insightcentre.nlp.yuzu.jsonld._
-import com.hp.hpl.jena.graph.NodeFactory
+import spray.json._
 
 class ServerSpec extends ScalatraSpec { 
   import TestSettings._
@@ -13,6 +15,13 @@ class ServerSpec extends ScalatraSpec {
     io.Source.fromFile("src/test/resources/server-spec-data/example.json").mkString.parseJson,
     io.Source.fromFile("src/test/resources/server-spec-data/example2.json").mkString.parseJson,
     io.Source.fromFile("src/test/resources/server-spec-data/saldo/bosättningsstopp..nn.1.json").mkString.parseJson
+  )
+
+  val csvSchema = SchemaReader.readTable(SchemaReader.readTree(io.Source.fromFile("src/test/resources/server-spec-data/example3.csv-metadata.json").mkString))
+
+  val reader = Seq(
+    io.Source.fromFile("src/test/resources/server-spec-data/example3.csv").mkString,
+    io.Source.fromFile("src/test/resources/server-spec-data/example4.ttl").mkString
   )
   val context = JsonLDContext(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString.parseJson.asInstanceOf[JsObject])
 
@@ -55,6 +64,8 @@ class ServerSpec extends ScalatraSpec {
    when(backend.lookup("notaresource")).thenReturn(None)
    when(backend.lookup("data/example")).thenReturn(Some(JsDocument(data(0),context)))
    when(backend.lookup("data/example2")).thenReturn(Some(JsDocument(data(1),context)))
+   when(backend.lookup("data/example3")).thenReturn(Some(CsvDocument((reader(0)), csvSchema)))
+   when(backend.lookup("data/example4")).thenReturn(Some(RdfDocument((reader(1)), turtle)))
    when(backend.lookup("data/saldo/bosättningsstopp..nn.1")).thenReturn(Some(JsDocument(data(2),context)))
 
    when(backend.query("""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT * WHERE {  ?s rdfs:label "Beispiel"@de} LIMIT 100""", None)).thenReturn(TableResult(
@@ -62,6 +73,8 @@ class ServerSpec extends ScalatraSpec {
    when(backend.backlinks("data/example2")).thenReturn(Seq((
      URI("http://localhost:8080/ontology#link"), URI("http://localhost:8080/data/example"))))
    when(backend.backlinks("data/example")).thenReturn(Nil)
+   when(backend.backlinks("data/example3")).thenReturn(Nil)
+   when(backend.backlinks("data/example4")).thenReturn(Nil)
    when(backend.backlinks("data/saldo/bosättningsstopp..nn.1")).thenReturn(Nil)
    when(backend.displayer).thenReturn(new Displayer(s => Some(s), TestSettings))
   
@@ -103,6 +116,13 @@ class ServerSpec extends ScalatraSpec {
     support unicode IDs                          $test_unicode
     support unicode content                      $test_unicode2
     show backlinks between resources             $test_backlinks
+    display a plain CSV document                 $test_csv
+    display a plain RDF document                 $test_raw_rdf
+    display CSV as RDF                           $test_csv_as_rdf
+    display CSV as Json                          $test_csv_as_json
+    display CSV as HTML                          test_csv_as_html
+    display RDF as Json                          $test_rdf_as_json
+    display RDF as HTML                          $test_rdf_as_html
   """
 
 
@@ -296,5 +316,35 @@ class ServerSpec extends ScalatraSpec {
     def test_unicode2 = get("/data/saldo/bos%C3%A4ttningsstopp..nn.1") {
         (response.body must contain("☺")) and
         (response.body must contain("✓"))
+    }
+
+    def test_csv = get("/data/example3", headers=Map("Accept" -> "text/csv")) {
+      (response.body must contain ("French"))
+    }
+
+    def test_raw_rdf = get("/data/example4", headers=Map("Accept" -> "text/turtle")) {
+      (response.body must contain ("dbpedia:"))
+    }
+
+    def test_csv_as_rdf = get("/data/example3", headers=Map("Accept" -> "application/rdf+xml")) {
+      (response.body must contain ("ISO"))
+    }
+
+    def test_csv_as_json = get("/data/example3", headers=Map("Accept" -> "application/javascript")) {
+      (response.body must contain ("\"COUNTRY\""))
+    }
+
+    def test_csv_as_html = get("/data/example3") {
+      (response.body must contain ("<html")) and
+      (response.body must contain ("German"))
+    }
+
+    def test_rdf_as_json = get("/data/example4", headers=Map("Accept" -> "application/javascript")) {
+      (response.body must contain ("example2"))
+    }
+
+    def test_rdf_as_html = get("/data/example4") {
+      (response.body must contain ("<html")) and
+      (response.body must contain ("yet another resource")) 
     }
 }

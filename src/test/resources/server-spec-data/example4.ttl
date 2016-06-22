@@ -1,0 +1,9 @@
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dbpedia: <http://dbpedia.org/resource/> .
+@prefix ontology: <http://localhost:8080/ontology#>.
+
+<>
+    rdfs:label "yet another resource"@en ;
+    rdfs:seeAlso dbpedia:Example ;
+    ontology:link <example2> .
+    

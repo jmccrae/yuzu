@@ -35,8 +35,8 @@ case class RDFValue(
 sealed trait BackendDocument
 
 case class JsDocument(value : JsValue, context : JsonLDContext) extends BackendDocument
-case class CsvDocument(value : Reader, context : Table) extends BackendDocument
-case class RdfDocument(value : Reader, format : ResultType) extends BackendDocument
+case class CsvDocument(value : String, context : Table) extends BackendDocument
+case class RdfDocument(value : String, format : ResultType) extends BackendDocument
 
 trait Backend {
   /** The displayer */

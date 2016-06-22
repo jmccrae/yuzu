@@ -1,0 +1,15 @@
+{
+    "@context": "http://www.w3.org/ns/csvw",
+    "tableSchema": {
+        "columns": [{
+            "name": "ISO"
+        },{
+            "name": "LANGUAGE",
+            "propertyUrl": "rdfs:label"
+        },{
+            "name": "COUNTRY"
+        }],
+        "aboutUrl": "#{ISO}"
+    }
+}
+
