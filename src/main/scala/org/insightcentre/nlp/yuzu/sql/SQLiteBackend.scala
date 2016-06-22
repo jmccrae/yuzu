@@ -215,8 +215,8 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       insert2[String, String]
     val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?)""".
       insert4[Int, Int, Int, Boolean]
-    val insertPage = sql"""INSERT INTO pages VALUES (?, ?)""".
-      insert2[Int, String]
+    val insertPage = sql"""INSERT INTO pages VALUES (?, ?, ?)""".
+      insert3[Int, String, String]
     val insertBacklink = sql"""INSERT INTO backlinks VALUES (?, ?, ?)""".
       insert3[Int, Int, Int]
     val insertFreeText = sql"""INSERT INTO free_text VALUES (?, ?, ?)""".
@@ -230,10 +230,10 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       }
     }
 
-    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) { 
+    def insertDoc(id : String, content : String, format : ResultType, foo : DocumentLoader => Unit) { 
       act {
         val i = pageId(id)
-        insertPage(i, content)
+        insertPage(i, content, format.name)
         foo(new SQLiteDocumentLoader(i))
       }
     }
@@ -276,6 +276,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     sql"""CREATE INDEX n3s on ids (n3)""".execute
     sql"""CREATE TABLE IF NOT EXISTS pages (id integer not null,
                                             page text,
+                                            format varchar(6),
                                             foreign key (id) references ids)""".execute
     sql"""CREATE INDEX pagesIdx ON pages (id)""".execute
     sql"""CREATE TABLE IF NOT EXISTS contexts (path text not null, page text)""".execute

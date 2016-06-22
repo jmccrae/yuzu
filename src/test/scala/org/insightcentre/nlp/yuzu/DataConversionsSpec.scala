@@ -1,5 +1,6 @@
 package org.insightcentre.nlp.yuzu
 
+import com.hp.hpl.jena.rdf.model.Model
 import org.scalatra.test.specs2._
 import spray.json._
 import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
@@ -34,7 +35,7 @@ class DataConversionsSpec extends ScalatraSpec {
   }
 
   def rdf = {
-    val result = DataConversions.toRDFXML(testData, testContext, base, model => {})
+    val result = DataConversions.toRDFXML(testData, testContext, base, (model : Model) => {})
     val model = ModelFactory.createDefaultModel()
     println(result)
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.RDFXML)
@@ -42,14 +43,14 @@ class DataConversionsSpec extends ScalatraSpec {
   }
 
   def turtle = {
-    val result = DataConversions.toTurtle(testData, testContext, base, model => {})
+    val result = DataConversions.toTurtle(testData, testContext, base, (model : Model) => {})
     val model = ModelFactory.createDefaultModel()
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.TURTLE)
     (Seq() ++ model.listStatements) should have size 1
   }
 
   def nt = {
-    val result = DataConversions.toNTriples(testData, testContext, base, model => {})
+    val result = DataConversions.toNTriples(testData, testContext, base, (model : Model) => {})
     val model = ModelFactory.createDefaultModel()
     RDFDataMgr.read(model, new StringReader(result), "http://www.example.com/", Lang.NTRIPLES)
     (Seq() ++ model.listStatements) should have size 1

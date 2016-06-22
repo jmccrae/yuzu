@@ -1,5 +1,6 @@
 package org.insightcentre.nlp.yuzu
 
+import com.hp.hpl.jena.rdf.model.ModelFactory
 import org.insightcentre.nlp.yuzu.rdf.RDFNode
 import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import com.hp.hpl.jena.query.ResultSetFormatter
@@ -260,14 +261,67 @@ trait YuzuServletActions extends YuzuStack {
         respondVary(if(mime == json) {
           toJson(model, Some(context), base)
         } else if(mime == rdfxml) {
-          toRDFXML(model, Some(context), base, addNamespaces)
+          toRDFXML(model, Some(context), base, addNamespaces _)
         } else if(mime == turtle) {
-          toTurtle(model, Some(context), base, addNamespaces)
+          toTurtle(model, Some(context), base, addNamespaces _)
         } else if(mime == nt) {
-          toNTriples(model, Some(context), base, addNamespaces)
+          toNTriples(model, Some(context), base, addNamespaces _)
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
           val html = toHtml(model, Some(context), base, backlinks)(backend.displayer)
+          mustache("/rdf", html:_*)
+        } else if(mime == csvw) {
+          throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
+        } else {
+          throw new IllegalArgumentException()
+        })
+      }
+      case Some(CsvDocument(reader, context)) => {
+        contentType = mime.mime
+        val base = getBase
+        respondVary(if(mime == csvw) {
+          val br = new java.io.BufferedReader(reader)
+          Stream.continually(br.readLine()).takeWhile(_ != null).mkString("\n")
+        } else if(mime == json) {
+          toJson(reader, context, base, addNamespaces _)
+        } else if(mime == rdfxml) {
+          toRDFXML(reader, context, base, addNamespaces _)
+        } else if(mime == turtle) {
+          toTurtle(reader, context, base, addNamespaces _)
+        } else if(mime == nt) {
+          toNTriples(reader, context, base, addNamespaces _)
+        } else if(mime == html) {
+          val html = toHtml(reader, context, base)(backend.displayer)
+          mustache("/csv", html:_*)
+        } else {
+          throw new IllegalArgumentException()
+        })
+      }
+      case Some(RdfDocument(reader, format)) => {
+        contentType = mime.mime
+        val base = getBase
+        lazy val model = {
+          val m = ModelFactory.createDefaultModel()
+          RDFDataMgr.read(m, reader, base.toString, format.jena.getOrElse(throw new RuntimeException()).getLang())
+          addNamespaces(m)
+          m
+        }
+        respondVary(if(mime == format) {
+          val br = new java.io.BufferedReader(reader)
+          Stream.continually(br.readLine()).takeWhile(_ != null).mkString("\n")
+        } else if(mime == json) {
+          toJson(model)
+        } else if(mime == rdfxml) {
+          toRDFXML(model)
+        } else if(mime == turtle) {
+          toTurtle(model)
+        } else if(mime == nt) {
+          toNTriples(model)
+        } else if(mime == csvw) {
+          throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
+        } else if(mime == html) {
+          val backlinks = backend.backlinks(id)
+          val html = toHtml(model, base, backlinks)(backend.displayer)
           mustache("/rdf", html:_*)
         } else {
           throw new IllegalArgumentException()
@@ -284,11 +338,11 @@ trait YuzuServletActions extends YuzuStack {
     respondVary(if(mime == json) {
       toJson(metadata, None, base)
     } else if(mime == rdfxml) {
-      toRDFXML(metadata, None, base, addNamespaces)
+      toRDFXML(metadata, None, base, addNamespaces _)
     } else if(mime == turtle) {
-      toTurtle(metadata, None, base, addNamespaces)
+      toTurtle(metadata, None, base, addNamespaces _)
     } else if(mime == nt) {
-      toNTriples(metadata, None, base, addNamespaces)
+      toNTriples(metadata, None, base, addNamespaces _)
      } else if (mime == html) {
       val html = toHtml(metadata, None, base)(backend.displayer)
       mustache("/rdf", html:_*)      

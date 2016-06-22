@@ -335,6 +335,381 @@ object SchemaReader {
     case RDFTreeLeaf(other) =>
       throw new CSVOnTheWebSchemaException("Transformation must be an object")
   }
+
+  /** Convert a JSON-LD to a RDF Tree */
+  def readTree(example : String) : RDFTree = {
+    val converter = new JsonLDConverter(base=Some(new URL("http://example.com/test.csv")),
+      resolveRemote=new RemoteResolver {
+        def resolve(uri : String) = uri match {
+          case "http://www.w3.org/ns/csvw" =>
+            csvwContext
+          case _ =>
+            throw new RuntimeException()
+        }
+    })
+    val triples = converter.toTriples(example.parseJson, Some(csvwContext))
+    val head = converter.rootValue(example.parseJson).head
+    RDFTree(head, triples)
+  }
+
+  // So this is the CSVW context included in the source file. This makes the 
+  // system robust in that we don't have to go find it.
+  lazy val csvwContext = JsonLDContext("""{
+    "cc": "http://creativecommons.org/ns#",
+    "csvw": "http://www.w3.org/ns/csvw#",
+    "ctag": "http://commontag.org/ns#",
+    "dc": "http://purl.org/dc/terms/",
+    "dc11": "http://purl.org/dc/elements/1.1/",
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "dctypes": "http://purl.org/dc/dcmitype/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "gr": "http://purl.org/goodrelations/v1#",
+    "grddl": "http://www.w3.org/2003/g/data-view#",
+    "ical": "http://www.w3.org/2002/12/cal/icaltzd#",
+    "ma": "http://www.w3.org/ns/ma-ont#",
+    "oa": "http://www.w3.org/ns/oa#",
+    "og": "http://ogp.me/ns#",
+    "org": "http://www.w3.org/ns/org#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "qb": "http://purl.org/linked-data/cube#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfa": "http://www.w3.org/ns/rdfa#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "rev": "http://purl.org/stuff/rev#",
+    "rif": "http://www.w3.org/2007/rif#",
+    "rr": "http://www.w3.org/ns/r2rml#",
+    "schema": "http://schema.org/",
+    "sd": "http://www.w3.org/ns/sparql-service-description#",
+    "sioc": "http://rdfs.org/sioc/ns#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "skosxl": "http://www.w3.org/2008/05/skos-xl#",
+    "v": "http://rdf.data-vocabulary.org/#",
+    "vcard": "http://www.w3.org/2006/vcard/ns#",
+    "void": "http://rdfs.org/ns/void#",
+    "wdr": "http://www.w3.org/2007/05/powder#",
+    "wrds": "http://www.w3.org/2007/05/powder-s#",
+    "xhv": "http://www.w3.org/1999/xhtml/vocab#",
+    "xml": "rdf:XMLLiteral",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "json": "csvw:JSON",
+    "any": "xsd:anyAtomicType",
+    "anyAtomicType": "xsd:anyAtomicType",
+    "binary": "xsd:base64Binary",
+    "datetime": "xsd:dateTime",
+    "describedby": "wrds:describedby",
+    "html": "rdf:HTML",
+    "license": "xhv:license",
+    "maximum": "csvw:maxInclusive",
+    "minimum": "csvw:minInclusive",
+    "number": "xsd:double",
+    "role": "xhv:role",
+    "anyURI": "xsd:anyURI",
+    "base64Binary": "xsd:base64Binary",
+    "boolean": "xsd:boolean",
+    "byte": "xsd:byte",
+    "date": "xsd:date",
+    "dateTime": "xsd:dateTime",
+    "dayTimeDuration": "xsd:dayTimeDuration",
+    "dateTimeStamp": "xsd:dateTimeStamp",
+    "decimal": "xsd:decimal",
+    "double": "xsd:double",
+    "duration": "xsd:duration",
+    "float": "xsd:float",
+    "gDay": "xsd:gDay",
+    "gMonth": "xsd:gMonth",
+    "gMonthDay": "xsd:gMonthDay",
+    "gYear": "xsd:gYear",
+    "gYearMonth": "xsd:gYearMonth",
+    "hexBinary": "xsd:hexBinary",
+    "int": "xsd:int",
+    "integer": "xsd:integer",
+    "language": "xsd:language",
+    "long": "xsd:long",
+    "Name": "xsd:Name",
+    "NCName": "xsd:NCName",
+    "NMTOKEN": "xsd:NMTOKEN",
+    "negativeInteger": "xsd:negativeInteger",
+    "nonNegativeInteger": "xsd:nonNegativeInteger",
+    "nonPositiveInteger": "xsd:nonPositiveInteger",
+    "normalizedString": "xsd:normalizedString",
+    "positiveInteger": "xsd:positiveInteger",
+    "QName": "xsd:QName",
+    "short": "xsd:short",
+    "string": "xsd:string",
+    "time": "xsd:time",
+    "token": "xsd:token",
+    "unsignedByte": "xsd:unsignedByte",
+    "unsignedInt": "xsd:unsignedInt",
+    "unsignedLong": "xsd:unsignedLong",
+    "unsignedShort": "xsd:unsignedShort",
+    "yearMonthDuration": "xsd:yearMonthDuration",
+    "Cell": "csvw:Cell",
+    "Column": "csvw:Column",
+    "Datatype": "csvw:Datatype",
+    "Dialect": "csvw:Dialect",
+    "Direction": "csvw:Direction",
+    "ForeignKey": "csvw:ForeignKey",
+    "NumericFormat": "csvw:NumericFormat",
+    "Row": "csvw:Row",
+    "Schema": "csvw:Schema",
+    "Table": "csvw:Table",
+    "TableGroup": "csvw:TableGroup",
+    "TableReference": "csvw:TableReference",
+    "Transformation": "csvw:Transformation",
+    "aboutUrl": {
+      "@id": "csvw:aboutUrl",
+      "@type": "@id"
+    },
+    "base": {
+      "@id": "csvw:base",
+      "@language": null
+    },
+    "columnReference": {
+      "@id": "csvw:columnReference",
+      "@language": null,
+      "@container": "@list"
+    },
+    "columns": {
+      "@id": "csvw:column",
+      "@type": "@id",
+      "@container": "@list"
+    },
+    "commentPrefix": {
+      "@id": "csvw:commentPrefix",
+      "@language": null
+    },
+    "datatype": {
+      "@id": "csvw:datatype",
+      "@type": "@vocab"
+    },
+    "decimalChar": {
+      "@id": "csvw:decimalChar",
+      "@language": null
+    },
+    "default": {
+      "@id": "csvw:default",
+      "@language": null
+    },
+    "describes": {
+      "@id": "csvw:describes"
+    },
+    "delimiter": {
+      "@id": "csvw:delimiter",
+      "@language": null
+    },
+    "dialect": {
+      "@id": "csvw:dialect",
+      "@type": "@id"
+    },
+    "doubleQuote": {
+      "@id": "csvw:doubleQuote",
+      "@type": "xsd:boolean"
+    },
+    "encoding": {
+      "@id": "csvw:encoding",
+      "@language": null
+    },
+    "foreignKeys": {
+      "@id": "csvw:foreignKey",
+      "@type": "@id"
+    },
+    "format": {
+      "@id": "csvw:format",
+      "@language": null
+    },
+    "groupChar": {
+      "@id": "csvw:groupChar",
+      "@type": "NumericFormat,xsd:string"
+    },
+    "header": {
+      "@id": "csvw:header",
+      "@type": "xsd:boolean"
+    },
+    "headerRowCount": {
+      "@id": "csvw:headerRowCount",
+      "@type": "xsd:nonNegativeInteger"
+    },
+    "lang": {
+      "@id": "csvw:lang",
+      "@language": null
+    },
+    "length": {
+      "@id": "csvw:length",
+      "@type": "xsd:nonNegativeInteger"
+    },
+    "lineTerminators": {
+      "@id": "csvw:lineTerminators",
+      "@language": null
+    },
+    "maxExclusive": {
+      "@id": "csvw:maxExclusive",
+      "@type": "xsd:integer"
+    },
+    "maxInclusive": {
+      "@id": "csvw:maxInclusive",
+      "@type": "xsd:integer"
+    },
+    "maxLength": {
+      "@id": "csvw:maxLength",
+      "@type": "xsd:nonNegativeInteger"
+    },
+    "minExclusive": {
+      "@id": "csvw:minExclusive",
+      "@type": "xsd:integer"
+    },
+    "minInclusive": {
+      "@id": "csvw:minInclusive",
+      "@type": "xsd:integer"
+    },
+    "minLength": {
+      "@id": "csvw:minLength",
+      "@type": "xsd:nonNegativeInteger"
+    },
+    "name": {
+      "@id": "csvw:name",
+      "@language": null
+    },
+    "notes": {
+      "@id": "csvw:note"
+    },
+    "null": {
+      "@id": "csvw:null",
+      "@language": null
+    },
+    "ordered": {
+      "@id": "csvw:ordered",
+      "@type": "xsd:boolean"
+    },
+    "pattern": {
+      "@id": "csvw:pattern",
+      "@language": null
+    },
+    "primaryKey": {
+      "@id": "csvw:primaryKey",
+      "@language": null
+    },
+    "propertyUrl": {
+      "@id": "csvw:propertyUrl",
+      "@type": "@id"
+    },
+    "quoteChar": {
+      "@id": "csvw:quoteChar",
+      "@language": null
+    },
+    "reference": {
+      "@id": "csvw:reference",
+      "@type": "@id"
+    },
+    "referencedRows": {
+      "@id": "csvw:referencedRow"
+    },
+    "required": {
+      "@id": "csvw:required",
+      "@type": "xsd:boolean"
+    },
+    "resource": {
+      "@id": "csvw:resource",
+      "@type": "xsd:anyURI"
+    },
+    "row": {
+      "@id": "csvw:row",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "rowTitles": {
+      "@id": "csvw:rowTitle",
+      "@language": null
+    },
+    "rownum": {
+      "@id": "csvw:rownum",
+      "@type": "xsd:integer"
+    },
+    "scriptFormat": {
+      "@id": "csvw:scriptFormat",
+      "@type": "xsd:anyURI"
+    },
+    "schemaReference": {
+      "@id": "csvw:schemaReference",
+      "@type": "xsd:anyURI"
+    },
+    "separator": {
+      "@id": "csvw:separator",
+      "@language": null
+    },
+    "skipBlankRows": {
+      "@id": "csvw:skipBlankRows",
+      "@type": "xsd:boolean"
+    },
+    "skipColumns": {
+      "@id": "csvw:skipColumns",
+      "@type": "xsd:nonNegativeInteger"
+    },
+    "skipInitialSpace": {
+      "@id": "csvw:skipInitialSpace",
+      "@type": "xsd:boolean"
+    },
+    "skipRows": {
+      "@id": "csvw:skipRows",
+      "@type": "xsd:nonNegativeInteger"
+    },
+    "source": {
+      "@id": "csvw:source",
+      "@language": null
+    },
+    "suppressOutput": {
+      "@id": "csvw:suppressOutput",
+      "@type": "xsd:boolean"
+    },
+    "tables": {
+      "@id": "csvw:table",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "tableDirection": {
+      "@id": "csvw:tableDirection",
+      "@type": "@vocab"
+    },
+    "tableSchema": {
+      "@id": "csvw:tableSchema",
+      "@type": "@id"
+    },
+    "targetFormat": {
+      "@id": "csvw:targetFormat",
+      "@type": "xsd:anyURI"
+    },
+    "transformations": {
+      "@id": "csvw:transformations",
+      "@type": "@id"
+    },
+    "textDirection": {
+      "@id": "csvw:textDirection",
+      "@type": "@vocab"
+    },
+    "titles": {
+      "@id": "csvw:title",
+      "@container": "@language"
+    },
+    "trim": {
+      "@id": "csvw:trim",
+      "@type": "xsd:boolean"
+    },
+    "url": {
+      "@id": "csvw:url",
+      "@type": "xsd:anyURI"
+    },
+    "valueUrl": {
+      "@id": "csvw:valueUrl",
+      "@type": "@id"
+    },
+    "virtual": {
+      "@id": "csvw:virtual",
+      "@type": "xsd:boolean"
+    },
+    "JSON": "csvw:JSON",
+    "uriTemplate": "csvw:uriTemplate"
+}""".parseJson.asInstanceOf[JsObject])
 }
 
 case class CSVOnTheWebSchemaException(msg : String = "", cause : Throwable = null) extends RuntimeException(msg, cause)

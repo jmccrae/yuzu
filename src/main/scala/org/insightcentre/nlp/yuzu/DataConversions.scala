@@ -2,27 +2,62 @@ package org.insightcentre.nlp.yuzu
 
 import com.hp.hpl.jena.rdf.model.Model
 import java.io.StringWriter
+import java.io.Reader
 import java.net.URL
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import org.insightcentre.nlp.yuzu.jsonld._
 import org.insightcentre.nlp.yuzu.rdf._
+import org.insightcentre.nlp.yuzu.csv.CSVConverter
+import org.insightcentre.nlp.yuzu.csv.schema.{TableGroup, Table}
 import scala.collection.mutable.{Map => MutMap, ListBuffer}
 import spray.json._
+import scala.collection.JavaConversions._
 
 object DataConversions {
 
-  private def toRDF(data : JsValue, context : Option[JsonLDContext], base : URL) = {
+  private def toRDF(data : JsValue, context : Option[JsonLDContext], base : URL) : Model = {
     toJena(JsonLDConverter(base).toTriples(data, context))
+  }
+
+  private def toRDF(data : Reader, table : Table,
+     base : URL) : Model = {
+    toJena(new CSVConverter(Some(base)).convertTable(data, base, table))
   }
 
   def toJson(data : JsValue, context : Option[JsonLDContext], base : URL) : String = {
     data.prettyPrint
   }
 
+  def toJson(data : Reader, schema : Table, base : URL,
+    addNamespaces : Model => Unit) : String = {
+    val rdf = toRDF(data, schema, base)
+    addNamespaces(rdf)
+    toJson(rdf)
+  }
+
+  def toJson(rdf : Model) : String = {
+    val output = new StringWriter()
+    RDFDataMgr.write(output, rdf, Lang.JSONLD)
+    output.toString
+  }
+
+
   def toRDFXML(data : JsValue, context : Option[JsonLDContext], base : URL,
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, context, base)
     addNamespaces(rdf)
+    toRDFXML(rdf)
+  }
+
+  def toRDFXML(data : Reader, schema : Table, base : URL,
+    addNamespaces : Model => Unit) : String = {
+    val rdf = toRDF(data, schema, base)
+    addNamespaces(rdf)
+    toRDFXML(rdf)
+  }
+
+
+  def toRDFXML(rdf : Model) : String = {
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.RDFXML)
     output.toString
@@ -32,6 +67,17 @@ object DataConversions {
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, context, base)
     addNamespaces(rdf)
+    toTurtle(rdf)
+  }
+
+  def toTurtle(data : Reader, schema : Table, base : URL,
+    addNamespaces : Model => Unit) : String = {
+    val rdf = toRDF(data, schema, base)
+    addNamespaces(rdf)
+    toTurtle(rdf)
+  }
+
+  def toTurtle(rdf : Model) : String = {
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.TURTLE)
     output.toString
@@ -41,6 +87,18 @@ object DataConversions {
     addNamespaces : Model => Unit) : String = {
     val rdf = toRDF(data, context, base)
     addNamespaces(rdf)
+    toNTriples(rdf)
+  }
+
+  def toNTriples(data : Reader, schema : Table, base : URL,
+    addNamespaces : Model => Unit) : String = {
+    val rdf = toRDF(data, schema, base)
+    addNamespaces(rdf)
+    toNTriples(rdf)
+  }
+
+
+  def toNTriples(rdf : Model) : String = {
     val output = new StringWriter()
     RDFDataMgr.write(output, rdf, Lang.NTRIPLES)
     output.toString
@@ -55,11 +113,8 @@ object DataConversions {
         subjUri == base.toString()
       case _ =>
         false
-    }) match {
-      case Some(triple) =>
-        Some(triple._3.asInstanceOf[URI])
-      case None =>
-        None
+    }) map {
+      _._3.asInstanceOf[URI]
     }
     val rdfBody = defaultToHtml(data, context, "", base, backlinks)
     Seq(
@@ -68,6 +123,24 @@ object DataConversions {
       "rdfBody" -> rdfBody,
       "class_of" -> clazz.map(c =>
           Map("uri" -> c, "display" -> display(c))).getOrElse(null))
+  }
+
+  def toHtml(reader : Reader, schema : Table, base : URL)(implicit displayer : Displayer) : Seq[(String, Any)] = {
+    throw new UnsupportedOperationException("TODO")
+  }
+
+  def toHtml(model : Model, base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : Seq[(String, Any)] = {
+    val it = model.listObjectsOfProperty(model.createResource(base.toString),
+      model.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
+    val clazz = it.toSeq.map(fromJena).headOption
+    val rdfBody = defaultToHtml(model, "", base, backlinks)
+    Seq(
+      "title" -> display(URI(base.toString)),
+      "uri" -> base.toString,
+      "rdfBody" -> rdfBody,
+      "class_of" -> clazz.map(c =>
+          Map("uri" -> c, "display" -> display(c))).getOrElse(null))
+
   }
 
   def uriEncode(string : String) : String = java.net.URLEncoder.encode(string, "UTF-8")
@@ -222,6 +295,27 @@ object DataConversions {
     val converter = new JsonLDConverter(Some(base))
     val visitor = new HtmlBuilderJsonLDVistor(contextUrl, base)
     converter.processJsonLD(data, visitor, context)
+    val html = visitor.toHtml
+    if(backlinks.isEmpty) {
+      html
+    } else {
+      html + s"""
+      <table class="rdf_table">${
+        backlinks.map({
+          case (uri, link) => s"""<tr><td class="rdf_prop">Is <a href="${uri.value}" class="rdf_link">${display(uri)}</a> of</td>
+                                      <td><a href="${link.value}" class="rdf_link">${display(link)}</a></td></tr>"""
+        }).mkString("")
+      }</table>"""
+    }
+  }
+
+  def defaultToHtml(data : Model, contextUrl : String, base : URL, 
+      backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : String = {
+    val visitor = new HtmlBuilderJsonLDVistor(contextUrl, base)
+    for(stat <- data.listStatements) {
+      val (subj, prop, obj) = fromJena(stat)
+      visitor.emitValue(subj, prop, obj)
+    }
     val html = visitor.toHtml
     if(backlinks.isEmpty) {
       html

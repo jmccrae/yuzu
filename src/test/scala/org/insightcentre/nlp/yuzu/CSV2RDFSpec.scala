@@ -21,24 +21,6 @@ class CSV2RDFSpec extends ScalatraSpec {
     should work on example 9                      $e9
     """
 
-  val csvwContext = JsonLDContext.loadContext("file:src/main/resources/csvw.jsonld")
-
-  def str2tree(example : String) : RDFTree = {
-    val converter = new JsonLDConverter(base=Some(new URL("http://example.com/test.csv")),
-      resolveRemote=new RemoteResolver {
-        def resolve(uri : String) = uri match {
-            case "http://www.w3.org/ns/csvw" =>
-            csvwContext
-          case _ =>
-            throw new RuntimeException()
-        }
-    })
-    val triples = converter.toTriples(example.parseJson, Some(csvwContext))
-    val head = converter.rootValue(example.parseJson).head
-    RDFTree(head, triples)
-  }
-
-
   val rdf  = new Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
   val csvw = new Namespace("http://www.w3.org/ns/csvw#")
   val xsd  = new Namespace("http://www.w3.org/2001/XMLSchema#")
@@ -229,7 +211,7 @@ AF,33.9,67.7,Afghanistan
 1,ADDISON AV,Celtis australis,Large Tree Routine Prune,11,10/18/2010,,,"<Point><coordinates>-122.156485,37.440963</coordinates></Point>"
 2,EMERSON ST,Liquidambar styraciflua,Large Tree Routine Prune,11,6/2/2010,,,"<Point><coordinates>-122.156749,37.440958</coordinates></Point>"
 6,ADDISON AV,Robinia pseudoacacia,Large Tree Routine Prune,29,6/1/2010,cavity or decay; trunk decay; codominant leaders; included bark; large leader or limb decay; previous failure root damage; root decay;  beware of BEES,YES,"<Point><coordinates>-122.156299,37.441151</coordinates></Point>""""
-    val tableSchema = SchemaReader.readTable(str2tree(e7))
+    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(e7))
 
     val converter = new CSVConverter(None)
 
@@ -295,7 +277,7 @@ AF,33.9,67.7,Afghanistan
 1,ADDISON AV,Celtis australis,Large Tree Routine Prune,11,10/18/2010,,,"<Point><coordinates>-122.156485,37.440963</coordinates></Point>"
 2,EMERSON ST,Liquidambar styraciflua,Large Tree Routine Prune,11,6/2/2010,,,"<Point><coordinates>-122.156749,37.440958</coordinates></Point>"
 6,ADDISON AV,Robinia pseudoacacia,Large Tree Routine Prune,29,6/1/2010,cavity or decay; trunk decay; codominant leaders; included bark; large leader or limb decay; previous failure root damage; root decay;  beware of BEES,YES,"<Point><coordinates>-122.156299,37.441151</coordinates></Point>""""
-    val tableSchema = SchemaReader.readTable(str2tree(e7))
+    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(e7))
 
     val converter = new CSVConverter(None)
 

@@ -2,16 +2,40 @@ package org.insightcentre.nlp.yuzu
 
 import org.apache.jena.riot.RDFFormat
 
-sealed class ResultType(val mime : String, val jena : Option[RDFFormat])
+sealed class ResultType(val mime : String, val jena : Option[RDFFormat], val name : String)
 
-object sparqlresults extends ResultType("application/sparql-results+xml", None)
-object sparqljson extends ResultType("application/sparql-results+json", None)
-object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PRETTY))
-object html extends ResultType("text/html", None)
-object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE))
-object nt extends ResultType("text/plain", Some(RDFFormat.NT))
-object json extends ResultType("application/json", Some(RDFFormat.JSONLD))
-object error extends ResultType("text/html", None)
+object sparqlresults extends ResultType("application/sparql-results+xml", None, "sparql")
+object sparqljson extends ResultType("application/sparql-results+json", None, "sparqlj")
+object rdfxml extends ResultType("application/rdf+xml", Some(RDFFormat.RDFXML_PRETTY), "rdfxml")
+object html extends ResultType("text/html", None, "html")
+object turtle extends ResultType("text/turtle", Some(RDFFormat.TURTLE), "turtle")
+object nt extends ResultType("text/plain", Some(RDFFormat.NT), "nt")
+object json extends ResultType("application/json", Some(RDFFormat.JSONLD), "json")
+object csvw extends ResultType("text/csv", None, "csvw")
+object error extends ResultType("text/html", None, "error")
+
+object ResultType {
+  def apply(name : String) = name match {
+    case "sparql" =>
+      sparqlresults
+    case "spraqlj" =>
+      sparqljson
+    case "rdfxml" =>
+      rdfxml
+    case "html" =>
+      html
+    case "turtle" =>
+      turtle
+    case "nt" =>
+      nt
+    case "json" =>
+      json
+    case "csvw" =>
+      csvw
+    case _ =>
+      error
+  }
+}
 
 object ContentNegotiation {
   val mimeTypes = Map(
@@ -22,7 +46,8 @@ object ContentNegotiation {
     "text/plain" -> nt,
     "application/ld+json" -> json,
     "application/json" -> json,
-    "application/javascript" -> json
+    "application/javascript" -> json,
+    "text/csv" -> csvw
   )
 
   val sparqlMimeTypes = Map(
@@ -45,6 +70,10 @@ object ContentNegotiation {
         rdfxml
       case Some("ttl") =>
         turtle
+      case Some("csv") =>
+        csvw
+      case Some("tsv") =>
+        csvw
       case Some(x) if x.length > 0 =>
         throw new IllegalArgumentException("Unsupported prefix: " + x)
       case _ =>

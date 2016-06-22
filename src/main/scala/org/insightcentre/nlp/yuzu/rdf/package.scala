@@ -1,6 +1,6 @@
 package org.insightcentre.nlp.yuzu
 
-import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode, AnonId, ModelFactory}
+import com.hp.hpl.jena.rdf.model.{Model, Resource => JenaResource, RDFNode => JenaRDFNode, AnonId, ModelFactory, Property => JenaProperty, Statement}
 import com.hp.hpl.jena.graph.Node
 import scala.collection.JavaConversions._
 import scala.language.dynamics
@@ -143,6 +143,13 @@ package object rdf {
   val RDF_FIRST = URI("http://www.w3.org/1999/02/22-rdf-syntax-ns#first")
   val RDF_REST = URI("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest")
   val RDF_NIL = URI("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil")
+
+  def fromJena(statement : Statement) : Triple = (
+    fromJena(statement.getSubject()),
+    fromJena(statement.getPredicate()),
+    fromJena(statement.getObject()))
+
+  def fromJena(property : JenaProperty) = URI(property.getURI())
 
   def fromJena(resource : JenaResource) = if(resource.isAnon()) {
     BlankNode(Option(resource.getId().getLabelString()))

@@ -142,7 +142,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
     val documents = MutMap[String, (String, TestDocumentLoader)]()
 
     def addContext(id : String, json : String) { contexts.put(id, json) }
-    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) {
+    def insertDoc(id : String, content : String, format : ResultType, foo : DocumentLoader => Unit) {
       val dl = new TestDocumentLoader
       foo(dl)
       documents put (id, (content, dl))

@@ -2,10 +2,12 @@ package org.insightcentre.nlp.yuzu
 
 import java.net.URL
 import java.io.File
+import java.io.StringReader
 import com.hp.hpl.jena.rdf.model.ModelFactory
 import com.hp.hpl.jena.query.{QueryExecutionFactory, Query, QueryException}
 import com.hp.hpl.jena.sparql.core.Var
 import com.hp.hpl.jena.sparql.engine.binding.Binding
+import org.apache.jena.riot.RDFDataMgr
 import org.insightcentre.nlp.yuzu.rdf._
 import org.insightcentre.nlp.yuzu.jsonld._
 import org.insightcentre.nlp.yuzu.sparql._
@@ -53,7 +55,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   }
   protected trait Loader {
     def addContext(id : String, json : String) : Unit
-    def insertDoc(id : String, content : String, foo : DocumentLoader => Unit) : Unit
+    def insertDoc(id : String, content : String, format : ResultType, foo : DocumentLoader => Unit) : Unit
     def addBackLink(id : String, prop : URI, fromId : String) : Unit
   }
   protected trait DocumentLoader {
@@ -297,6 +299,36 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     }
   }
 
+  val RDF_SUFFIXES = Map(".rdf" -> rdfxml, ".ttl" -> turtle, ".nt" -> nt)
+
+  private def loadDocumentTriple(document : DocumentLoader, loader : Loader,
+      id : String, subject : Resource, prop : URI, obj : RDFNode) = {
+    val isFacet = FACETS.exists(_.uri == prop.value)
+    obj match {
+      case r@URI(u) =>
+        uri2Id(u) match {
+          case Some(u2) =>
+            loader.addBackLink(u2, prop, id)
+          case None =>
+        }
+        document.addProp(prop, r, isFacet)
+      case r : Resource =>
+        document.addProp(prop, r, isFacet)
+      case l@LangLiteral(lv, lang) =>
+        if(prop.value == LABEL_PROP.toString && lang == LANG) {
+          document.addLabel(lv)
+        }
+        document.addProp(prop, l, isFacet)
+      case l : Literal =>
+        if(prop.value == LABEL_PROP.toString) {
+          document.addLabel(l.value)
+        }
+        document.addProp(prop, l, isFacet)
+    }
+  }
+
+
+
   def load(zipFile : File) {
     val zf = new ZipFile(zipFile)
 
@@ -317,6 +349,14 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         }
         name -> jsonLD
       }).toMap
+
+      val schemas = zf.entries().filter(e => fileName(e.getName()) == "csv-metadata.json").map({ e =>
+        val name = e.getName().dropRight("-metadata.json".length)
+        val schemaData = io.Source.fromInputStream(zf.getInputStream(e)).mkString
+        loader.addContext(name, schemaData)
+        name -> csv.SchemaReader.readTable(csv.SchemaReader.readTree(schemaData))
+      }).toMap
+      
 
       def findContextPath(path : String) = {
         val ps = path.split("/")
@@ -343,49 +383,64 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
       }
 
       for(entry <- zf.entries()) {
-        if(entry.getName().endsWith(".json") && fileName(entry.getName()) != "context.json") {
-          try {
+        try {
+          if(entry.getName().endsWith(".json") && 
+             fileName(entry.getName()) != "context.json" &&
+             !entry.getName().endsWith("csv-metadata.json")) {
             System.err.println("Loading %s" format entry.getName())
+            // TODO: Check if CSV table group
             val id = entry.getName().dropRight(".json".length)
             val jsonData = io.Source.fromInputStream(zf.getInputStream(entry)).mkString("")
-            loader.insertDoc(id, jsonData, document => {
-
+            loader.insertDoc(id, jsonData, json, document => {
               val jsonLDConverter = new JsonLDConverter(Some(new URL(id2URI(id))))
               jsonLDConverter.processJsonLD(jsonData.parseJson, new BaseJsonLDVisitor {
                 def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
-                  val isFacet = FACETS.exists(_.uri == prop.value)
-                  obj match {
-                    case r@URI(u) =>
-                      uri2Id(u) match {
-                        case Some(u2) =>
-                          loader.addBackLink(u2, prop, id)
-                        case None =>
-                      }
-                      document.addProp(prop, r, isFacet)
-                    case r : Resource =>
-                      document.addProp(prop, r, isFacet)
-                    case l@LangLiteral(lv, lang) =>
-                      if(prop.value == LABEL_PROP.toString && lang == LANG) {
-                        document.addLabel(lv)
-                      }
-                      document.addProp(prop, l, isFacet)
-                    case l : Literal =>
-                      if(prop.value == LABEL_PROP.toString) {
-                        document.addLabel(l.value)
-                      }
-                      document.addProp(prop, l, isFacet)
-                  }
+                  loadDocumentTriple(document, loader, id, subj, prop, obj)
                 }
               }, Some(context(entry.getName())))
             })
-          } catch {
+          } else if(entry.getName().endsWith(".csv")) {
+            System.err.println("Loading %s" format entry.getName())
+            val id = entry.getName().dropRight(".csv".length)
+            val data = io.Source.fromInputStream(zf.getInputStream(entry)).mkString("")
+            loader.insertDoc(id, data, csvw, document => {
+              val csvConverter = new csv.CSVConverter(Some(new URL(id2URI(id))))
+              (schemas.get(entry.getName()) match {
+                case Some(table) =>
+                  csvConverter.convertTable(new StringReader(data),
+                    new URL(id2URI(id)), table, false)
+                case None =>
+                  Nil
+              }) foreach { 
+                case (subj, prop, obj) =>
+                  loadDocumentTriple(document, loader, id, subj, prop, obj)
+              }
+            })
+          } else {
+            RDF_SUFFIXES.keys.find(entry.getName().endsWith(_)) match {
+              case Some(rdfSuffix) =>
+                System.err.println("Loading %s" format entry.getName())
+                val resultType = RDF_SUFFIXES(rdfSuffix)
+                val id = entry.getName().dropRight(rdfSuffix.length)
+                val data = io.Source.fromInputStream(zf.getInputStream(entry)).mkString("")
+                loader.insertDoc(id, data, resultType, document => {
+                  val model = ModelFactory.createDefaultModel()
+                  RDFDataMgr.read(model, zf.getInputStream(entry), 
+                    resultType.jena.get.getLang())
+                  for(stat <- model.listStatements()) {
+                    val (subj, prop, obj) = fromJena(stat)
+                    loadDocumentTriple(document, loader, id, subj, prop, obj)
+                  }
+                })
+              case None =>
+                System.err.println("Ignoring " + entry.getName())
+            }
+          }
+        } catch {
             case x : ZipException =>
               throw new RuntimeException("Error reading zip", x)
           }
-        } else {
-          System.err.println("Ignoring " + entry.getName())
         }
-      }
     }
   }
 }
