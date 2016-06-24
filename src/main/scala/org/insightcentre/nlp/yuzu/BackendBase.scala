@@ -481,6 +481,6 @@ object BackendBase {
     } else {
       throw new RuntimeException("No backend for %s" format settings.DATABASE_URL)
     }
-    backend.load(settings.DATA_FILE)
+    backend.load(settings.dataFile)
   }
 }

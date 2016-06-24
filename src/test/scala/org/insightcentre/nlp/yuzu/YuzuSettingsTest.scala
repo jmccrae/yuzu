@@ -1,5 +1,6 @@
 package org.insightcentre.nlp.yuzu
 
+import java.net.URL
 import java.io.File
 import org.scalatra.test.specs2._
 import spray.json._
@@ -26,7 +27,6 @@ class YuzuSettingsTest extends ScalatraSpec {
     PROP_NAMES                           $propNames
     PREFIXES                             $prefixes
     LANG                                 $lang
-    ONTOLOGY                             $ontology
     ISSUE_DATE                           $issueDate
     VERSION_INFO                         $versionInfo
     DESCRIPTION                          $description
@@ -44,7 +44,7 @@ class YuzuSettingsTest extends ScalatraSpec {
   val data = """{
     "id": "test",
     "name": "Test Instance",
-    "data": "src/test/resources/example.zip",
+    "data": "file:src/test/resources/example.zip",
     "databaseURL": "file:tmp/",
     "sparqlEndpoint": "http://localhost:8080/sparql/",
     "licensePath": "/mylicense",
@@ -64,7 +64,6 @@ class YuzuSettingsTest extends ScalatraSpec {
       "example": "http://www.example.com/"
     },
     "language": "de",
-    "ontology": "http://www.example.com/ontology#",
     "issueDate": "2016-03-30",
     "versionInfo": "0.1",
     "description": "Example settings",
@@ -102,7 +101,7 @@ class YuzuSettingsTest extends ScalatraSpec {
 
   def displayName = settings.DISPLAY_NAME must_== "Test Instance"
 
-  def dataFile = settings.DATA_FILE must_== new File("src/test/resources/example.zip")
+  def dataFile = settings.DATA_FILE must_== new URL("file:src/test/resources/example.zip")
 
   def sparqlEndpoint = settings.SPARQL_ENDPOINT must_== Some("http://localhost:8080/sparql/")
 
@@ -129,8 +128,6 @@ class YuzuSettingsTest extends ScalatraSpec {
     PropAbbrev(prefix="example", uri="http://www.example.com/"))
 
   def lang = settings.LANG must_== "de"
-
-  def ontology = settings.ONTOLOGY must_== Some("http://www.example.com/ontology#")
 
   def issueDate = settings.ISSUE_DATE must_== Some("2016-03-30")
 

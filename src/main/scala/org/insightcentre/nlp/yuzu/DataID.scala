@@ -71,11 +71,11 @@ object DataID {
       case None =>
     }
 
-    ONTOLOGY match {
-      case Some(o) =>
-        model += "ontologyLocation" -> JsString(serverUrl + "/" + o)
-      case None =>
-    }
+    //ONTOLOGY match {
+    //  case Some(o) =>
+    //    model += "ontologyLocation" -> JsString(serverUrl + "/" + o)
+    //  case None =>
+    //}
 
     ISSUE_DATE match {
       case Some(id) =>
@@ -138,7 +138,7 @@ object DataID {
     model += "distribution" -> JsObject(
       "@type" -> JsString("dcat:Distribution"),
       "@id" -> JsString("#distribution"),
-      "downloadURL" -> JsString(serverUrl + "/" + DATA_FILE.getName()),
+      "downloadURL" -> JsString(serverUrl + "/" + dataFile.getName()),
 //      "triples" -> JsNumber(backend.tripleCount),
       "format" -> JsString("application/x-gzip"))
 

@@ -23,7 +23,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     } else if(findTemplate("/" + params("splat"), Set("mustache")) != None) {
       contentType = "text/html"
       mustache("/" + params("splat"),
-        "DATA_FILE" -> siteSettings.DATA_FILE.getName())
+        "DATA_FILE" -> siteSettings.DATA_FILE.toString())
     } else {
       val (resource, ext) = params("splat") match {
         case pathWithExtension(r, ext) =>
@@ -136,7 +136,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get(("^/%s$" format siteSettings.DATA_FILE.getName()).r) {
+  get(("^/%s$" format siteSettings.dataFile.getName()).r) {
     Ok(siteSettings.DATA_FILE)
   }
 

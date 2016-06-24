@@ -24,7 +24,7 @@ class SQLiteBackendSpec extends BackendBaseSpec with BeforeAll with AfterAll {
   val backend = new SQLiteBackend(new YuzuSiteSettings {
     protected def BASE_NAME = "http://localhost:8080"
     def DATABASE_URL = "jdbc:sqlite:test.db"
-    def DATA_FILE = new java.io.File("src/test/resources/example.zip")
+    def DATA_FILE = new java.net.URL("file:src/test/resources/example.zip")
     def DISPLAY_NAME = "test"
     def NAME = ""
     override def FACETS = Seq(

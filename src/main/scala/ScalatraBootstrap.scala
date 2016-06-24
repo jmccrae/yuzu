@@ -6,7 +6,7 @@ import spray.json.DefaultJsonProtocol._
 import scala.collection.JavaConversions._
 import java.net.URL
 
-class StandardYuzuServlet(name : String, val siteSettings : YuzuSiteSettings) extends YuzuServlet {
+class StandardYuzuServlet(val siteSettings : YuzuSiteSettings) extends YuzuServlet {
   val settings = siteSettings
   lazy val backend = if(siteSettings.DATABASE_URL startsWith "jdbc:sqlite:") {
     new sql.SQLiteBackend(siteSettings)
@@ -22,16 +22,14 @@ class ScalatraBootstrap extends LifeCycle {
   }
 
   override def init(context: ServletContext) {
-    val siteSettings = YuzuSiteSettings(toObj(io.Source.fromURL(context.getResource("/WEB-INF/settings.json")).mkString("").parseJson))
-    System.err.println("Mounting %s at /*" format siteSettings.NAME)
-    context.mount(new StandardYuzuServlet("yuzu", siteSettings), "/*")
+    if(context.getResource("/WEB-INF/settings.json") != null) {
+      val siteSettings = YuzuSiteSettings(toObj(io.Source.fromURL(context.getResource("/WEB-INF/settings.json")).mkString("").parseJson))
 
-    val sitePaths = context.getResourcePaths("/WEB-INF/sites/") 
-    for(path <- sitePaths if path.matches("/WEB-INF/sites/\\w+\\.json")) {
-      val name = path.drop("/WEB-INF/sites/".length).dropRight(".json".length)
-      val siteSettings = YuzuSiteSettings(toObj(io.Source.fromURL(context.getResource(path)).mkString("").parseJson))
-      System.err.println("Mounting %s at /%s/" format (siteSettings.NAME, name))
-      context.mount(new StandardYuzuServlet(name, siteSettings), "/%s/*" format name)
+      System.err.println("Mounting %s" format siteSettings.NAME)
+      context.mount(new StandardYuzuServlet(siteSettings), "/*")
+    } else {
+      System.err.println("Onboarding servlet")
+      context.mount(new OnboardingServlet(), "/*")
     }
   }
 }

@@ -28,7 +28,38 @@ trait YuzuSettings {
   def DATABASE_URL : String
 }
 
-case class Facet(val uri : String, val label : String, val list : Boolean)
+case class Facet(val uri : String, val label : String, val list : Boolean) {
+  def toJson = JsObject(Map(
+    "uri" -> JsString(uri),
+    "label" -> JsString(label),
+    "list" -> (if(list) { JsTrue } else { JsFalse })))
+}
+
+object Facet {
+  def apply(obj : JsObject) = obj match {
+    case JsObject(fields) if fields.contains("uri") && fields.contains("label") =>
+      val uri = fields("uri") match {
+        case JsString(s) => s
+        case _ => throw new MetadataException("uri must be a string")
+      }
+      val label = fields("label") match {
+        case JsString(s) => s
+        case _ => throw new MetadataException("label must be a string")
+      }
+      val list = fields.get("list") match {
+        case Some(JsFalse) => false
+        case Some(JsTrue) => true
+        case None => true
+        case Some(JsString("true")) => true
+        case Some(JsString("false")) => false
+        case _ => throw new MetadataException("list must be a boolean")
+      }
+      new Facet(uri, label, list)
+    case _ =>
+      throw new MetadataException("Facets must have a uri and a label")
+  }
+}
+
 case class PropAbbrev(val uri : String, val prefix : String)
 
 trait YuzuSiteSettings extends YuzuSettings {
@@ -61,7 +92,11 @@ trait YuzuSiteSettings extends YuzuSettings {
   // The (readable) name of the server
   def DISPLAY_NAME : String
   // The data file
-  def DATA_FILE : File
+  def DATA_FILE : URL
+  def dataFile : File = DATA_FILE.getProtocol() match {
+    case "file" => new File(DATA_FILE.getPath())
+    case protocol => throw new RuntimeException("Unsupported protocol: " + protocol)
+  }
   // If using an external SPARQL endpoint, the address of this
   // or None if you wish to use only YuzuQL
   def SPARQL_ENDPOINT : Option[String] = None
@@ -91,7 +126,7 @@ trait YuzuSiteSettings extends YuzuSettings {
   def LANG = "en"
   // If a resource in the data is the schema (ontology) then include its
   // path here. No intial slash, should resolve at BASE_NAME/ONTOLOGY
-  def ONTOLOGY : Option[String] = None
+  //def ONTOLOGY : Option[String] = None
   // The date the resource was created, e.g.,
   // The date should be of the format YYYY-MM-DD
   def ISSUE_DATE : Option[String] = None
@@ -118,6 +153,74 @@ trait YuzuSiteSettings extends YuzuSettings {
   //require(CONTRIBUTOR_EMAILS.size == CONTRIBUTOR_NAMES.size)
   // Links to the resources this data set was derived from
   def DERIVED_FROM : Seq[String] = Nil
+
+  def toJson : JsObject = {
+    def optEq[A](a : A, b: A) = if(a == b) { None } else { Some(a) }
+    def optEmpty[A](a : Seq[A]) = if(a.isEmpty) { None } else { Some(a) }
+    def optEmptyM[A,B](a : Map[A,B]) = if(a.isEmpty) { None } else { Some(a) }
+    JsObject((Seq[Option[(String, JsValue)]](
+      Some("baseName" -> JsString(BASE_NAME)),
+      Some("databaseURL" -> JsString(DATABASE_URL)),
+      Some("yuzuQLLimit" -> JsNumber(YUZUQL_LIMIT)),
+      Some("id" -> JsString(NAME)),
+      Some("name" -> JsString(DISPLAY_NAME)),
+      Some("data" -> JsString(DATA_FILE.toString())),
+      SPARQL_ENDPOINT map (("sparqlEndpoint" -> JsString(_))),
+      optEq(LICENSE_PATH, "/license") map (("licensePath" -> JsString(_))),
+      optEq(SEARCH_PATH, "/search") map (("searchPath" -> JsString(_))),
+      optEq(ASSETS_PATH, "/assets/") map (("assetsPath" -> JsString(_))),
+      optEq(SPARQL_PATH, "/sparql") map (("sparqlPath" -> JsString(_))),
+      optEq(LIST_PATH, "/list") map (("listPath" -> JsString(_))),
+      optEq(METADATA_PATH, "/about") map (("metadataPath" -> JsString(_))),
+      Some("labelProp" -> JsString(LABEL_PROP.toString)),
+      // TODO: Default_Context
+      Some("facets" -> JsArray((FACETS map (_.toJson)).toList)),
+      optEmptyM(PROP_NAMES) map { propNames =>
+         ("propNames" -> JsObject(propNames.mapValues(JsString(_))))
+      },
+      optEmpty(PREFIXES) map { prefixes =>
+        "prefixes" -> JsObject(prefixes.map({
+          case PropAbbrev(k, v) => k -> JsString(v)
+        }).toMap)
+      },
+      Some("language" -> JsString(LANG)),
+      ISSUE_DATE map (("issueDate" -> JsString(_))),
+      VERSION_INFO map (("versionInfo" -> JsString(_))),
+      DESCRIPTION map (("description" -> JsString(_))),
+      LICENSE map (("license" -> JsString(_))),
+      optEmpty(KEYWORDS) map (keyword => ("keywords" -> JsArray(keyword.map(JsString(_)).toList))),
+      PUBLISHER_NAME flatMap { name =>
+        PUBLISHER_EMAIL map { email =>
+          "publisher" -> JsObject(Map(
+            "name" -> JsString(name),
+            "email" -> JsString(email)))
+        }
+      },
+      optEmpty(CREATOR_NAMES) flatMap { creatorNames =>
+        Some("creator" ->
+          JsArray((creatorNames flatMap { name =>
+            CREATOR_EMAILS map { email =>
+            JsObject(Map(
+              "name" -> JsString(name),
+              "email" -> JsString(email)))
+          }
+        }).toList))
+      },
+      optEmpty(CONTRIBUTOR_NAMES) flatMap { contributorNames =>
+        Some("contributor" ->
+          JsArray((contributorNames flatMap { name =>
+            CREATOR_EMAILS map { email =>
+              JsObject(Map(
+                "name" -> JsString(name),
+                "email" -> JsString(email)))
+            }
+          }).toList))
+      },
+      optEmpty(DERIVED_FROM) map { derivedFrom =>
+        ("derivedFrom" -> JsArray(derivedFrom.map(JsString(_)).toList)) }
+    ).foldLeft(Seq[(String,JsValue)]())(_ ++ _)).toMap)
+  }
+
 }
 
 object YuzuSettings {
@@ -219,11 +322,7 @@ object YuzuSiteSettings {
 
     override val DATA_FILE = str("data") match {
       case Some(fn) =>
-        val f = new File(fn)
-        if(!f.exists()) {
-          throw new MetadataException("Data file %s does not exist" format (fn))
-        }
-        f
+        new URL(fn)
       case None =>
         throw new MetadataException("Data file must be given")
     }
@@ -250,24 +349,7 @@ object YuzuSiteSettings {
     override val FACETS = obj.fields.get("facets") match {
       case Some(JsArray(elems)) => 
         elems.map({
-          case JsObject(fields) if fields.contains("uri") && fields.contains("label") =>
-            val uri = fields("uri") match {
-              case JsString(s) => s
-              case _ => throw new MetadataException("uri must be a string")
-            }
-            val label = fields("label") match {
-              case JsString(s) => s
-              case _ => throw new MetadataException("label must be a string")
-            }
-            val list = fields.get("list") match {
-              case Some(JsFalse) => false
-              case Some(JsTrue) => true
-              case None => true
-              case Some(JsString("true")) => true
-              case Some(JsString("false")) => false
-              case _ => throw new MetadataException("list must be a boolean")
-            }
-            Facet(uri, label, list)
+          case o : JsObject => Facet(o)
           case _ =>
             throw new MetadataException("Facets must be list of objects with fields \"uri\" and \"label\"")
         })
@@ -304,7 +386,7 @@ object YuzuSiteSettings {
     }
 
     override def LANG = str("language").getOrElse("en")
-    override def ONTOLOGY = str("ontology")
+//    override def ONTOLOGY = str("ontology")
     override def ISSUE_DATE = str("issueDate")
     override def VERSION_INFO = str("versionInfo")
     override def DESCRIPTION = str("description")

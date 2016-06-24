@@ -1,0 +1,103 @@
+<html>
+    <head>
+        <title>{{title}}</title>
+    </head>
+    <body>
+         <div style="background-image:url('{{context.getContextPath()}}/assets/yuzu.jpg');overflow:hidden;background-size:100%;padding:30px;width:100%;height:300px;float:left;opacity:0.5;margin-bottom:2em;">
+        </div>
+        <div style="position:absolute;clear:both;padding-left:20%;">
+            <div class="container">
+                <h1 style="color:#000;font-size:7vmin;"><b>{{title}}</b> - Simple, light-weight linked data hosting</h1>
+            </div>
+        </div>
+        <div class="container">
+            <div class="row">
+                {{#is_error}}
+                    <div class="alert alert-danger" style="clear:both;">
+                        <h3 style="margin-top:5px;">Some errors occurred</h3>
+                        <ul>
+                            <li>{{error}}</li>
+                        </ul>
+                    </div>
+                {{/is_error}}
+                <form method="post">
+                    <div class="form-group">
+                        <label for="instance_id">Identifier*</label>
+                        <input type="text" class="form-control" id="instance_id" name="instance_id" placeholder="id" value="{{instance_id}}"/>
+                        <span class="help-block">This is used to identify your data in an external database</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="baseURL">Base URL*</label>
+                        <input type="text" class="form-control" name="baseURL" id="baseURL" value="{{baseURL}}"/>
+                        <span class="help-block">This should be the same as 
+                            what is shown in the address, unless you plan to 
+                            move this server after deployment</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="name">Name*</label>
+                        <input type="text" class="form-control" name="name" id="name" placeholder="My dataset" value="{{name}}"/>
+                        <span class="help-block">The name of the dataset that 
+                            will be shown to the user</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="data">Data*</label>
+                        <input type="text" class="form-control" name="data" id="data" placeholder="file:example.zip" value="{{data}}"/>
+                        <span class="help-block">The URL that points to the data
+                            to be displayed on this site, as a single ZIP file</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="databaseURL">Database URL*</label>
+                        <input type="text" class="form-control" name="databaseURL" id="databaseURL" placeholder="jdbc:sqlite:example.db" value="{{databaseURL}}"/>
+                        <span class="help-block">The JDBC URL for the database</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="theme">Theme*</label>
+                        <select class="form-control" name="theme" id="theme">
+                            <option value="">Default</option>
+                            {{#themes}}
+                                <option>{{_}}</option>
+                            {{/themes}}
+                        </select>
+                        <span class="help-block">How this application looks</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="sparqlEndpoint">SPARQL Endpoint</label>
+                        <input type="text" class="form-control" name="sparqlEndpoint" id="sparqlEndpoint" placeholder="http://localhost:8890/" value="{{sparqlEndpoint}}"/>
+                        <span class="help-block">If you want to use an external 
+                            SPARQL endpoint to perform querying, please specify 
+                            it here. Leave blank to use Yuzu's built-in capacity</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="queryLimit">Query Limit*</label>
+                        <input type="text" class="form-control" name="queryLimit" id="queryLimit" value="{{queryLimit}}"/>
+                        <span class="help-block">Limits on internal query complexity,
+                            increasing this value will increase server load, but
+                            allow more queries to complete successfully</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="facets">Facets*</label>
+                        <textarea rows="20" class="form-control" name="facets" id="facets">[{
+  "uri": "http://www.w3.org/2000/01/rdf-schema#label",
+  "label": "Label",
+  "list": true
+}]</textarea>
+                        <span class="help-block">Facets decide what the key index
+                          and browsing properties are for your dataset, they should
+                          be given with a URI, a human readable label and whether
+                          they can be listed (i.e., generally false if all values
+                          are unique)</span>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Next</button>
+                </form>
+            </div>
+        </div>
+    <script>
+        $(document).ready(function() {
+            $('#baseName').val(document.URL);
+        });
+    </script>
+    </body>
+</html>
+                    
+                        
+

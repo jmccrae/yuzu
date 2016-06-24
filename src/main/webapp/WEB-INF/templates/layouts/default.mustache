@@ -6,26 +6,26 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     {{title}}
     <!-- Bootstrap theme -->
-    <link href="{{context.getContextPath()}}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
+    <link href="{{relPath}}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
     <!-- JQuery (not required) -->
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-    <link href="{{context.getContextPath()}}/assets/yuzu.css" media="all" rel="stylesheet" type="text/css">
+    <link href="{{relPath}}/assets/yuzu.css" media="all" rel="stylesheet" type="text/css">
     <script>
     function flagFallBack(tag) {
         if(tag.src.indexOf("und.gif", tag.src.length - 7) === -1) {
-            tag.src='{{context.getContextPath()}}/assets/flag/und.gif';
+            tag.src='{{relPath}}/assets/flag/und.gif';
             tag.parentNode.appendChild(document.createTextNode('{{lang}}'));
         }
     }
     </script>
-    <link rel="shortcut icon" href="{{context.getContextPath()}}/favicon.ico" />
+    <link rel="shortcut icon" href="{{relPath}}/favicon.ico" />
     {{/head}}
 </head>
 <body style="padding-top:100px;">
     <div class="navbar navbar-default navbar-fixed-top" style="background-color:#eee;border-bottom:1px solid #ccc;height:100px;overflow:hidden;">
         <div class="container">
             <div class="navbar-header">
-                <a href="{{context.getContextPath()}}/"><img src="{{context.getContextPath()}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
+                <a href="{{relPath}}/"><img src="{{relPath}}/assets/logo_small.png" style="padding-top:10px;padding-bottom:10px;"/></a>
                 <span style="font-size:400%;vertical-align:middle;font-weight:bold;padding-left:30px;">{{app_title}}</span>
             </div>
         </div>
@@ -44,14 +44,14 @@
             <div class="container">
                 <div class="row">
                     <div class="col-lg-1 col-lg-offset-10 footer_link">
-                        <a href="{{context.getContextPath()}}/about" class="footer_link">About</a><br/>
-                        <a href="{{context.getContextPath()}}/license" class="footer_link">License</a><br/>
-                        <a href="{{context.getContextPath()}}/download" class="footer_link">Download</a><br/>
+                        <a href="{{relPath}}/about" class="footer_link">About</a><br/>
+                        <a href="{{relPath}}/license" class="footer_link">License</a><br/>
+                        <a href="{{relPath}}/download" class="footer_link">Download</a><br/>
                         <a href="https://github.com/jmccrae/yuzu" class="footer_link">Source</a>
                     </div>
                     <div class="col-lg-1" style="line-height:5.5em;vertical-align:middle;">
-                        <a href="{{context.getContextPath()}}/license">
-                            <img src="{{context.getContextPath()}}/assets/cc/cc-zero.png" height="30px"/></a>
+                        <a href="{{relPath}}/license">
+                            <img src="{{relPath}}/assets/cc/cc-zero.png" height="30px"/></a>
                     </div>
                 </div>
             </div>
