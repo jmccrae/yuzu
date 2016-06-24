@@ -6,7 +6,7 @@ import java.net.URL
 import org.apache.jena.riot.{RDFDataMgr, Lang}
 import org.insightcentre.nlp.yuzu.jsonld._
 import org.insightcentre.nlp.yuzu.rdf._
-import org.insightcentre.nlp.yuzu.csv.CSVConverter
+import org.insightcentre.nlp.yuzu.csv.{CSVConverter, CSV2HTML}
 import org.insightcentre.nlp.yuzu.csv.schema.{TableGroup, Table}
 import scala.collection.mutable.{Map => MutMap, ListBuffer}
 import spray.json._
@@ -125,7 +125,9 @@ object DataConversions {
   }
 
   def toHtml(reader : String, schema : Table, base : URL)(implicit displayer : Displayer) : Seq[(String, Any)] = {
-    throw new UnsupportedOperationException("TODO")
+    Seq("title" -> display(URI(base.toString)),
+        "uri" -> base.toString,
+        "csvBody" -> CSV2HTML.convertTable(reader, schema))
   }
 
   def toHtml(model : Model, base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : Seq[(String, Any)] = {

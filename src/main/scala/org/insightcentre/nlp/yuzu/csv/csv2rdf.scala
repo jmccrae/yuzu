@@ -50,12 +50,10 @@ class CSVConverter(base : Option[URL]) {
 
   def rows(reader : CSVReader, source : URL, tableSchema : TableSchema,
       minimal : Boolean, table : Table) : Seq[Triple] = {
-    def str(i : Int) : Stream[Seq[Triple]] = reader.readNext() match {
-      case null => Stream.Empty
-      case row => processOne(row, reader.getLinesRead().toInt, i, source, 
-        tableSchema, minimal, table) #:: str(i + 1)
-    }
-    str(1).flatten
+    Stream.continually(reader.readNext()).takeWhile(_ != null).zipWithIndex.map({
+      case (row, i) => processOne(row, reader.getLinesRead().toInt, i+1, source, 
+        tableSchema, minimal, table)
+    }).flatten
   }
 
   def processOne(rowData : Array[String], sourceRowNo : Int, rowNo : Int, 
@@ -311,16 +309,16 @@ class CSVConverter(base : Option[URL]) {
         table.dialect.skipRows,
         false,
         table.dialect.skipInitialSpace)
-      val tableSchema = if(table.dialect.header && 
-        table.tableSchema.columns.isEmpty) {
-          table.tableSchema.copy(columns = readHeader(csvReader))
-      } else {
-        if(table.dialect.header) { 
-          csvReader.readNext() // TODO: Probably shouldn't throw this away unchecked
-        }
-        table.tableSchema
+    val tableSchema = if(table.dialect.header && 
+      table.tableSchema.columns.isEmpty) {
+        table.tableSchema.copy(columns = readHeader(csvReader))
+    } else {
+      if(table.dialect.header) { 
+        csvReader.readNext() // TODO: Probably shouldn't throw this away unchecked
       }
-      convertTable(csvReader, source, tableSchema, minimal, table)
+      table.tableSchema
+    }
+    convertTable(csvReader, source, tableSchema, minimal, table)
   }
 
 }

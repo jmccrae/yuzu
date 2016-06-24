@@ -120,7 +120,7 @@ class ServerSpec extends ScalatraSpec {
     display a plain RDF document                 $test_raw_rdf
     display CSV as RDF                           $test_csv_as_rdf
     display CSV as Json                          $test_csv_as_json
-    display CSV as HTML                          test_csv_as_html
+    display CSV as HTML                          $test_csv_as_html
     display RDF as Json                          $test_rdf_as_json
     display RDF as HTML                          $test_rdf_as_html
   """

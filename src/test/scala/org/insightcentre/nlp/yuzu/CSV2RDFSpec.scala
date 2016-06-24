@@ -91,6 +91,10 @@ AF,33.9,67.7,Afghanistan
       new StringReader(csvData),
       new URL(base),
       tableSchema, false)
+    for((s, p, o) <- results) {
+      System.err.println("%s %s %s" format (s, p, o))
+    }
+
 
     (results must have size 29) and
 //    hasTriple(results, rdf.`type`, csvw.TableGroup) and
@@ -286,10 +290,6 @@ AF,33.9,67.7,Afghanistan
       new StringReader(csvData),
       new URL(base),
       tableSchema, false)
-
-    for((s, p, o) <- results) {
-      System.err.println("%s %s %s" format (s, p, o))
-    }
 
     //hasTriple(results, RDF_TYPE, csvw.TableGroup) and
 //    hasTriple(results, csvw.table, URI("http://example.org/tree-ops-ext")) and
