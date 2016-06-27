@@ -744,7 +744,8 @@ object JsonLDConverter {
   private def ifragment     = s"($ipchar|/|\\?)*"
 //
 //   iunreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~" / ucschar
-  private def iunreserved   = s"[\\p{IsAlpha}\\p{IsDigit}\\-\\._~$ucschar]"
+//   Add { } to make CSVW work!
+  private def iunreserved   = s"[\\p{IsAlpha}\\p{IsDigit}\\-\\._~$ucschar\\{\\}]"
 //
 //   ucschar        = %xA0-D7FF / %xF900-FDCF / %xFDF0-FFEF
 //                  / %x10000-1FFFD / %x20000-2FFFD / %x30000-3FFFD

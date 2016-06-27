@@ -20,10 +20,10 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
       case _ => None
     }
     def findContext(id : String) = Some(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString)
-    def list(offset : Int, limit : Int) = Seq(ExampleDocument,ExampleDocument2,ExampleDocument3)
+    def list(offset : Int, limit : Int) = Seq(ExampleDocument,ExampleDocument2,ExampleDocument3, ExampleDocument4, ExampleDocument5)
     def listByProp(offset : Int, limit : Int, property : URI) = property match {
       case URI("http://www.w3.org/2000/01/rdf-schema#seeAlso") =>
-        Seq(ExampleDocument)
+        Seq(ExampleDocument,ExampleDocument5)
       case _ =>
         Nil
     }
@@ -125,6 +125,23 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
     def backlinks(implicit searcher : Searcher) = Nil
   }
 
+  object ExampleDocument4 extends Document {
+    def format = csvw
+    def id = "example3"
+    def content(implicit searcher : Searcher) = ("",csvw)
+    def label(implicit searcher : Searcher) = None
+    def facets(implicit searcher : Searcher) = Nil
+    def backlinks(implicit searcher : Searcher) = Nil
+  }
+
+  object ExampleDocument5 extends Document {
+    def format = turtle
+    def id = "example4"
+    def content(implicit searcher : Searcher) = ("",turtle)
+    def label(implicit searcher : Searcher) = None
+    def facets(implicit searcher : Searcher) = Nil
+    def backlinks(implicit searcher : Searcher) = Nil
+  }
 
   def search[A](foo : Searcher => A) = foo(new TestSearcher)
 
@@ -187,7 +204,7 @@ trait BackendBaseSpec extends Specification {
   def list = {
     val (more, result) = backend.listResources(0, 10, Nil)
     (more must_== false) and 
-    (result must have size(3))
+    (result must have size(5))
   }
 
  def listByOffset = {
@@ -198,7 +215,7 @@ trait BackendBaseSpec extends Specification {
 
   def listByProp = {
     val (more, result) = backend.listResources(0, 10, Seq((URI("http://www.w3.org/2000/01/rdf-schema#seeAlso"),None)))
-    (result must have size(1))
+    (result must have size(2))
   }
 
   def listByValue = {

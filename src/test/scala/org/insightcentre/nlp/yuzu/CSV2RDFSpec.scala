@@ -15,6 +15,7 @@ import spray.json._
 class CSV2RDFSpec extends ScalatraSpec {
   def is = s2"""
   CSV2RDF
+    should work on our example                    $simple_ex
     should work on example 4                      $e4
     should work on example 5                      $e5
     should work on example 8                      $e8
@@ -91,9 +92,6 @@ AF,33.9,67.7,Afghanistan
       new StringReader(csvData),
       new URL(base),
       tableSchema, false)
-    for((s, p, o) <- results) {
-      System.err.println("%s %s %s" format (s, p, o))
-    }
 
 
     (results must have size 29) and
@@ -215,7 +213,7 @@ AF,33.9,67.7,Afghanistan
 1,ADDISON AV,Celtis australis,Large Tree Routine Prune,11,10/18/2010,,,"<Point><coordinates>-122.156485,37.440963</coordinates></Point>"
 2,EMERSON ST,Liquidambar styraciflua,Large Tree Routine Prune,11,6/2/2010,,,"<Point><coordinates>-122.156749,37.440958</coordinates></Point>"
 6,ADDISON AV,Robinia pseudoacacia,Large Tree Routine Prune,29,6/1/2010,cavity or decay; trunk decay; codominant leaders; included bark; large leader or limb decay; previous failure root damage; root decay;  beware of BEES,YES,"<Point><coordinates>-122.156299,37.441151</coordinates></Point>""""
-    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(e7))
+    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(e7, None))
 
     val converter = new CSVConverter(None)
 
@@ -281,7 +279,7 @@ AF,33.9,67.7,Afghanistan
 1,ADDISON AV,Celtis australis,Large Tree Routine Prune,11,10/18/2010,,,"<Point><coordinates>-122.156485,37.440963</coordinates></Point>"
 2,EMERSON ST,Liquidambar styraciflua,Large Tree Routine Prune,11,6/2/2010,,,"<Point><coordinates>-122.156749,37.440958</coordinates></Point>"
 6,ADDISON AV,Robinia pseudoacacia,Large Tree Routine Prune,29,6/1/2010,cavity or decay; trunk decay; codominant leaders; included bark; large leader or limb decay; previous failure root damage; root decay;  beware of BEES,YES,"<Point><coordinates>-122.156299,37.441151</coordinates></Point>""""
-    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(e7))
+    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(e7, None))
 
     val converter = new CSVConverter(None)
 
@@ -324,6 +322,30 @@ AF,33.9,67.7,Afghanistan
     hasTriple(results, csvw.rownum, TypedLiteral("3", xsd.integer.value))  and
     hasTriple(results, csvw.url, URI("http://example.org/tree-ops-ext.csv#row=4")) and
     hasTriple(results, csvw.describes, URI("http://example.org/tree-ops-ext#gid-6"))
+  }
+
+  def simple_ex = {
+    val csvData = io.Source.fromFile("src/test/resources/server-spec-data/example3.csv").mkString("")
+
+    val tableSchema = SchemaReader.readTable(SchemaReader.readTree(
+      io.Source.fromFile("src/test/resources/server-spec-data/example3.csv-metadata.json").mkString(""),
+      Some(new URL("http://localhost:8080/example3"))))
+
+    val converter = new CSVConverter(None)
+
+    val base = "http://localhost:8080/example3"
+    val results = converter.convertTable(
+      new StringReader(csvData),
+      new URL(base),
+      tableSchema, false)
+
+    for((s, p, o) <- results) {
+      System.err.println("%s %s %s" format (s, p, o))
+    }
+
+    hasTriple(results, URI("http://localhost:8080/example3#de"),
+      URI("http://www.w3.org/2000/01/rdf-schema#label"),
+      PlainLiteral("Germany"))
   }
 }
 

@@ -6,6 +6,7 @@ import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import com.hp.hpl.jena.query.ResultSetFormatter
 import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.vocabulary._
+import java.io.StringReader
 import java.net.URL
 import java.util.concurrent.TimeoutException
 import org.apache.jena.riot.RDFDataMgr
@@ -301,7 +302,7 @@ trait YuzuServletActions extends YuzuStack {
         val base = getBase
         lazy val model = {
           val m = ModelFactory.createDefaultModel()
-          RDFDataMgr.read(m, content, base.toString, format.lang)
+          RDFDataMgr.read(m, new StringReader(content), base.toString, format.lang)
           addNamespaces(m)
           m
         }

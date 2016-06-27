@@ -25,7 +25,7 @@ class ScalatraBootstrap extends LifeCycle {
     if(context.getResource("/WEB-INF/settings.json") != null) {
       val siteSettings = YuzuSiteSettings(toObj(io.Source.fromURL(context.getResource("/WEB-INF/settings.json")).mkString("").parseJson))
 
-      System.err.println("Mounting %s" format siteSettings.NAME)
+      System.err.println("Mounting")
       context.mount(new StandardYuzuServlet(siteSettings), "/*")
     } else {
       System.err.println("Onboarding servlet")

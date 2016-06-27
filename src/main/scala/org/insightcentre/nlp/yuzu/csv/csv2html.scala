@@ -58,6 +58,6 @@ object CSV2HTML {
         case None =>
           s"""<th>${col.name}</th>"""
       }
-    })
+    }).mkString("\n")
   }
 }

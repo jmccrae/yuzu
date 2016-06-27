@@ -337,8 +337,8 @@ object SchemaReader {
   }
 
   /** Convert a JSON-LD to a RDF Tree */
-  def readTree(example : String) : RDFTree = {
-    val converter = new JsonLDConverter(base=Some(new URL("http://example.com/test.csv")),
+  def readTree(example : String, base : Option[URL]) : RDFTree = {
+    val converter = new JsonLDConverter(base=base,
       resolveRemote=new RemoteResolver {
         def resolve(uri : String) = uri match {
           case "http://www.w3.org/ns/csvw" =>

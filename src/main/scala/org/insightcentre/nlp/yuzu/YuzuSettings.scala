@@ -66,9 +66,9 @@ trait YuzuSiteSettings extends YuzuSettings {
   // The identifier for the server
   // The data will be available at BASE_NAME/NAME/file_name
   // Or "" if the resources are at BASE_NAME/file_name
-  def NAME : String
+//  def NAME : String
   def id2URI(id : String) = {
-    BASE_NAME + (if(NAME == "") { "/" } else { "/" + NAME + "/" }) + id
+    BASE_NAME + /*(if(NAME == "") {*/ "/" /*} else { "/" + NAME + "/" })*/ + id
   }
   def uri2Id(uri : String) = {
     if(uri.startsWith(BASE_NAME + "/")) {
@@ -78,13 +78,13 @@ trait YuzuSiteSettings extends YuzuSettings {
       } else {
         uri3
       }
-      if(NAME == "") {
+      //if(NAME == "") {
         Some(uri2)
-      } else if(uri2.startsWith(NAME + "/")) {
-        Some(uri2.drop(NAME.length + 1))
-      } else {
-        None
-      }
+      //} else if(uri2.startsWith(NAME + "/")) {
+      //  Some(uri2.drop(NAME.length + 1))
+      //} else {
+      //  None
+      //}
     } else {
       None
     }
@@ -162,7 +162,7 @@ trait YuzuSiteSettings extends YuzuSettings {
       Some("baseName" -> JsString(BASE_NAME)),
       Some("databaseURL" -> JsString(DATABASE_URL)),
       Some("yuzuQLLimit" -> JsNumber(YUZUQL_LIMIT)),
-      Some("id" -> JsString(NAME)),
+      //Some("id" -> JsString(NAME)),
       Some("name" -> JsString(DISPLAY_NAME)),
       Some("data" -> JsString(DATA_FILE.toString())),
       SPARQL_ENDPOINT map (("sparqlEndpoint" -> JsString(_))),
@@ -317,7 +317,7 @@ object YuzuSiteSettings {
       case _ => throw new MetadataException("limit should be a number")
     }
 
-    val NAME = str("id").getOrElse(throw new MetadataException("Metadata requires a field \"id\""))
+    //val NAME = str("id").getOrElse(throw new MetadataException("Metadata requires a field \"id\""))
     val DISPLAY_NAME = str("name").getOrElse(throw new MetadataException("Metadata requires a field \"name\""))
 
     override val DATA_FILE = str("data") match {

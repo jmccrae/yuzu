@@ -21,19 +21,7 @@
                     </div>
                 {{/is_error}}
                 <form method="post">
-                    <div class="form-group">
-                        <label for="instance_id">Identifier*</label>
-                        <input type="text" class="form-control" id="instance_id" name="instance_id" placeholder="id" value="{{instance_id}}"/>
-                        <span class="help-block">This is used to identify your data in an external database</span>
-                    </div>
-                    <div class="form-group">
-                        <label for="baseURL">Base URL*</label>
-                        <input type="text" class="form-control" name="baseURL" id="baseURL" value="{{baseURL}}"/>
-                        <span class="help-block">This should be the same as 
-                            what is shown in the address, unless you plan to 
-                            move this server after deployment</span>
-                    </div>
-                    <div class="form-group">
+                   <div class="form-group">
                         <label for="name">Name*</label>
                         <input type="text" class="form-control" name="name" id="name" placeholder="My dataset" value="{{name}}"/>
                         <span class="help-block">The name of the dataset that 
@@ -61,6 +49,13 @@
                         <span class="help-block">How this application looks</span>
                     </div>
                     <div class="form-group">
+                        <label for="baseURL">Base URL*</label>
+                        <input type="text" class="form-control" name="baseURL" id="baseURL" value="{{baseURL}}"/>
+                        <span class="help-block">This should be the same as 
+                            what is shown in the address, unless you plan to 
+                            move this server after deployment</span>
+                    </div>
+                     <div class="form-group">
                         <label for="sparqlEndpoint">SPARQL Endpoint</label>
                         <input type="text" class="form-control" name="sparqlEndpoint" id="sparqlEndpoint" placeholder="http://localhost:8890/" value="{{sparqlEndpoint}}"/>
                         <span class="help-block">If you want to use an external 
@@ -93,7 +88,7 @@
         </div>
     <script>
         $(document).ready(function() {
-            $('#baseName').val(document.URL);
+            $('#baseURL').val(document.URL);
         });
     </script>
     </body>

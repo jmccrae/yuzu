@@ -17,7 +17,9 @@ class ServerSpec extends ScalatraSpec {
     io.Source.fromFile("src/test/resources/server-spec-data/saldo/bosättningsstopp..nn.1.json").mkString.parseJson
   )
 
-  val csvSchema = SchemaReader.readTable(SchemaReader.readTree(io.Source.fromFile("src/test/resources/server-spec-data/example3.csv-metadata.json").mkString))
+  val csvSchema = SchemaReader.readTable(SchemaReader.readTree(
+    io.Source.fromFile("src/test/resources/server-spec-data/example3.csv-metadata.json").mkString, 
+    Some(new java.net.URL("http://localhost:8080/example3"))))
 
   val reader = Seq(
     io.Source.fromFile("src/test/resources/server-spec-data/example3.csv").mkString,

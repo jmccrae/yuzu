@@ -34,10 +34,9 @@ class OnboardingServlet extends YuzuStack {
         contentType = "text/plain"
         "Please restart server"
       case None =>
-        val id = params.get("instance_id").orErr("ID is required").
-            check(_.matches("\\w+"), "ID must be alphanumeric")
         val baseUrl = params.get("baseURL").orErr("Base URL is required")
-        val name = params.get("name").orErr("Name is required")
+        val name = params.get("name").orErr("Name is required").map({ name =>
+          if(name.endsWith("/")) name.dropRight(1) else name })
         val data = params.get("data").orErr("Data URL is required").
           check(s => Try(new URL(s)).isSuccess, "Data URL is not a valid URL")
         val databaseURL = params.get("databaseURL").orErr("Database URL is required")
@@ -62,7 +61,6 @@ class OnboardingServlet extends YuzuStack {
             }
                 
         val settings = for {
-          _id <- id
           _baseUrl <- baseUrl
           _name <- name
           _data <- data
@@ -71,7 +69,6 @@ class OnboardingServlet extends YuzuStack {
           _queryLimit <- queryLimit
           _facets <- facets
         } yield new YuzuSiteSettings {
-          def NAME = _id
           def BASE_NAME = _baseUrl
           def DATABASE_URL = _databaseURL
           def DISPLAY_NAME = _name
@@ -80,13 +77,11 @@ class OnboardingServlet extends YuzuStack {
           override def SPARQL_ENDPOINT = sparqlEndpoint
           override def YUZUQL_LIMIT = _queryLimit
         }
-        println(settings)
         settings match {
           case Left(error) =>
             contentType = "text/html"
             mustache("/onboarding",
              "title" -> "Welcome to Yuzu",
-             "instance_id" -> id.getOrElse(""),
              "baseURL" -> baseUrl.getOrElse(""),
              "name" -> name.getOrElse(""),
              "data" -> data.getOrElse(""),

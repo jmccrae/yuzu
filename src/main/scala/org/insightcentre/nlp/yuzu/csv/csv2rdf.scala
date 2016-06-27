@@ -95,7 +95,7 @@ class CSVConverter(base : Option[URL]) {
       val dataTriples =
       (for (((colSchema,cellData), colNo) <- (tableSchema.columns zip rowData).zipWithIndex) yield {
         // Establish a node S from about URL if set, or from Sdef otherwise as the current subject.
-        val (s, t1) = (tableSchema.aboutUrl ++ colSchema.aboutUrl).headOption match {
+        val (s, t1) = (colSchema.aboutUrl ++ tableSchema.aboutUrl).headOption match {
           case Some(aboutUrl) =>
             val s = URI(aboutUrl(colNo, colNo, rowNo, sourceRowNo, colSchema.name, colMap)) 
 // In standard mode only, relate the current subject to the current row; emit the following triple:

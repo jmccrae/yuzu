@@ -13,7 +13,6 @@ class YuzuSettingsTest extends ScalatraSpec {
     YUZUQL_LIMIT                         $limit
     DATABASE_URL                         $databaseUrl
   YuzuSiteSettings should load
-    NAME                                 $name
     DISPLAY_NAME                         $displayName
     DUMP_URI                             $dataFile
     SPARQL_ENDPOINT                      $sparqlEndpoint
@@ -42,7 +41,6 @@ class YuzuSettingsTest extends ScalatraSpec {
   """
 
   val data = """{
-    "id": "test",
     "name": "Test Instance",
     "data": "file:src/test/resources/example.zip",
     "databaseURL": "file:tmp/",
@@ -97,8 +95,6 @@ class YuzuSettingsTest extends ScalatraSpec {
 
   def limit = settings2.YUZUQL_LIMIT must_== 10000
     
-  def name = settings.NAME must_== "test"
-
   def displayName = settings.DISPLAY_NAME must_== "Test Instance"
 
   def dataFile = settings.DATA_FILE must_== new URL("file:src/test/resources/example.zip")

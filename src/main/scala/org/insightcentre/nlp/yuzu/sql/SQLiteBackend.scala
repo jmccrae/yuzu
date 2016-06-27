@@ -183,7 +183,12 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
         }
       }
       act {
-        insertId(rdf.toString, page)
+        rdf match {
+          case b@BlankNode(None) =>
+            insertId("_:genId" + b.defId, page)
+          case rdf =>
+            insertId(rdf.toString, page)
+        }
       }
       rdfCache.put(rdf, i)
       i

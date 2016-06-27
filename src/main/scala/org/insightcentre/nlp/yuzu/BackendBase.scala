@@ -62,7 +62,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         case (content, format) =>
           val base = id2URI(id)
           val model = ModelFactory.createDefaultModel()
-          RDFDataMgr.read(model, content, base, format.lang)
+          RDFDataMgr.read(model, new StringReader(content), base, format.lang)
           model.listStatements.map(fromJena).toSeq
       }
     }
@@ -88,8 +88,16 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         format match {
           case `json` =>
             JsDocument(content.parseJson, context(id))
-          case _ =>
-            throw new UnsupportedOperationException("TODO")
+          case `csvw` =>
+            CsvDocument(content, schema(id).getOrElse(Table()))
+          case `rdfxml` =>
+            RdfDocument(content, rdfxml)
+          case `turtle` =>
+            RdfDocument(content, turtle)
+          case `nt` =>
+            RdfDocument(content, nt)
+          case otherFormat =>
+            throw new UnsupportedOperationException("Unknown format: %s" format otherFormat)
         }
     })
   }
@@ -116,8 +124,8 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   }
 
   def schema(id : String) : Option[Table] = search { searcher =>
-    searcher.findContext(id).map(data => csv.SchemaReader.readTable(
-      csv.SchemaReader.readTree(data)))
+    searcher.findContext(id + ".csv-metadata").map(data => csv.SchemaReader.readTable(
+      csv.SchemaReader.readTree(data, Some(new URL(id2URI(id))))))
   }
 
   private def intersect(l : Iterable[Document], r : Iterable[Document]) : Iterable[Document] = {
@@ -282,7 +290,11 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     }
     (docs.size > limit,
       docs.take(limit).map({ doc =>
-        SearchResult(doc.label.getOrElse(displayer.magicString(doc.id)), doc.id)
+        SearchResult(doc.label.flatMap({
+          case "" => None
+          case null => None
+          case x => Some(x)
+        }).getOrElse(displayer.magicString(doc.id)), doc.id)
       }).toList)
   }
 
@@ -371,13 +383,15 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         name -> jsonLD
       }).toMap
 
-      val schemas = zf.entries().filter(e => fileName(e.getName()) == "csv-metadata.json").map({ e =>
-        val name = e.getName().dropRight("-metadata.json".length)
+      val schemas = zf.entries().filter(e => fileName(e.getName()).endsWith(".csv-metadata.json")).map({ e =>
+        val dataName = e.getName().dropRight(".csv-metadata.json".length)
+        val contextName = e.getName().dropRight(".json".length)
         val schemaData = io.Source.fromInputStream(zf.getInputStream(e)).mkString
-        loader.addContext(name, schemaData)
-        name -> csv.SchemaReader.readTable(csv.SchemaReader.readTree(schemaData))
+        loader.addContext(contextName, schemaData)
+        dataName -> csv.SchemaReader.readTable(csv.SchemaReader.readTree(schemaData, Some(new URL(id2URI(dataName)))))
       }).toMap
       
+      println(schemas)
 
       def findContextPath(path : String) = {
         val ps = path.split("/")
@@ -431,9 +445,11 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                   csvConverter.convertTable(new StringReader(data),
                     new URL(id2URI(id)), table, false)
                 case None =>
-                  Nil
+                  csvConverter.convertTable(new StringReader(data),
+                    new URL(id2URI(id)), Table(), false)
               }) foreach { 
                 case (subj, prop, obj) =>
+                  println("%s %s %s" format (subj, prop, obj))
                   loadDocumentTriple(document, loader, id, subj, prop, obj)
               }
             })
