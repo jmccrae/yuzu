@@ -339,9 +339,9 @@ AF,33.9,67.7,Afghanistan
       new URL(base),
       tableSchema, false)
 
-    for((s, p, o) <- results) {
-      System.err.println("%s %s %s" format (s, p, o))
-    }
+//    for((s, p, o) <- results) {
+//      System.err.println("%s %s %s" format (s, p, o))
+//    }
 
     hasTriple(results, URI("http://localhost:8080/example3#de"),
       URI("http://www.w3.org/2000/01/rdf-schema#label"),

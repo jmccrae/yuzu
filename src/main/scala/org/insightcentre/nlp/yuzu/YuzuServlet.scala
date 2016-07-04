@@ -7,6 +7,8 @@ abstract class YuzuServlet extends YuzuServletActions {
   import YuzuUserText._
   private final val pathWithExtension = "(.*?)(|\\.html|\\.rdf|\\.nt|\\.ttl|\\.json)$".r
 
+  lazy val dianthus = new Dianthus(siteSettings.PEERS, backend)
+
   def catchErrors(action : => Any) = {
     try {
       action
@@ -142,5 +144,50 @@ abstract class YuzuServlet extends YuzuServletActions {
 
   get("/favicon.ico") {
     Ok(request.getServletContext().getResource("/assets/favicon.ico").openStream())
+  }
+
+  get(("^%s/([A-Za-z0-9/\\+]{12})(\\.html|\\.rdf|\\.nt|\\.json|\\.ttl)?$" format siteSettings.DIANTHUS_PATH).r) {
+    catchErrors {
+      val id = DianthusID(multiParams("captures").head)
+      val ext = multiParams("captures").tail.head match {
+        case null =>
+          None
+        case str if str.startsWith(".") =>
+          Some(str.drop(1))
+        case str =>
+          Some(str)
+      }
+      dianthus.find(id) match {
+        case DianthusStoredLocally(doc) =>
+          val mime = ContentNegotiation.negotiate(ext, request)
+          showResource(doc, mime)
+        case DianthusInBackup(content, format) =>
+          contentType = format.mime
+          content
+        case DianthusRedirect(url) =>
+          SeeOther(url.toString)
+        case DianthusFailed() =>
+          NotFound()
+      }
+    }
+  }
+
+  get(("^%s/?$" format siteSettings.DIANTHUS_PATH).r) {
+    catchErrors {
+      contentType = "text/plain"
+      backend.dianthusId + " " + backend.dianthusDist
+    }
+  }
+
+  put(("^%s/([A-Za-z0-9/\\+]{12})" format siteSettings.DIANTHUS_PATH).r) {
+    catchErrors {
+      val dianthus = DianthusID(multiParams("captures").head)
+      backend.backup(dianthus,
+        request.body.splitAt(request.body.indexOf(" ") + 1) match {
+          case (format, data) =>
+            (ResultType(format.trim()), data)
+        })
+      Ok()
+    }
   }
 }

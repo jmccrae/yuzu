@@ -11,10 +11,12 @@ class YuzuSettingsTest extends ScalatraSpec {
   YuzuSettings should load
     BASE_NAME                            $baseName
     YUZUQL_LIMIT                         $limit
+    DIANTHUS_MAX                         $dianthusLimit
     DATABASE_URL                         $databaseUrl
   YuzuSiteSettings should load
     DISPLAY_NAME                         $displayName
     DUMP_URI                             $dataFile
+    PEERS                                $peers
     SPARQL_ENDPOINT                      $sparqlEndpoint
     LICENSE_PATH                         $licensePath
     SEARCH_PATH                          $searchPath
@@ -22,6 +24,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     SPARQL_PATH                          $sparqlPath
     LIST_PATH                            $listPath
     METADATA_PATH                        $metadataPath
+    DIANTHUS_PATH                        $dianthusPath
     FACETS                               $facets
     PROP_NAMES                           $propNames
     PREFIXES                             $prefixes
@@ -44,6 +47,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     "name": "Test Instance",
     "data": "file:src/test/resources/example.zip",
     "databaseURL": "file:tmp/",
+    "peers": ["http://www.example.com/dianthus"],
     "sparqlEndpoint": "http://localhost:8080/sparql/",
     "licensePath": "/mylicense",
     "searchPath": "/mysearch",
@@ -51,6 +55,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     "sparqlPath": "/mysparql",
     "listPath": "/mylist",
     "metadataPath": "/mymetadata",
+    "dianthusPath": "/mydianthus",
     "facets": [
       { "uri": "http://www.example.com/test", "label": "Test", "list": false },
       { "uri": "http://www.w3.org/2000/01/rdf-schema#label", "label": "Label" }
@@ -84,7 +89,8 @@ class YuzuSettingsTest extends ScalatraSpec {
   val data2 = """{
     "baseName": "http://www.example.com/",
     "context": "/test",
-    "yuzuQLLimit": 10000
+    "yuzuQLLimit": 10000,
+    "dianthusMax": 10000
   }""".parseJson.asInstanceOf[JsObject]
 
   val settings2 = YuzuSettings(data2)
@@ -94,10 +100,14 @@ class YuzuSettingsTest extends ScalatraSpec {
   def databaseUrl = settings2.DATABASE_URL must_== "file:tmp/"
 
   def limit = settings2.YUZUQL_LIMIT must_== 10000
+
+  def dianthusLimit = settings2.DIANTHUS_MAX must_== 10000
     
   def displayName = settings.DISPLAY_NAME must_== "Test Instance"
 
   def dataFile = settings.DATA_FILE must_== new URL("file:src/test/resources/example.zip")
+
+  def peers = settings.PEERS must_== Seq(new URL("http://www.example.com/dianthus"))
 
   def sparqlEndpoint = settings.SPARQL_ENDPOINT must_== Some("http://localhost:8080/sparql/")
 
@@ -112,6 +122,8 @@ class YuzuSettingsTest extends ScalatraSpec {
   def listPath = settings.LIST_PATH must_== "/mylist"
 
   def metadataPath = settings.METADATA_PATH must_== "/mymetadata"
+
+  def dianthusPath = settings.DIANTHUS_PATH must_== "/mydianthus"
 
   def facets = settings.FACETS must_== Seq(
     Facet("http://www.example.com/test", "Test", false),

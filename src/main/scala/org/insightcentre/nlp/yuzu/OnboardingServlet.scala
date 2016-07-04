@@ -59,6 +59,18 @@ class OnboardingServlet extends YuzuStack {
               case _ =>
                 Left("Could not parse Json")
             }
+        val peers : Either[String, List[URL]] = params.get("peers").map({ peers =>
+          val x1 : Array[Try[URL]] = peers.split(",").map(_.trim()).map(x => Try(new URL(x)))
+          val y1 : Try[List[URL]] = x1.foldLeft(Success(Nil) : Try[List[URL]]) { (xs, u) =>
+            xs flatMap { xs => u map { u => u :: xs } }
+          }
+          y1 match {
+            case Success(xs) =>
+              Right(xs)
+            case Failure(e) =>
+              Left(e.getMessage())
+          }
+        }).getOrElse(Left("List of peers is required"))
                 
         val settings = for {
           _baseUrl <- baseUrl
@@ -68,11 +80,13 @@ class OnboardingServlet extends YuzuStack {
           _theme <- theme
           _queryLimit <- queryLimit
           _facets <- facets
+          _peers <- peers
         } yield new YuzuSiteSettings {
           def BASE_NAME = _baseUrl
           def DATABASE_URL = _databaseURL
           def DISPLAY_NAME = _name
           def DATA_FILE = new URL(_data)
+          def PEERS = _peers
           override def FACETS = _facets
           override def SPARQL_ENDPOINT = sparqlEndpoint
           override def YUZUQL_LIMIT = _queryLimit

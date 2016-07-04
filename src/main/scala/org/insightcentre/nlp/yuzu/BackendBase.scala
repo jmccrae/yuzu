@@ -25,6 +25,10 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   trait BackendSearcher {
     def find(id : String) : Option[Document]
+    def find(id : DianthusID) : Option[Document]
+    def findBackup(id : DianthusID) : Option[(ResultType, String)]
+    def putBackup(id : DianthusID, resultType : ResultType, content : String) : Int
+    def removeBackup(dist : Int) : Int
     def findContext(id : String) : Option[String]
     def list(offset : Int, limit : Int) : Iterable[Document]
     def listByProp(offset : Int, limit : Int, property : URI) : Iterable[Document]
@@ -40,6 +44,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   protected trait Document {
     def id : String
+    def dianthus : DianthusID
     def content(implicit searcher : Searcher) : (String, ResultType)
     def label(implicit searcher : Searcher) : Option[String]
     def facets(implicit searcher : Searcher) : Iterable[(URI, RDFNode)]
@@ -82,7 +87,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   protected def search[A](foo : Searcher => A) : A
 
   def lookup(id : String) = search { implicit searcher =>
-    searcher.find(id).map({ 
+    searcher.find(id).map({
       doc => 
         val (content, format) = doc.content
         format match {
@@ -101,6 +106,28 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         }
     })
   }
+
+  def lookup(dianthusID : DianthusID) = search { implicit searcher =>
+    searcher.find(dianthusID) match {
+      case Some(doc) =>
+        Some(DianthusStoredLocally(doc.id))
+      case None => 
+        searcher.findBackup(dianthusID).map({
+          case (format, content) => DianthusInBackup(content, format) })
+    }
+  }
+
+  var dianthusDist = 96
+
+  def backup(id : DianthusID, document : => (ResultType, String)) = search { implicit searcher =>
+    val (format, content) = document
+    var i = searcher.putBackup(id, format, content)
+    while(i > siteSettings.DIANTHUS_MAX) {
+      dianthusDist -= 1
+      i = searcher.removeBackup(dianthusDist)
+    }
+  }
+
 
   def context(id : String) : JsonLDContext = search { searcher =>
     val e = id.split("/")
@@ -364,6 +391,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   def load(zipFile : File) {
     val zf = new ZipFile(zipFile)
+    val dianthusBackup = new DianthusBackupService(100, siteSettings.PEERS)
 
     def fileName(path : String) = if(path contains "/") {
       path.drop(path.lastIndexOf("/") + 1)
@@ -391,8 +419,6 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         dataName -> csv.SchemaReader.readTable(csv.SchemaReader.readTree(schemaData, Some(new URL(id2URI(dataName)))))
       }).toMap
       
-      println(schemas)
-
       def findContextPath(path : String) = {
         val ps = path.split("/")
         (ps.length to 0 by -1).find({ i =>
@@ -434,6 +460,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                 }
               }, Some(context(entry.getName())))
             })
+            dianthusBackup.backup(jsonData, json)
           } else if(entry.getName().endsWith(".csv")) {
             System.err.println("Loading %s" format entry.getName())
             val id = entry.getName().dropRight(".csv".length)
@@ -449,10 +476,10 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                     new URL(id2URI(id)), Table(), false)
               }) foreach { 
                 case (subj, prop, obj) =>
-                  println("%s %s %s" format (subj, prop, obj))
                   loadDocumentTriple(document, loader, id, subj, prop, obj)
               }
             })
+            dianthusBackup.backup(data, csvw)
           } else {
             RDF_SUFFIXES.keys.find(entry.getName().endsWith(_)) match {
               case Some(rdfSuffix) =>
@@ -469,6 +496,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                     loadDocumentTriple(document, loader, id, subj, prop, obj)
                   }
                 })
+                dianthusBackup.backup(data, resultType)
               case None =>
                 System.err.println("Ignoring " + entry.getName())
             }

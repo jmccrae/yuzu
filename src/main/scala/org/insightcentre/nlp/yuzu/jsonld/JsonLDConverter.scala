@@ -575,7 +575,6 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
         case r : Resource =>
           visitor.emitValue(r, prop, subj)
         case l : Literal =>
-          println("%s %s %s" format (subj, prop, obj))
           throw new JsonLDException("@reverse must not have a literal value")
       }
     } else {

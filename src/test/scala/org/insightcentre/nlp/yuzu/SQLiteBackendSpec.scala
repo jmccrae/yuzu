@@ -27,6 +27,7 @@ class SQLiteBackendSpec extends BackendBaseSpec with BeforeAll with AfterAll {
     def DATA_FILE = new java.net.URL("file:src/test/resources/example.zip")
     def DISPLAY_NAME = "test"
     def NAME = ""
+    def PEERS = Seq()
     override def FACETS = Seq(
     Facet("http://www.w3.org/2000/01/rdf-schema#label", "Label", true)
       )

@@ -12,59 +12,94 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
   catch {
     case x : ClassNotFoundException => throw new RuntimeException("No Database Driver", x) }
 
+  lazy val dianthusId = withSession(conn) { implicit session =>
+    DianthusID(sql"""SELECT id FROM dianthusId LIMIT 1""".as1[String].head)
+  }
+  
 
   protected class SQLiteSearcher(implicit val session : Session) extends BackendSearcher {
     def find(id : String) : Option[Document] = {
-      sql"""SELECT id FROM ids
-            WHERE pageId=$id""".as1[Int].headOption.map(i => new SQLiteDocument(id, i))
+      sql"""SELECT id, dianthus FROM ids
+            WHERE pageId=$id""".as2[Int, String].headOption.map({
+              case (i, d) => new SQLiteDocument(id, i, DianthusID(d))
+            })
     }
+
+    def find(did : DianthusID) : Option[Document] = {
+      sql"""SELECT id, pageId FROM ids
+            WHERE dianthus=${did.base64}""".as2[Int, String].headOption.map({
+              case (i, id) => new SQLiteDocument(id, i, did)
+            })
+    }
+
+    def findBackup(did : DianthusID) : Option[(ResultType, String)] = {
+      sql"""SELECT format, content FROM dianthus
+            WHERE id=${did.base64}""".as2[String, String].headOption.map({
+              case (format, content) => (ResultType(format), content)
+            })
+    }
+
+    def putBackup(id : DianthusID, resultType : ResultType, content : String) = {
+      val dist = dianthusId xor id
+      val q = sql"""INSERT INTO dianthus(id, content, format, dist) VALUES (?, ?, ?, ?)""".
+        insert4[String, String, String, Int]
+      q(id.base64, resultType.name, content, dist)
+      q.execute
+      sql"""SELECT count(*) FROM dianthus""".as1[Int].head
+    }
+
+    def removeBackup(dist : Int) = {
+      sql"""DELETE FROM dianthus WHERE dist>$dist""".execute
+      sql"""SELECT count(*) FROM dianthus""".as1[Int].head
+    }
+
 
     def findContext(id : String) : Option[String] = {
       sql"""SELECT page FROM contexts WHERE path=$id""".as1[String].headOption
     }
     
     def list(offset : Int, limit : Int) = {
-      sql"""SELECT pageId, id FROM ids 
+      sql"""SELECT pageId, id, dianthus FROM ids 
             WHERE pageId is not null
-            LIMIT $limit OFFSET $offset""".as2[String, Int].map({
-              case (id, i) => new SQLiteDocument(id, i)
+            LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
+              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
             }).toList
     }
 
     def listByProp(offset : Int, limit : Int, property : URI) = {
-      sql"""SELECT DISTINCT ids.pageId, ids.id FROM ids
+      sql"""SELECT DISTINCT ids.pageId, ids.id, ids.dianthus FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids2 ON tripids.pid=ids2.id
             WHERE ids.pageId is not null AND ids2.n3=${property.toString}
-            LIMIT $limit OFFSET $offset""".as2[String, Int].map({
-              case (id, i) => new SQLiteDocument(id, i)
+            LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
+              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
             }).toList
      }
 
     def listByPropObj(offset : Int, limit : Int, property : URI, obj : RDFNode) = {
-      sql"""SELECT DISTINCT ids.pageId, ids.id FROM ids
+      sql"""SELECT DISTINCT ids.pageId, ids.id, ids.dianthus FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids2 ON tripids.pid=ids2.id
             JOIN ids AS ids3 ON tripids.oid=ids3.id
             WHERE ids.pageId is not null AND ids2.n3=${property.toString} AND ids3.n3=${obj.toString}
-            LIMIT $limit OFFSET $offset""".as2[String, Int].map({
-              case (id, i) => new SQLiteDocument(id, i)
+            LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
+              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
             }).toList
      }
       
     def listByObj(offset : Int, limit : Int, obj : RDFNode) = {
-      sql"""SELECT ids.pageId, ids.id FROM ids
+      sql"""SELECT ids.pageId, ids.id, ids.dianthus FROM ids
             JOIN tripids ON tripids.sid=ids.id
             JOIN ids AS ids3 ON tripids.oid=ids2.id
             WHERE ids.pageId is not null AND ids3.n3=${obj.toString}
-            LIMIT $limit OFFSET $offset""".as2[String, Int].map({
-              case (id, i) => new SQLiteDocument(id, i)
+            LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
+              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
             }).toList
      }
 
     def listByPropObjs(offset : Int, limit : Int, propObjs : Seq[(URI, Option[RDFNode])]) = {
       if(propObjs.size > 10) throw new RuntimeException("Too many clauses for SQLite")
-      val sb1 = new StringBuilder("""SELECT DISTINCT ids.pageId, ids.id FROM ids
+      val sb1 = new StringBuilder("""SELECT DISTINCT ids.pageId, ids.id, ids.dianthus FROM ids
           JOIN tripids ON tripids.sid=ids.id""")
       val sb2 = new StringBuilder(""" WHERE ids.pageId is not null""")
       val elems = collection.mutable.ListBuffer[Any]()
@@ -84,8 +119,8 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       val q = sb1.toString + sb2.toString + " LIMIT ? OFFSET ?"
       elems.append(limit)
       elems.append(offset)
-      sql.apply(q, elems:_*).as2[String, Int].map({
-        case (id, i) => new SQLiteDocument(id, i)
+      sql.apply(q, elems:_*).as3[String, Int, String].map({
+        case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
       }).toList
     }
 
@@ -102,19 +137,19 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       limit : Int) = {
       property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT free_text.sid, ids.pageId FROM free_text
+          sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
                 JOIN ids ON free_text.sid=ids.id
                 JOIN ids AS pids ON free_text.pid=pids.id
                 WHERE pids.n3=${p.toString} AND object MATCH $query
-                LIMIT $limit OFFSET $offset""".as2[Int, String].map({
-                  case (i, id) => new SQLiteDocument(id, i)
+                LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
+                  case (i, id, d) => new SQLiteDocument(id, i, DianthusID(d))
                 })
         case None =>
-          sql"""SELECT DISTINCT free_text.sid, sids.pageId FROM free_text
+          sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
                 JOIN ids AS sids ON free_text.sid=sids.id
                 WHERE object MATCH $query
-                LIMIT $limit OFFSET $offset""".as2[Int, String].map({
-                  case (i, id) => new SQLiteDocument(id, i)
+                LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
+                  case (i, id, d) => new SQLiteDocument(id, i, DianthusID(d))
                 })
       }
     }
@@ -127,7 +162,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     case _ => throw new IllegalArgumentException("%s is not a URI" format s)
   }
 
-  protected class SQLiteDocument(val id : String, i : Int) extends Document {
+  protected class SQLiteDocument(val id : String, i : Int, val dianthus : DianthusID) extends Document {
     def content(implicit searcher : SQLiteSearcher) = {
       implicit val session = searcher.session
       val (content, format) = 
@@ -212,6 +247,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       insertBacklink.execute
       insertFreeText.execute
       updateLabel.execute
+      updateDianthus.execute
       session.conn.commit()
     }
 
@@ -219,6 +255,8 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       insert2[String, String]
     val insertId = sql"""INSERT INTO ids (n3, pageId) VALUES (?,?)""".
       insert2[String, String]
+    val updateDianthus = sql"""UPDATE ids SET dianthus=? WHERE id=?""".
+      insert2[String, Int]
     val insertTriples = sql"""INSERT INTO tripids VALUES (?, ?, ?, ?)""".
       insert4[Int, Int, Int, Boolean]
     val insertPage = sql"""INSERT INTO pages VALUES (?, ?, ?)""".
@@ -239,6 +277,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     def insertDoc(id : String, content : String, format : ResultType, foo : DocumentLoader => Unit) { 
       act {
         val i = pageId(id)
+        updateDianthus(DianthusID.make(content).base64, i)
         insertPage(i, content, format.name)
         foo(new SQLiteDocumentLoader(i))
       }
@@ -278,6 +317,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     sql"""CREATE TABLE IF NOT EXISTS ids (id integer primary key,
                                           n3 text,
                                           pageId text,
+                                          dianthus varchar(12),
                                           label text, unique(n3))""".execute
     sql"""CREATE INDEX n3s on ids (n3)""".execute
     sql"""CREATE TABLE IF NOT EXISTS pages (id integer not null,
@@ -317,6 +357,17 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     sql"""CREATE TABLE value_cache (object text not null,
                                     count int,
                                     property text not null)""".execute 
+    sql"""CREATE TABLE dianthus (id varchar(12),
+                                 content text,
+                                 format varchar(6),
+                                 dist int)""".execute
+    sql"""CREATE INDEX dianthusIdx ON dianthus(id)""".execute
+    sql"""CREATE TABLE dianthusId (id varchar(12))""".execute
+    val q1 = sql"""INSERT INTO dianthusId VALUES (?)""".insert1[String]
+    val bytes = new Array[Byte](9)
+    util.Random.nextBytes(bytes)
+    q1(DianthusID(bytes).base64)
+    q1.execute
   }
 
   def buildCache(implicit session : Session) = {

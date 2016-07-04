@@ -13,11 +13,33 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
     extends BackendBase(siteSettings) {
   import siteSettings._
 
+  def dianthusId = DianthusID("aaaaaaaaaaaa")
+
   class TestSearcher extends BackendSearcher {
+    private var backup = collection.mutable.Map[DianthusID, (ResultType, String)]()
+    def findBackup(id : DianthusID) = backup.get(id)
+    def putBackup(id : DianthusID, format : ResultType, content : String) = {
+      backup.put(id, (format, content))
+      backup.size
+    }
+    def removeBackup(dist : Int) = {
+      backup.keys.filter(id => (id xor dianthusId) < dist).foreach({
+        backup.remove(_)
+      })
+      backup.size
+    }
+
     def find(id : String) = id match {
       case "example" => Some(ExampleDocument)
       case "example2" => Some(ExampleDocument2)
       case _ => None
+    }
+    def find(id : DianthusID) = {
+      if(id == DianthusID("NpLAOxk51MTN")) {
+        Some(ExampleDocument)
+      } else {
+        None
+      }
     }
     def findContext(id : String) = Some(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString)
     def list(offset : Int, limit : Int) = Seq(ExampleDocument,ExampleDocument2,ExampleDocument3, ExampleDocument4, ExampleDocument5)
@@ -72,6 +94,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument extends Document {
     def format = json
+    def dianthus = DianthusID.make(content(null)._1)
     def id = "example"
     def content(implicit searcher : Searcher) = ("""{
     "@id": "",
@@ -94,6 +117,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument2 extends Document {
     def format = json
+    def dianthus = DianthusID.make(content(null)._1)
     def id = "example2"
     def content(implicit searcher : Searcher) = ("""{
     "@id": "", 
@@ -115,6 +139,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   }
   object ExampleDocument3 extends Document {
     def format = json
+    def dianthus = DianthusID.make(content(null)._1)
     def id = "saldo/bosättningsstopp..n.1"
     def content(implicit searcher : Searcher) = ("""{
     "@id": "",
@@ -127,6 +152,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument4 extends Document {
     def format = csvw
+    def dianthus = DianthusID.make(content(null)._1)
     def id = "example3"
     def content(implicit searcher : Searcher) = ("",csvw)
     def label(implicit searcher : Searcher) = None
@@ -136,6 +162,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument5 extends Document {
     def format = turtle
+    def dianthus = DianthusID.make(content(null)._1)
     def id = "example4"
     def content(implicit searcher : Searcher) = ("",turtle)
     def label(implicit searcher : Searcher) = None
@@ -182,8 +209,7 @@ trait BackendBaseSpec extends Specification {
 //    (backend.theTestLoader.documents("example")._2.props must have size(4))
   }
 
-  def lookup = {
-    backend.lookup("example") must_== Some(JsDocument(io.Source.fromFile("src/test/resources/server-spec-data/example.json").mkString("").parseJson, 
+  private val doc1 = JsDocument(io.Source.fromFile("src/test/resources/server-spec-data/example.json").mkString("").parseJson, 
       new JsonLDContext(Map(
         "dbpedia" -> JsonLDAbbreviation("http://dbpedia.org/resource/"), 
         "label" -> JsonLDLangProperty("http://www.w3.org/2000/01/rdf-schema#label","en"), 
@@ -192,9 +218,15 @@ trait BackendBaseSpec extends Specification {
         "link" -> JsonLDURIProperty("http://localhost:8080/ontology#link"), 
         "title" -> JsonLDAbbreviation("http://purl.org/dc/elements/1.1/title"), 
         "seeAlso" -> JsonLDURIProperty("http://www.w3.org/2000/01/rdf-schema#seeAlso")), 
-          None, None, None)))
+          None, None, None))
 
 
+  def lookup = {
+    backend.lookup("example") must_== Some(doc1)
+  }
+
+  def dianthus = {
+    backend.lookup(DianthusID("NpLAOxk51MTN")) must_== Some(DianthusStoredLocally("example"))
   }
 
   def label = {
@@ -266,6 +298,7 @@ class TestBackendSpec extends BackendBaseSpec {
   Base Backend
     should load a file                      $load
     should lookup a document                $lookup
+    should lookup a document by Dianthus    $dianthus
     should find a label for a resource      $label
     should list resources                   $list
     should list resources by offset         $listByOffset

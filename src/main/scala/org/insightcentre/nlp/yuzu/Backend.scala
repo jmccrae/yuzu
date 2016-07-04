@@ -9,6 +9,7 @@ import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import org.insightcentre.nlp.yuzu.csv.schema.{Table, TableGroup}
 import org.insightcentre.nlp.yuzu.rdf.RDFNode
 import scala.collection.JavaConversions._
+import scala.util.Try
 import spray.json.JsValue
 
 case class SearchResult(label : String, id : String)
@@ -32,19 +33,27 @@ case class RDFValue(
 //  }
 }
   
-sealed trait BackendDocument
+sealed trait BackendDocument 
 
-case class JsDocument(value : JsValue, context : JsonLDContext) extends BackendDocument
+case class JsDocument(jsValue : JsValue, context : JsonLDContext) extends BackendDocument
 case class CsvDocument(value : String, context : Table) extends BackendDocument
 case class RdfDocument(value : String, format : ResultType) extends BackendDocument
 
 trait Backend {
+  /** The identity of this store */
+  def dianthusId : DianthusID
+  /** The distance to the largest backup ID */
+  def dianthusDist : Int
+  /** Add a document to this backup */
+  def backup(id : DianthusID, document : => (ResultType, String)) : Unit
   /** The displayer */
   def displayer : Displayer
   /** Run a SPARQL query on the backend */
   def query(query : String, defaultGraphURI : Option[String]) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
   def lookup(id : String) : Option[BackendDocument]
+  /** By Dianthus */
+  def lookup(id : DianthusID) : Option[DianthusLocalResult]
   /** Summarize the key triples to preview a page */
   def summarize(id : String) : Seq[FactValue]
   /** Get backlinks */

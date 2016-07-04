@@ -14,6 +14,7 @@ object TestSettings extends YuzuSettings with YuzuSiteSettings {
   override def FACETS = Seq(
     Facet("http://www.w3.org/2000/01/rdf-schema#label", "Label", true)
       )
+  def PEERS = Seq()
 }
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html

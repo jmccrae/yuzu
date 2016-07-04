@@ -26,6 +26,8 @@ trait YuzuSettings {
   //       http://localhost:8888/sparql/
   //       file:datafolder/
   def DATABASE_URL : String
+  // The maximum number of backups to store
+  def DIANTHUS_MAX = 100000
 }
 
 case class Facet(val uri : String, val label : String, val list : Boolean) {
@@ -97,6 +99,8 @@ trait YuzuSiteSettings extends YuzuSettings {
     case "file" => new File(DATA_FILE.getPath())
     case protocol => throw new RuntimeException("Unsupported protocol: " + protocol)
   }
+  // Peers to share file with 
+  def PEERS : Seq[URL]
   // If using an external SPARQL endpoint, the address of this
   // or None if you wish to use only YuzuQL
   def SPARQL_ENDPOINT : Option[String] = None
@@ -112,6 +116,8 @@ trait YuzuSiteSettings extends YuzuSettings {
   def LIST_PATH = "/list"
   // Path to Data ID (metadata) (no initial slash)
   def METADATA_PATH = "/about"
+  // Path for Dianthus lookup
+  def DIANTHUS_PATH = "/dianthus"
   // Properties to use as facets
   def FACETS : Seq[Facet] = Nil
   // Any forced names on properties
@@ -161,10 +167,12 @@ trait YuzuSiteSettings extends YuzuSettings {
     JsObject((Seq[Option[(String, JsValue)]](
       Some("baseName" -> JsString(BASE_NAME)),
       Some("databaseURL" -> JsString(DATABASE_URL)),
+      Some("dianthusMax" -> JsNumber(DIANTHUS_MAX)),
       Some("yuzuQLLimit" -> JsNumber(YUZUQL_LIMIT)),
       //Some("id" -> JsString(NAME)),
       Some("name" -> JsString(DISPLAY_NAME)),
       Some("data" -> JsString(DATA_FILE.toString())),
+      Some("peers" -> JsArray(PEERS.map(x => JsString(x.toString)).toList)),
       SPARQL_ENDPOINT map (("sparqlEndpoint" -> JsString(_))),
       optEq(LICENSE_PATH, "/license") map (("licensePath" -> JsString(_))),
       optEq(SEARCH_PATH, "/search") map (("searchPath" -> JsString(_))),
@@ -172,6 +180,7 @@ trait YuzuSiteSettings extends YuzuSettings {
       optEq(SPARQL_PATH, "/sparql") map (("sparqlPath" -> JsString(_))),
       optEq(LIST_PATH, "/list") map (("listPath" -> JsString(_))),
       optEq(METADATA_PATH, "/about") map (("metadataPath" -> JsString(_))),
+      optEq(DIANTHUS_PATH, "/dianthus") map (("dianthusPath" -> JsString(_))),
       Some("labelProp" -> JsString(LABEL_PROP.toString)),
       // TODO: Default_Context
       Some("facets" -> JsArray((FACETS map (_.toJson)).toList)),
@@ -243,6 +252,16 @@ object YuzuSettings {
       }
     }
     override val DATABASE_URL = str("databaseURL").getOrElse("file:tmp/")
+    override val DIANTHUS_MAX = obj.fields.get("dianthusMax") match {
+      case Some(JsNumber(n)) => n.toInt
+      case Some(JsString(s)) => try { 
+        s.toInt
+      } catch { 
+        case x : Exception => throw new MetadataException("Bad number", x)
+      }
+      case None => super.DIANTHUS_MAX
+      case _ => throw new MetadataException("limit should be a number")
+    }
     override val YUZUQL_LIMIT = obj.fields.get("yuzuQLLimit") match {
       case Some(JsNumber(n)) => n.toInt
       case Some(JsString(s)) => try { 
@@ -327,6 +346,16 @@ object YuzuSiteSettings {
         throw new MetadataException("Data file must be given")
     }
 
+    override val PEERS = obj.fields.get("peers") match {
+      case Some(JsArray(elems)) =>
+        elems.map({
+          case JsString(str) => new URL(str)
+          case _ => throw new MetadataException("Peers must be a string URL")
+        })
+      case _ =>
+        throw new MetadataException("Peers must be an array of values")
+    }
+
     override val SPARQL_ENDPOINT = str("sparqlEndpoint")
 
     override val LICENSE_PATH = str("licensePath").getOrElse(super.LICENSE_PATH)
@@ -335,6 +364,7 @@ object YuzuSiteSettings {
     override val SPARQL_PATH = str("sparqlPath").getOrElse(super.SPARQL_PATH)
     override val LIST_PATH = str("listPath").getOrElse(super.LIST_PATH)
     override val METADATA_PATH = str("metadataPath").getOrElse(super.METADATA_PATH)
+    override val DIANTHUS_PATH = str("dianthusPath").getOrElse(super.DIANTHUS_PATH)
 
     override val LABEL_PROP = str("labelProp").map(URI.create).getOrElse(super.LABEL_PROP)
     override val DEFAULT_CONTEXT = obj.fields.get("context") match {
