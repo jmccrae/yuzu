@@ -14,6 +14,7 @@ object YuzuBuild extends Build {
 
   scalacOptions ++= Seq("-unchecked", "-deprecation")
 
+
   lazy val project = Project (
     "yuzu",
     file("."),
@@ -32,13 +33,13 @@ object YuzuBuild extends Build {
 //        "org.scala-lang" % "scala-reflect" % ScalaVersion,
 //        "org.scala-lang" % "scala-compiler" % ScalaVersion,
         "ch.qos.logback" % "logback-classic" % "1.1.1" % "runtime",
-        "org.eclipse.jetty" % "jetty-webapp" % "9.2.10.v20150310" % "container"
+        "org.eclipse.jetty" % "jetty-webapp" % "9.2.10.v20150310" % "container;compile"
           excludeAll(ExclusionRule(organization="org.slf4j")),
         "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
         "org.apache.jena" % "jena-arq" % "2.12.1"
           excludeAll(ExclusionRule(organization="org.slf4j")),
         "io.spray" %%  "spray-json" % "1.3.2",
-        "org.mockito" % "mockito-core" % "1.10.19",
+        //"org.mockito" % "mockito-core" % "1.10.19",
         "org.apache.lucene" % "lucene-core" % "6.0.0",
         "org.apache.lucene" % "lucene-analyzers-common" % "6.0.0",
         "org.xerial" % "sqlite-jdbc" % "3.8.11.2",
