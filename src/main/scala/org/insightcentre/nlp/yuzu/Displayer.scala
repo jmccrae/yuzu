@@ -48,6 +48,12 @@ class Displayer(labelLookup : String => Option[String],
       magicString(uri.drop(ODRL.size))
     } else if(uri.startsWith(PROV)) {
       magicString(uri.drop(PROV.size))
+    } else if(uri.lastIndexOf('/') > 7 && 
+      uri.lastIndexOf('/') > uri.lastIndexOf('#') &&
+      uri.lastIndexOf('/') < uri.length - 1) {
+      magicString(uri.drop(uri.lastIndexOf('/') + 1))
+    } else if(uri.lastIndexOf('#') > 0 && uri.lastIndexOf('#') < uri.length - 1) {
+      magicString(uri.drop(uri.lastIndexOf('#') + 1))
     } else {
       uri
     }

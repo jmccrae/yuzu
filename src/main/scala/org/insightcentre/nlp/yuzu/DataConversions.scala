@@ -135,6 +135,7 @@ object DataConversions {
       model.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
     val clazz = it.toSeq.map(fromJena).headOption
     val rdfBody = defaultToHtml(model, "", base, backlinks)
+    println(rdfBody)
     Seq(
       "title" -> display(URI(base.toString)),
       "uri" -> base.toString,

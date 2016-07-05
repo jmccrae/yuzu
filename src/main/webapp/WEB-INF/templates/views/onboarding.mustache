@@ -42,6 +42,7 @@
                         <label for="theme">Theme*</label>
                         <select class="form-control" name="theme" id="theme">
                             <option value="">Default</option>
+                            <option value="Insight">Insight</option>
                             {{#themes}}
                                 <option>{{_}}</option>
                             {{/themes}}
@@ -70,6 +71,12 @@
                             allow more queries to complete successfully</span>
                     </div>
                     <div class="form-group">
+                        <label for="labelURL">Label URL</label>
+                        <input type="text" class="form-control" name="labelURL" id="labelURL" value="{{labelURL}}" placeholder="http://www.w3.org/2000/01/rdf-schema#label"/>
+                        <span class="help-block">The URL of the property used to give
+the label of an element.</span>
+                    </div>
+                     <div class="form-group">
                         <label for="facets">Facets*</label>
                         <textarea rows="20" class="form-control" name="facets" id="facets">[{
   "uri": "http://www.w3.org/2000/01/rdf-schema#label",
@@ -81,6 +88,11 @@
                           be given with a URI, a human readable label and whether
                           they can be listed (i.e., generally false if all values
                           are unique)</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="peers">Peers</label>
+                        <input type="text" class="form-control" name="peers" id="peers" value="{{peers}}"/>
+                        <span class="help-block">List of peers used to back up this dataset as a comma separated list of URLs</span>
                     </div>
                     <button type="submit" class="btn btn-primary">Next</button>
                 </form>

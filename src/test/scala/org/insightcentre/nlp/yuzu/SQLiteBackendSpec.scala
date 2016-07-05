@@ -31,6 +31,7 @@ class SQLiteBackendSpec extends BackendBaseSpec with BeforeAll with AfterAll {
     override def FACETS = Seq(
     Facet("http://www.w3.org/2000/01/rdf-schema#label", "Label", true)
       )
+    def THEME = ""
   })
 
   def beforeAll {

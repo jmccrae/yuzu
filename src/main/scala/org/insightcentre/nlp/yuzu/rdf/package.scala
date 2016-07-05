@@ -12,9 +12,9 @@ package rdf {
     def =?=(o : RDFNode) : Boolean
   }
   object RDFNode {
-    private val langLit  = "\"(.*)\"@(.*)".r
-    private val typedLit = "\"(.*)\"^^(.*)".r
-    private val plainLit = "\"(.*)\"".r
+    private val langLit  = "(?s)\"(.*)\"@(.*)".r
+    private val typedLit = "(?s)\"(.*)\"\\^\\^<(.*)>".r
+    private val plainLit = "(?s)\"(.*)\"".r
     private val uri = "<(.*)>".r
     private val bnode = "_:(.*)".r
     def apply(s : String) : RDFNode = s match {

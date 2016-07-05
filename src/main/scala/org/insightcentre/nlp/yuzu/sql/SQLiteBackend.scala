@@ -21,14 +21,14 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     def find(id : String) : Option[Document] = {
       sql"""SELECT id, dianthus FROM ids
             WHERE pageId=$id""".as2[Int, String].headOption.map({
-              case (i, d) => new SQLiteDocument(id, i, DianthusID(d))
+              case (i, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
             })
     }
 
     def find(did : DianthusID) : Option[Document] = {
       sql"""SELECT id, pageId FROM ids
             WHERE dianthus=${did.base64}""".as2[Int, String].headOption.map({
-              case (i, id) => new SQLiteDocument(id, i, did)
+              case (i, id) => new SQLiteDocument(id, i, Some(did))
             })
     }
 
@@ -62,7 +62,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       sql"""SELECT pageId, id, dianthus FROM ids 
             WHERE pageId is not null
             LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
-              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
+              case (id, i, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
             }).toList
     }
 
@@ -72,7 +72,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             JOIN ids AS ids2 ON tripids.pid=ids2.id
             WHERE ids.pageId is not null AND ids2.n3=${property.toString}
             LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
-              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
+              case (id, i, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
             }).toList
      }
 
@@ -83,7 +83,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             JOIN ids AS ids3 ON tripids.oid=ids3.id
             WHERE ids.pageId is not null AND ids2.n3=${property.toString} AND ids3.n3=${obj.toString}
             LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
-              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
+              case (id, i, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
             }).toList
      }
       
@@ -93,7 +93,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             JOIN ids AS ids3 ON tripids.oid=ids2.id
             WHERE ids.pageId is not null AND ids3.n3=${obj.toString}
             LIMIT $limit OFFSET $offset""".as3[String, Int, String].map({
-              case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
+              case (id, i, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
             }).toList
      }
 
@@ -120,7 +120,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
       elems.append(limit)
       elems.append(offset)
       sql.apply(q, elems:_*).as3[String, Int, String].map({
-        case (id, i, d) => new SQLiteDocument(id, i, DianthusID(d))
+        case (id, i, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
       }).toList
     }
 
@@ -142,14 +142,14 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
                 JOIN ids AS pids ON free_text.pid=pids.id
                 WHERE pids.n3=${p.toString} AND object MATCH $query
                 LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
-                  case (i, id, d) => new SQLiteDocument(id, i, DianthusID(d))
+                  case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
                 })
         case None =>
           sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
                 JOIN ids AS sids ON free_text.sid=sids.id
                 WHERE object MATCH $query
                 LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
-                  case (i, id, d) => new SQLiteDocument(id, i, DianthusID(d))
+                  case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
                 })
       }
     }
@@ -162,11 +162,12 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
     case _ => throw new IllegalArgumentException("%s is not a URI" format s)
   }
 
-  protected class SQLiteDocument(val id : String, i : Int, val dianthus : DianthusID) extends Document {
+  protected class SQLiteDocument(val id : String, i : Int, val dianthus : Option[DianthusID]) extends Document {
     def content(implicit searcher : SQLiteSearcher) = {
       implicit val session = searcher.session
       val (content, format) = 
-        sql"""SELECT page, format FROM pages WHERE id=$i""".as2[String,String].head
+        sql"""SELECT page, format FROM pages WHERE id=$i""".as2[String,String].
+          headOption.getOrElse("",turtle.name)
       (content, ResultType(format))
     }
     def label(implicit searcher : Searcher) = {
@@ -183,7 +184,15 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             })
     }
 
-    def backlinks(implicit searcher : Searcher) : Seq[(URI, String)] = Nil
+    def backlinks(implicit searcher : Searcher) : Seq[(URI, String)] = {
+      implicit val session = searcher.session
+      sql"""SELECT pids.n3, sids.pageId FROM tripids
+            JOIN ids AS pids ON pids.id=tripids.pid
+            JOIN ids AS sids ON sids.id=tripids.sid
+            WHERE tripids.oid=$i""".as2[String, String].map({
+              case (s, t) => (toURI(s), t)
+            })
+    }
   }
 
   protected class SQLiteLoader(implicit session : Session) extends Loader {

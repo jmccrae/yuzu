@@ -16,6 +16,7 @@ class YuzuSettingsTest extends ScalatraSpec {
   YuzuSiteSettings should load
     DISPLAY_NAME                         $displayName
     DUMP_URI                             $dataFile
+    THEME                                $theme
     PEERS                                $peers
     SPARQL_ENDPOINT                      $sparqlEndpoint
     LICENSE_PATH                         $licensePath
@@ -47,6 +48,7 @@ class YuzuSettingsTest extends ScalatraSpec {
     "name": "Test Instance",
     "data": "file:src/test/resources/example.zip",
     "databaseURL": "file:tmp/",
+    "theme": "Custom",
     "peers": ["http://www.example.com/dianthus"],
     "sparqlEndpoint": "http://localhost:8080/sparql/",
     "licensePath": "/mylicense",
@@ -106,6 +108,8 @@ class YuzuSettingsTest extends ScalatraSpec {
   def displayName = settings.DISPLAY_NAME must_== "Test Instance"
 
   def dataFile = settings.DATA_FILE must_== new URL("file:src/test/resources/example.zip")
+
+  def theme = settings.THEME must_== "Custom"
 
   def peers = settings.PEERS must_== Seq(new URL("http://www.example.com/dianthus"))
 

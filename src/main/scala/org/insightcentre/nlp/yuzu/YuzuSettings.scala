@@ -20,7 +20,6 @@ trait YuzuSettings {
   protected def BASE_NAME : String
   // The maximum number of query results to return
   def YUZUQL_LIMIT = 1000
-  // The URL of the Database
   // e.g., jdbc:sqlite:/path/to/data
   //       jdbc:mysql://server/database?user=user&password=password"
   //       http://localhost:8888/sparql/
@@ -68,9 +67,8 @@ trait YuzuSiteSettings extends YuzuSettings {
   // The identifier for the server
   // The data will be available at BASE_NAME/NAME/file_name
   // Or "" if the resources are at BASE_NAME/file_name
-//  def NAME : String
   def id2URI(id : String) = {
-    BASE_NAME + /*(if(NAME == "") {*/ "/" /*} else { "/" + NAME + "/" })*/ + id
+    BASE_NAME + "/" + id
   }
   def uri2Id(uri : String) = {
     if(uri.startsWith(BASE_NAME + "/")) {
@@ -80,13 +78,7 @@ trait YuzuSiteSettings extends YuzuSettings {
       } else {
         uri3
       }
-      //if(NAME == "") {
-        Some(uri2)
-      //} else if(uri2.startsWith(NAME + "/")) {
-      //  Some(uri2.drop(NAME.length + 1))
-      //} else {
-      //  None
-      //}
+      Some(uri2)
     } else {
       None
     }
@@ -99,6 +91,8 @@ trait YuzuSiteSettings extends YuzuSettings {
     case "file" => new File(DATA_FILE.getPath())
     case protocol => throw new RuntimeException("Unsupported protocol: " + protocol)
   }
+  // The name of the current theme
+  def THEME : String
   // Peers to share file with 
   def PEERS : Seq[URL]
   // If using an external SPARQL endpoint, the address of this
@@ -172,6 +166,7 @@ trait YuzuSiteSettings extends YuzuSettings {
       //Some("id" -> JsString(NAME)),
       Some("name" -> JsString(DISPLAY_NAME)),
       Some("data" -> JsString(DATA_FILE.toString())),
+      Some("theme" -> JsString(THEME)),
       Some("peers" -> JsArray(PEERS.map(x => JsString(x.toString)).toList)),
       SPARQL_ENDPOINT map (("sparqlEndpoint" -> JsString(_))),
       optEq(LICENSE_PATH, "/license") map (("licensePath" -> JsString(_))),
@@ -345,6 +340,8 @@ object YuzuSiteSettings {
       case None =>
         throw new MetadataException("Data file must be given")
     }
+
+    override val THEME = str("theme").getOrElse("")
 
     override val PEERS = obj.fields.get("peers") match {
       case Some(JsArray(elems)) =>

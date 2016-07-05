@@ -44,7 +44,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   protected trait Document {
     def id : String
-    def dianthus : DianthusID
+    def dianthus : Option[DianthusID]
     def content(implicit searcher : Searcher) : (String, ResultType)
     def label(implicit searcher : Searcher) : Option[String]
     def facets(implicit searcher : Searcher) : Iterable[(URI, RDFNode)]

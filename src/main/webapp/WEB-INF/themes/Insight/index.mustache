@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <title>{{title}}</title>
+    </head>
+    <body>
+    {{#is_test}}
+    <div class="container">
+        <div class="row">
+            <div class="alert alert-danger">
+                <h3 style="margin-top:5px;">This is a Test Instance</h3>
+                <p>The URL used to access this instance does not correspond to the configuration.</p>
+            </div>
+        </div>
+    </div>
+    {{/is_test}}
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-6 col-lg-offset-3">
+                    <form action="{{context.getContextPath()}}/search" method="get">
+                        <fieldset>
+                            <legend>Search</legend>
+                            <div class="form-group">
+                                <label for="property" class="control-label">Property</label><br/>
+                                <select name="property" id="property" class="form-control">
+                                    <option value=''>Search all properties</option>
+                                    {{#property_facets}}
+                                    <option value='{{uri}}'>{{label}}</option>
+                                    {{/property_facets}}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="query" class="control-label">Query</label><br/>
+                                <div>
+                                    <input type="text" class="form-control" id="query" name="query"/>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="pull-right">
+                                    <button type="submit" class="btn btn-success">Search</button>
+                                    <a class="btn btn-default" href="{{context.getContextPath()}}/sparql/">Advanced Search</a>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

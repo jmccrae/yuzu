@@ -1,0 +1,81 @@
+.rdf_table {
+    background-color: #eee;
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+.rdf_table td {
+    padding-left: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-right: 10px;
+    font-size: 120%;
+}
+.rdf_embedded_table {
+    margin-bottom:0px;
+    border-bottom:0px;
+}
+.rdf_embedded_table table {
+    width: 100%;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+.rdf_embedded_table td {
+    padding-left: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-right: 10px;
+    font-size: 110%;
+}
+.rdf_embedded_table_heading {
+    font-size:140%;
+    font-weight:bold;
+}
+.rdf_datatype a {
+    font-size: 80%;
+    font-style: italic;
+    color: #333;
+}
+td.rdf_prop {
+    font-weight: bold;
+    width: 180px;
+}
+.rdf_lang {
+   float:right !important
+} 
+.rdf_header {
+    border-bottom: 1px solid #eee;
+    margin-top: 30px;
+    overflow: hidden;
+    word-wrap: break-word;
+}
+.rdf_header h1 {
+    font-weight: bold;
+}
+div.footer_link {
+    border-right: 1px solid #ccc;
+    text-align: right;
+}
+a.footer_link {
+    font-variant: small-caps;
+    font-weight: bold;
+}
+.badge_hidden {
+    display: none;
+}
+a:hover .badge_hidden {
+    display: inline-block;
+}
+.list-group-item.selected {
+    background-color: #adebad;
+    border-color: #adebad;
+}
+.container {
+    width: 100%;
+}
+.list-group-item.active {
+    background-color: #21759b;
+    border-color: #21759b;
+}.list-group-item.active:hover {
+    background-color: #21759b;
+    border-color: #21759b;
+}

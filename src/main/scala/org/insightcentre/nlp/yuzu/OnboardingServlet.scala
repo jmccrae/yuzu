@@ -5,6 +5,7 @@ import java.net.URL
 import scala.util.{Success, Try, Failure}
 import org.scalatra._
 import spray.json._
+import java.nio.file.{Files, Paths}
 
 class OnboardingServlet extends YuzuStack {
   var serverThread : Option[Thread] = None
@@ -34,9 +35,9 @@ class OnboardingServlet extends YuzuStack {
         contentType = "text/plain"
         "Please restart server"
       case None =>
-        val baseUrl = params.get("baseURL").orErr("Base URL is required")
-        val name = params.get("name").orErr("Name is required").map({ name =>
+        val baseUrl = params.get("baseURL").orErr("Base URL is required").map({ name =>
           if(name.endsWith("/")) name.dropRight(1) else name })
+        val name = params.get("name").orErr("Name is required")        
         val data = params.get("data").orErr("Data URL is required").
           check(s => Try(new URL(s)).isSuccess, "Data URL is not a valid URL")
         val databaseURL = params.get("databaseURL").orErr("Database URL is required")
@@ -47,6 +48,7 @@ class OnboardingServlet extends YuzuStack {
         })
         val queryLimit = params.get("queryLimit").orErr("Query Limit is required").
             check(_.matches("\\d+"), "Query limit is not an integer").map(_.toInt)
+        val labelURL = params.getOrElse("labelURL", "http://www.w3.org/2000/01/rdf-schema#label")
         val facets = params.get("facets").orErr("Facets are required").
           map(json => Try(json.parseJson)) flatMap {
               case Success(JsArray(elems)) =>
@@ -60,7 +62,7 @@ class OnboardingServlet extends YuzuStack {
                 Left("Could not parse Json")
             }
         val peers : Either[String, List[URL]] = params.get("peers").map({ peers =>
-          val x1 : Array[Try[URL]] = peers.split(",").map(_.trim()).map(x => Try(new URL(x)))
+          val x1 : Array[Try[URL]] = peers.split(",").map(_.trim()).filter(_ != "").map(x => Try(new URL(x)))
           val y1 : Try[List[URL]] = x1.foldLeft(Success(Nil) : Try[List[URL]]) { (xs, u) =>
             xs flatMap { xs => u map { u => u :: xs } }
           }
@@ -87,9 +89,11 @@ class OnboardingServlet extends YuzuStack {
           def DISPLAY_NAME = _name
           def DATA_FILE = new URL(_data)
           def PEERS = _peers
+          def THEME = _theme
           override def FACETS = _facets
           override def SPARQL_ENDPOINT = sparqlEndpoint
           override def YUZUQL_LIMIT = _queryLimit
+          override def LABEL_PROP = java.net.URI.create(labelURL)
         }
         settings match {
           case Left(error) =>
@@ -102,7 +106,9 @@ class OnboardingServlet extends YuzuStack {
              "databaseURL" -> databaseURL.getOrElse(""),
              "sparqlEndpoint" -> sparqlEndpoint.getOrElse(""),
              "queryLimit" -> queryLimit.getOrElse(1000).toString,
+             "labelURL" -> labelURL,
              "facets" -> ("[" + facets.getOrElse(Vector()).map(_.toJson).mkString(",") + "]"),
+             "peers" -> peers.map(_.mkString(",")).getOrElse(""),
              "is_error" -> true,
              "error" -> error
             )

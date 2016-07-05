@@ -94,7 +94,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument extends Document {
     def format = json
-    def dianthus = DianthusID.make(content(null)._1)
+    def dianthus = Some(DianthusID.make(content(null)._1))
     def id = "example"
     def content(implicit searcher : Searcher) = ("""{
     "@id": "",
@@ -117,7 +117,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument2 extends Document {
     def format = json
-    def dianthus = DianthusID.make(content(null)._1)
+    def dianthus = Some(DianthusID.make(content(null)._1))
     def id = "example2"
     def content(implicit searcher : Searcher) = ("""{
     "@id": "", 
@@ -139,7 +139,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
   }
   object ExampleDocument3 extends Document {
     def format = json
-    def dianthus = DianthusID.make(content(null)._1)
+    def dianthus = Some(DianthusID.make(content(null)._1))
     def id = "saldo/bosättningsstopp..n.1"
     def content(implicit searcher : Searcher) = ("""{
     "@id": "",
@@ -152,7 +152,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument4 extends Document {
     def format = csvw
-    def dianthus = DianthusID.make(content(null)._1)
+    def dianthus = Some(DianthusID.make(content(null)._1))
     def id = "example3"
     def content(implicit searcher : Searcher) = ("",csvw)
     def label(implicit searcher : Searcher) = None
@@ -162,7 +162,7 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
 
   object ExampleDocument5 extends Document {
     def format = turtle
-    def dianthus = DianthusID.make(content(null)._1)
+    def dianthus = Some(DianthusID.make(content(null)._1))
     def id = "example4"
     def content(implicit searcher : Searcher) = ("",turtle)
     def label(implicit searcher : Searcher) = None

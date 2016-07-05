@@ -25,6 +25,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     } else if(findTemplate("/" + params("splat"), Set("mustache")) != None) {
       contentType = "text/html"
       mustache("/" + params("splat"),
+        "layout" -> layout,
         "DATA_FILE" -> siteSettings.DATA_FILE.toString())
     } else {
       val (resource, ext) = params("splat") match {
@@ -43,10 +44,20 @@ abstract class YuzuServlet extends YuzuServletActions {
       val isTest = siteSettings.uri2Id(request.getRequestURL().toString()) == None
 
       contentType = "text/html"
-      mustache("/index", 
-        "is_test" -> isTest,
-        "title" -> siteSettings.DISPLAY_NAME,
-        "property_facets" -> siteSettings.FACETS)
+      siteSettings.THEME match {
+        case "" =>
+          mustache("/index", 
+            "layout" -> layout,
+            "is_test" -> isTest,
+            "title" -> siteSettings.DISPLAY_NAME,
+            "property_facets" -> siteSettings.FACETS)
+        case theme =>
+          layoutTemplate(s"/WEB-INF/themes/$theme/index.mustache",
+            "layout" -> layout,
+            "is_test" -> isTest,
+            "title" -> siteSettings.DISPLAY_NAME,
+            "property_facets" -> siteSettings.FACETS)
+      }
     }
   }
 
@@ -54,7 +65,7 @@ abstract class YuzuServlet extends YuzuServletActions {
   get(("^%s(\\.html?)?/?$" format siteSettings.LICENSE_PATH).r) {
     catchErrors {
       contentType = "text/html"
-      mustache("/license")
+      mustache("/license", "layout" -> layout)
     }
   }
 
@@ -92,7 +103,7 @@ abstract class YuzuServlet extends YuzuServletActions {
           params.get("default-graph-uri"))
       } else {
           contentType = "text/html"
-          mustache("/sparql")
+          mustache("/sparql", "layout" -> layout)
       }
     }
   }
