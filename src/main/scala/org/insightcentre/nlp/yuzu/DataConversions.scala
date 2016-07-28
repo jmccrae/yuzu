@@ -107,42 +107,40 @@ object DataConversions {
       backlinks : Seq[(URI, URI)] = Nil)(implicit displayer : Displayer) : 
       Seq[(String, Any)] = {
     val converter = new JsonLDConverter(Some(base))
-    val clazz = converter.toTriples(data, context) find ({ 
+    val clazz : Option[RDFValue] = converter.toTriples(data, context) find ({ 
       case (URI(subjUri), RDF_TYPE, obj : URI) => 
         subjUri == base.toString()
       case _ =>
         false
     }) map {
-      _._3.asInstanceOf[URI]
+      x => RDFValue(x._3.asInstanceOf[URI], displayer)
     }
     val rdfBody = defaultToHtml(data, context, "", base, backlinks)
     Seq(
       "title" -> display(URI(base.toString)),
       "uri" -> base.toString,
       "rdfBody" -> rdfBody,
-      "class_of" -> clazz.map(c =>
-          Map("uri" -> c, "display" -> display(c))).getOrElse(null))
+      "class_of" -> clazz)
   }
 
   def toHtml(reader : String, schema : Table, base : URL)(implicit displayer : Displayer) : Seq[(String, Any)] = {
     Seq("title" -> display(URI(base.toString)),
         "uri" -> base.toString,
-        "csvBody" -> CSV2HTML.convertTable(reader, schema))
+        "csvBody" -> CSV2HTML.convertTable(reader, schema),
+        "class_of" -> None)
   }
 
   def toHtml(model : Model, base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : Seq[(String, Any)] = {
     val it = model.listObjectsOfProperty(model.createResource(base.toString),
       model.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
-    val clazz = it.toSeq.map(fromJena).headOption
+    val clazz : Option[RDFValue] = it.toSeq.map(fromJena).headOption.map(RDFValue(_,displayer))
     val rdfBody = defaultToHtml(model, "", base, backlinks)
     println(rdfBody)
     Seq(
       "title" -> display(URI(base.toString)),
       "uri" -> base.toString,
       "rdfBody" -> rdfBody,
-      "class_of" -> clazz.map(c =>
-          Map("uri" -> c, "display" -> display(c))).getOrElse(null))
-
+      "class_of" -> clazz)
   }
 
   def uriEncode(string : String) : String = java.net.URLEncoder.encode(string, "UTF-8")

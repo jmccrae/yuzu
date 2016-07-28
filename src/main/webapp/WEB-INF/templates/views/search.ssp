@@ -1,0 +1,63 @@
+<%@ var prev: Int %>
+<%@ var next: Int %>
+<%@ var has_prev: String %>
+<%@ var has_next: String %>
+<%@ var query: String %>
+<%@ var pages: String %>
+<%@ var results: Seq[org.insightcentre.nlp.yuzu.ListResults] %>
+<%@ var relPath: String %>
+<% attributes("layout") = "/WEB-INF/templates/layouts/default.ssp" %>
+<% attributes("relPath") = relPath %>
+<html>
+<head>
+        <title>Search Results</title>
+</head>
+<body>    
+    <div class="container">
+        <div class="row">
+            <h1>Search Results</h1>
+            #if (results.isEmpty)
+            No Results
+            #else
+                #for (result <- results)
+            <div class="panel panel-default rdf_embedded_table">
+                <div class="panel-heading rdf_embedded_table_heading">
+                    <a href="${result.link}" class="rdf_link">${result.title}</a>
+                </div>
+                <table class="panel-body">
+                    #for (fv <- result.model)
+                    <tr>
+                        <td class="rdf_prop">
+                            <a href="${fv.prop.uri}" class="rdf_link">${fv.prop.display}</a>
+                        </td>
+                        <td class="rdf_value">
+                            #if (fv.obj.uri)
+                                <a href="${fv.obj.link}" class="rdf_link">${fv.obj.display}</a>
+                            #elseif (fv.obj.literal)
+                                ${fv.obj.display}
+                                #if (fv.obj.`type` != null)
+                                    <a href="${fv.obj.`type`.link}" class="rdf_type">${fv.obj.`type`.display}</a>
+                                #elseif (fv.obj.language != null)
+                                    <img class="rdf_lang" src="${relPath}/assets/flag/${fv.obj.language}.gif" onError="flagFallBack(this)"/>
+                                #end
+                            #elseif (fv.obj.bnode)
+                                ...
+                            #end
+                        </td>
+                    </tr>
+                    #end
+                </table>
+            </div>
+                #end
+            #end
+            <div class="row" style="padding-top:50px;">
+                <div class="btn-group pull-right">
+                    <a href='${relPath}/search/?offset=${prev}${query}' class='btn btn-default ${has_prev}'>&lt;&lt;</a>
+                    <a href='#' class='btn btn-default'>${pages}</a>
+                    <a href='${relPath}/search/?offset=${next}${query}' class='btn btn-default ${has_next}'>&gt;&gt;</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

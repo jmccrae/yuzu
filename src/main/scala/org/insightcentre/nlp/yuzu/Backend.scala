@@ -32,6 +32,30 @@ case class RDFValue(
 //    }
 //  }
 }
+
+object RDFValue {
+  def apply(node : Node, displayer : Displayer) : RDFValue = {
+    apply(RDFNode(node), displayer)
+  }
+
+  def apply(node : RDFNode, displayer : Displayer) : RDFValue = {
+    import rdf._
+    node match {
+      case n@BlankNode(Some(id)) =>
+        RDFValue(displayer.display(n), "_:" + id)
+      case n@BlankNode(None) =>
+        RDFValue(displayer.display(n), "_:")
+      case n@URI(value) =>
+        RDFValue(displayer.display(n), value)
+      case n@PlainLiteral(v) =>
+        RDFValue(displayer.display(n))
+      case n@LangLiteral(v, l) =>
+        RDFValue(displayer.display(n), language=l)
+      case n@TypedLiteral(v, t) =>
+        RDFValue(displayer.display(n), `type`=RDFValue(displayer.display(URI(t)), link=t))
+    }
+  }
+}
   
 sealed trait BackendDocument 
 

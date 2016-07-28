@@ -20,12 +20,16 @@ abstract class YuzuServlet extends YuzuServletActions {
   }
 
   get("/*") {
+    val uri = "/" + params("splat")
     if(params("splat").startsWith(siteSettings.ASSETS_PATH.drop(1))) {
       pass()
-    } else if(findTemplate("/" + params("splat"), Set("mustache")) != None) {
+    } else if(findTemplate(uri, Set("ssp")) != None) {
+      val depth = uri.filter(_ == '/').size
+      val relPath = (if(depth == 1) "." else Seq.fill(depth-1)("..").mkString("/"))
       contentType = "text/html"
-      mustache("/" + params("splat"),
+      ssp(uri,
         "layout" -> layout,
+        "relPath" -> relPath,
         "DATA_FILE" -> siteSettings.DATA_FILE.toString())
     } else {
       val (resource, ext) = params("splat") match {
@@ -46,14 +50,16 @@ abstract class YuzuServlet extends YuzuServletActions {
       contentType = "text/html"
       siteSettings.THEME match {
         case "" =>
-          mustache("/index", 
+          ssp("/index", 
             "layout" -> layout,
+            "relPath" -> ".",
             "is_test" -> isTest,
             "title" -> siteSettings.DISPLAY_NAME,
             "property_facets" -> siteSettings.FACETS)
         case theme =>
-          layoutTemplate(s"/WEB-INF/themes/$theme/index.mustache",
+          layoutTemplate(s"/WEB-INF/themes/$theme/index.ssp",
             "layout" -> layout,
+            "relPath" -> ".",
             "is_test" -> isTest,
             "title" -> siteSettings.DISPLAY_NAME,
             "property_facets" -> siteSettings.FACETS)
@@ -65,7 +71,7 @@ abstract class YuzuServlet extends YuzuServletActions {
   get(("^%s(\\.html?)?/?$" format siteSettings.LICENSE_PATH).r) {
     catchErrors {
       contentType = "text/html"
-      mustache("/license", "layout" -> layout)
+      ssp("/license", "layout" -> layout, "relPath" -> ".")
     }
   }
 
@@ -103,7 +109,7 @@ abstract class YuzuServlet extends YuzuServletActions {
           params.get("default-graph-uri"))
       } else {
           contentType = "text/html"
-          mustache("/sparql", "layout" -> layout)
+          ssp("/sparql", "layout" -> layout, "relPath" -> ".")
       }
     }
   }

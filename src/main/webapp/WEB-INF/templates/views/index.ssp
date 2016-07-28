@@ -1,9 +1,9 @@
-<html>
-    <head>
-        <title>{{title}}</title>
-    </head>
-    <body>
-    {{#is_test}}
+<%@ var is_test: Boolean = false %>
+<%@ var relPath: String %>
+<%@ var property_facets: List[org.insightcentre.nlp.yuzu.Facet] = Nil %>
+<% attributes("title") = "Test" %>
+<% attributes("relPath") = relPath %>
+#if(is_test)
     <div class="container">
         <div class="row">
             <div class="alert alert-danger">
@@ -12,28 +12,28 @@
             </div>
         </div>
     </div>
-    {{/is_test}}
-         <div style="background-image:url('{{context.getContextPath()}}/assets/yuzu.jpg');overflow:hidden;background-size:100%;padding:30px;width:100%;height:300px;float:left;opacity:0.5;margin-bottom:2em;">
+#end
+         <div style="background-image:url('${relPath}/assets/yuzu.jpg');overflow:hidden;background-size:100%;padding:30px;width:100%;height:300px;float:left;opacity:0.5;margin-bottom:2em;">
         </div>
         <div style="position:absolute;clear:both;padding-left:20%;">
             <div class="container">
                 <h1 style="color:#000;font-size:7vmin;"><b>Simple, light-weight linked data hosting</b></h1>
-                <p><a class="btn btn-info btn-lg pull-right" href="{{context.getContextPath()}}/list">Browse</a></p>
+                <p><a class="btn btn-info btn-lg pull-right" href="${relPath}/list">Browse</a></p>
             </div>
         </div>
         <div class="container">
             <div class="row">
                 <div class="col-lg-6 col-lg-offset-3">
-                    <form action="{{context.getContextPath()}}/search" method="get">
+                    <form action="${relPath}/search" method="get">
                         <fieldset>
                             <legend>Search</legend>
                             <div class="form-group">
                                 <label for="property" class="control-label">Property</label><br/>
                                 <select name="property" id="property" class="form-control">
                                     <option value=''>Search all properties</option>
-                                    {{#property_facets}}
-                                    <option value='{{uri}}'>{{label}}</option>
-                                    {{/property_facets}}
+#for (facet <- property_facets)
+                                    <option value='${facet.uri}'>${facet.label}</option>
+#end
                                 </select>
                             </div>
                             <div class="form-group">
@@ -45,7 +45,7 @@
                             <div class="form-group">
                                 <div class="pull-right">
                                     <button type="submit" class="btn btn-success">Search</button>
-                                    <a class="btn btn-default" href="{{context.getContextPath()}}/sparql/">Advanced Search</a>
+                                    <a class="btn btn-default" href="${relPath}/sparql/">Advanced Search</a>
                                 </div>
                             </div>
                         </fieldset>
@@ -53,5 +53,3 @@
                 </div>
             </div>
         </div>
-    </body>
-</html>

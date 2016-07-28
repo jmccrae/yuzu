@@ -1,0 +1,52 @@
+<% import org.insightcentre.nlp.yuzu._ %>
+<%@ var relPath: String %>
+<%@ var variables: Seq[String] %>
+<%@ var sparql: SPARQLResult %>
+<%@ var displayer: Displayer %>
+<% attributes("layout") = "/WEB-INF/templates/layouts/default.ssp" %>
+<% attributes("relPath") = relPath %>
+<html>
+<head>
+<title>SPARQL Results</title>
+</head>
+<body>
+<h1>SPARQL Results</h1>
+
+#match(sparql)
+#case(BooleanResult(b))
+    <h3>${b}</h3>
+#case(TableResult(results, _))
+    <table class="table table-hover">
+        <tr>
+    #for (variable <- variables)
+            <th>${variable}</th>
+    #end
+        </tr>
+    #for (result <- results.results)
+        <tr>
+            #for (node <- variables.map(x => RDFValue(result(x), displayer)))
+                <td>
+                    #if (node.uri)
+                        <a href="${node.link}" class="rdf_link">${node.display}</a>
+                    #elseif (node.literal)
+                        ${node.display}
+                        #if (node.`type` != null)
+                            <a href="${node.`type`.link}" class="rdf_type">${node.`type`.display}</a>
+                        #elseif (node.language != null)
+                            <img class="rdf_lang" src="${relPath}/assets/flag/${node.language}.gif" onError="flagFallBack(this)"/>
+                        #end
+                    #elseif (node.bnode)
+                        ...
+                    #end
+                </td>
+            #end
+        </tr>
+    #end
+</table>
+#case(ErrorResult(message, _)) =>
+    <div class="alert-danger">${message}</div>
+#case(ModelResult(model)) =>
+    Model result (TODO)
+#end
+</body>
+</html>

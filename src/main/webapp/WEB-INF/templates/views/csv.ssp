@@ -1,0 +1,22 @@
+<%@ var title: String %>
+<%@ var csvBody: String %>
+<%@ var relPath: String %>
+<% attributes("layout") = "/WEB-INF/templates/layouts/default.ssp" %>
+<% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="rdf_header">
+                <h1 style="word-wrap:break-word;display:inline;">${title}</h1>
+                </div>
+                <div>
+                ${csvBody}
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

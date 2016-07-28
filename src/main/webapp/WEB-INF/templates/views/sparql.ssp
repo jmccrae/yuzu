@@ -1,3 +1,6 @@
+<%@ var relPath: String %>
+<% attributes("layout") = "/WEB-INF/templates/layouts/default.ssp" %>
+<% attributes("relPath") = relPath %>
 <html>
 <head>
 </head>

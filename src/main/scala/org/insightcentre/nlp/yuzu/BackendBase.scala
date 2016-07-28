@@ -506,6 +506,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
               throw new RuntimeException("Error reading zip", x)
           }
         }
+        System.err.println("Done")
     }
   }
 }

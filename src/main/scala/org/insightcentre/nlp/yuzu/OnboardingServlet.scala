@@ -20,7 +20,8 @@ class OnboardingServlet extends YuzuStack {
         "Please restart server"
       case None =>
         contentType = "text/html"
-        mustache("/onboarding",
+        ssp("/onboarding",
+          "relPath" -> ".",
           "title" -> "Welcome to Yuzu",
           "queryLimit" -> "1000")
     }
@@ -98,7 +99,8 @@ class OnboardingServlet extends YuzuStack {
         settings match {
           case Left(error) =>
             contentType = "text/html"
-            mustache("/onboarding",
+            ssp("/onboarding",
+              "relPath" -> ".",
              "title" -> "Welcome to Yuzu",
              "baseURL" -> baseUrl.getOrElse(""),
              "name" -> name.getOrElse(""),

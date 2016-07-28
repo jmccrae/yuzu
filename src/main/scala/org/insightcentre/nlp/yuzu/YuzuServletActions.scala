@@ -14,6 +14,14 @@ import org.scalatra._
 import scala.collection.JavaConversions._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+      
+case class ListFacet(uri : String, label : String, uri_enc : String,
+  values : Seq[ListFacetValue] = Nil, more_values : Option[Int] = None)
+
+case class ListFacetValue(prop_uri : String, value_enc : String, value : String,
+  count : Int = 0, offset : Int = 20, selected : Boolean, link_qs : String = "")
+
+case class ListResults(title : String, link : String, model : Seq[FactValue])
 
 trait YuzuServletActions extends YuzuStack {
   import YuzuUserText._
@@ -24,14 +32,19 @@ trait YuzuServletActions extends YuzuStack {
   implicit def siteSettings : YuzuSiteSettings
 
   def layout = siteSettings.THEME match {
-    case "" => "/WEB-INF/templates/layouts/default.mustache"
-    case theme => s"/WEB-INF/themes/$theme/default.mustache"
+    case "" => "/WEB-INF/templates/layouts/default.ssp"
+    case theme => s"/WEB-INF/themes/$theme/default.ssp"
   }
 
   def quotePlus(s : String) = java.net.URLEncoder.encode(s, "UTF-8")
 
   private def respondVary(content : String) = 
     Ok(content, Map("Vary" -> "Accept", "Content-length" -> content.size.toString))
+
+  private def nullToNil[A](s : Seq[A]) : Seq[A] = s match {
+    case null => Nil
+    case seq => seq
+  }
 
   def search(query : String, property : Option[String], offset : Int) : Any = {
     val limit = 20
@@ -48,13 +61,14 @@ trait YuzuServletActions extends YuzuStack {
         case None => ""
       })
     val results2 = for(result <- results) yield {
-      Map(
-        "title" -> result.label,
-        "link" -> (request.getServletContext().getContextPath() + "/" + result.id),
-        "model" -> backend.summarize(result.id)) }
+      ListResults(
+        title=result.label,
+        link=(request.getServletContext().getContextPath() + "/" + result.id),
+        model=nullToNil(backend.summarize(result.id))) }
     contentType = "text/html"
-    mustache("/search",
+    ssp("/search",
       "layout" -> layout,
+      "relPath" -> ".",
       "results" -> results2.take(limit),
       "prev" -> prev,
       "has_prev" -> hasPrev,
@@ -72,17 +86,21 @@ trait YuzuServletActions extends YuzuStack {
       if(mimeType == html) {
         contentType = "text/html"
         result match {
-          case r : TableResult =>
-            val (v, res) = r.toDict
-            respondVary(mustache("/sparql-results", 
+          case TableResult(r, _) =>
+            respondVary(ssp("/sparql-results", 
               "layout" -> layout,
-              "variables" -> v, 
-              "results" -> res))
+              "relPath" -> ".",
+              "variables" -> r.resultVars, 
+              "sparql" -> result,
+              "displayer" -> backend.displayer))
           case BooleanResult(r) =>
             val l = if(r) { "True" } else { "False" }
-            respondVary(mustache("/sparql-results",
+            respondVary(ssp("/sparql-results",
               "layout" -> layout,
-              "boolean" -> l))
+              "relPath" -> ".",
+              "variables" -> Nil,
+              "sparql" -> result,
+              "displayer" -> backend.displayer))
           case ModelResult(model) =>
             val out = new java.io.StringWriter()
             contentType = json.mime
@@ -147,6 +165,7 @@ trait YuzuServletActions extends YuzuStack {
     }
   }
 
+
   def listResources(offset : Int, properties : Seq[rdf.URI], objects : 
       Seq[rdf.RDFNode], obj_offset : Option[Int]) : Any = {
     val propObjs = properties.zipWithIndex map {
@@ -171,41 +190,41 @@ trait YuzuServletActions extends YuzuStack {
       val objVal = propObjs.filter(_._1.value == facet.uri).flatMap(_._2)
       if(property != None && facet.uri == property.get.value) {
         val (moreValues, vs) = backend.listValues(obj_offset.getOrElse(0),20,property.get)
-        Map(
-          "uri" -> facet.uri,
-          "label" -> facet.label,
-          "uri_enc" -> uri_enc, 
-          "values" -> vs.map { v => 
-            val v2 = Map[String,String](
-                  "prop_uri" -> uri_enc,
-                  "value_enc" -> quotePlus(v.id.toString),
-                  "value" -> v.label.take(100),
-                  "count" -> v.count.toString,
-                  "offset" -> obj_offset.getOrElse(0).toString)
-            if(objVal contains (v.id)) {
-              v2 + ("selected" -> true,
-                "link_qs" -> deleteFirst(deleteFirst(queryStringBase,
-                    "prop=" + quotePlus(facet.uri)),
-                    "obj=" + quotePlus(v.id.toString)))
-            } else {
-              v2 + ("link_qs" -> s"$queryStringBase&prop=${quotePlus(facet.uri)}&obj=${quotePlus(v.id.toString)}")
-            }
+        ListFacet(
+          uri=facet.uri,
+          label=facet.label,
+          uri_enc=uri_enc, 
+          values=vs.map { v => 
+            ListFacetValue(
+                  prop_uri=uri_enc,
+                  value_enc=quotePlus(v.id.toString),
+                  value=v.label.take(100),
+                  count=v.count,
+                  offset=obj_offset.getOrElse(0),
+                  selected=(objVal contains v.id),
+                  link_qs=if(objVal contains v.id) {
+                    deleteFirst(deleteFirst(queryStringBase,
+                      "prop=" + quotePlus(facet.uri)),
+                      "obj=" + quotePlus(v.id.toString))
+                  } else {
+                    s"$queryStringBase&prop=${quotePlus(facet.uri)}&obj=${quotePlus(v.id.toString)}"
+                  })
           },
-          "more_values" -> (if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
+          more_values=(if(moreValues) { Some(obj_offset.getOrElse(0) + limit) } else { None }))
       } else if(objVal != Nil) {
-        Map("uri" -> facet.uri, 
-            "label" -> facet.label, 
-            "uri_enc" -> uri_enc,
-            "values" -> objVal.map(v => {
-                val vlabel = backend.displayer.display(v)
-                Map(
-                  "prop_uri" -> uri_enc,
-                  "value_enc" -> quotePlus(vlabel),
-                  "value" -> vlabel.take(100),
-                  "selected" -> true)
+        ListFacet(uri=facet.uri, 
+            label=facet.label, 
+            uri_enc=uri_enc,
+            values=objVal.map(v => {
+              val vlabel = backend.displayer.display(v)
+              ListFacetValue(
+                  prop_uri=uri_enc,
+                  value_enc=quotePlus(vlabel),
+                  value=vlabel.take(100),
+                  selected=true)
             }))
       } else {
-        Map("uri" -> facet.uri, "label" -> facet.label, "uri_enc" -> uri_enc)
+        ListFacet(uri=facet.uri, label=facet.label, uri_enc=uri_enc)
       }
     } 
     // queryString is used by pagers for results
@@ -219,24 +238,35 @@ trait YuzuServletActions extends YuzuStack {
         case Some(o) => "&obj_offset=" + o
         case None => "" })
     val results2 = for(result <- results) yield {
-      Map(
-        "title" -> result.label,
-        "link" -> (request.getServletContext().getContextPath() + "/" + result.id),
-        "model" -> backend.summarize(result.id))
+      ListResults(
+        title=result.label,
+        link=(request.getServletContext().getContextPath() + "/" + result.id),
+        model=nullToNil(backend.summarize(result.id)))
     }
 
     contentType = "text/html"
-    mustache("/list",
-      "layout" -> layout,
-      "facets" -> facets,
-      "results" -> results2,
-      "has_prev" -> hasPrev,
-      "prev" -> prev.toString,
-      "has_next" -> hasNext,
-      "next" -> next.toString,
-      "pages" -> pages,
-      "qsb" -> queryStringBase,
-      "query" -> queryString)
+    ssp("/list",
+      "relPath" -> (".":String),
+      "qsb" -> (queryStringBase:String),
+      "facets" -> (facets.toList:List[ListFacet]),
+      "results" -> (results2.toList:List[ListResults]),
+      "prev" -> (prev:Int),
+      "next" -> (next:Int),
+      "has_prev" -> (hasPrev:String),
+      "has_next" -> (hasNext:String),
+      "query" -> (queryString:String),
+      "pages" -> (pages:String))
+//      "layout" -> layout,
+//      "relPath" -> ".",
+//      "facets" -> facets,
+//      "results" -> results2,
+//      "has_prev" -> hasPrev,
+//      "prev" -> prev,
+//      "has_next" -> hasNext,
+//      "next" -> next,
+//      "pages" -> pages,
+//      "qsb" -> queryStringBase,
+//      "query" -> queryString)
   }
 
   private def getBase = {
@@ -260,6 +290,8 @@ trait YuzuServletActions extends YuzuStack {
     val modelOption = backend.lookup(id)
     val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
     val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
+    val depth = uri.filter(_ == '/').size
+    val relPath = (if(depth == 1) "." else Seq.fill(depth-1)("..").mkString("/"))
     modelOption match {
       case null =>
         NotFound()
@@ -279,7 +311,7 @@ trait YuzuServletActions extends YuzuStack {
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
           val html = toHtml(model, Some(context), base, backlinks)(backend.displayer)
-          mustache("/rdf", (("layout" -> layout) +: html):_*)
+          ssp("/rdf", (Seq("layout" -> layout, "relPath" -> relPath) ++ html):_*)
         } else if(mime == csvw) {
           throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
         } else {
@@ -301,7 +333,7 @@ trait YuzuServletActions extends YuzuStack {
           toNTriples(content, context, base, addNamespaces _)
         } else if(mime == html) {
           val html = toHtml(content, context, base)(backend.displayer)
-          mustache("/csv", (("layout" -> layout) +: html):_*)
+          ssp("/csv", (Seq("layout" -> layout, "relPath" -> relPath) ++ html):_*)
         } else {
           throw new IllegalArgumentException()
         })
@@ -330,7 +362,7 @@ trait YuzuServletActions extends YuzuStack {
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
           val html = toHtml(model, base, backlinks)(backend.displayer)
-          mustache("/rdf", (("layout" -> layout) +: html):_*)
+          ssp("/rdf", (Seq("layout" -> layout, "relPath" -> relPath) ++ html):_*)
         } else {
           throw new IllegalArgumentException()
         })
@@ -353,7 +385,7 @@ trait YuzuServletActions extends YuzuStack {
       toNTriples(metadata, None, base, addNamespaces _)
      } else if (mime == html) {
       val html = toHtml(metadata, None, base)(backend.displayer)
-      mustache("/rdf", (("layout" -> layout) +: html):_*)
+      ssp("/rdf", (Seq("layout" -> layout, "relPath" -> ".") ++ html):_*)
     } else {
       throw new IllegalArgumentException()
     })

@@ -1,3 +1,7 @@
+<%@ var relPath: String %>
+<%@ var DATA_FILE: String %>
+<% attributes("layout") = "/WEB-INF/templates/layouts/default.ssp" %>
+<% attributes("relPath") = relPath %>
 <html>
     <head>
         <title>Downloads</title>
@@ -10,7 +14,7 @@
                 <p>A complete download of this resource is available here:</p>
 
                 <ul>
-                    <li><a href="{{DATA_FILE}}">Full data dump</a></li>
+                    <li><a href="${DATA_FILE}">Full data dump</a></li>
                 </ul>
             </div>
         </div>
