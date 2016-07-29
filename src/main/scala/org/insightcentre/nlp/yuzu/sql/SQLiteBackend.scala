@@ -181,7 +181,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             JOIN ids AS oids ON oids.id=tripids.oid
             WHERE tripids.sid=$i AND facet=1""".as2[String, String].map({
               case (s, t) => (toURI(s), RDFNode(t))
-            })
+            }).toList
     }
 
     def backlinks(implicit searcher : Searcher) : Seq[(URI, String)] = {
@@ -191,7 +191,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             JOIN ids AS sids ON sids.id=tripids.sid
             WHERE tripids.oid=$i""".as2[String, String].map({
               case (s, t) => (toURI(s), t)
-            })
+            }).toList
     }
   }
 

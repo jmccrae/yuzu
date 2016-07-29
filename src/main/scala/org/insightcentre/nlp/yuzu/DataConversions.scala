@@ -296,14 +296,24 @@ object DataConversions {
     val visitor = new HtmlBuilderJsonLDVistor(contextUrl, base)
     converter.processJsonLD(data, visitor, context)
     val html = visitor.toHtml
+    addBacklinks(html, backlinks)
+  }
+
+  def addBacklinks(html : String, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : String = {
     if(backlinks.isEmpty) {
       html
     } else {
       html + s"""
       <table class="rdf_table">${
-        backlinks.map({
-          case (uri, link) => s"""<tr><td class="rdf_prop">Is <a href="${uri.value}" class="rdf_link">${display(uri)}</a> of</td>
-                                      <td><a href="${link.value}" class="rdf_link">${display(link)}</a></td></tr>"""
+        backlinks.groupBy(_._1).map({
+          case (uri, links) => 
+            val link = links.head._2
+            s"""<tr><td class="rdf_prop">Is <a href="${uri.value}" class="rdf_link">${display(uri)}</a> of</td>
+                                      <td><a href="${link.value}" class="rdf_link">${display(link)}</a></td></tr>""" +
+            links.tail.map({
+              case (uri, link) =>
+                s"""<tr><td></td><td><a href="${link.value}" class="rdf_link">${display(link)}</a></td></tr>"""
+            }).mkString("")
         }).mkString("")
       }</table>"""
     }
@@ -317,16 +327,6 @@ object DataConversions {
       visitor.emitValue(subj, prop, obj)
     }
     val html = visitor.toHtml
-    if(backlinks.isEmpty) {
-      html
-    } else {
-      html + s"""
-      <table class="rdf_table">${
-        backlinks.map({
-          case (uri, link) => s"""<tr><td class="rdf_prop">Is <a href="${uri.value}" class="rdf_link">${display(uri)}</a> of</td>
-                                      <td><a href="${link.value}" class="rdf_link">${display(link)}</a></td></tr>"""
-        }).mkString("")
-      }</table>"""
-    }
+    addBacklinks(html, backlinks)
   }
 }

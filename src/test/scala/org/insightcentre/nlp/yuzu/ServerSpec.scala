@@ -144,8 +144,8 @@ class ServerSpec extends ScalatraSpec {
 
     def test_list = get("/list") {
       (response.body must contain("href=\"/data/example\"")) and
-      (response.body must contain("href='./list/?offset=0'")) and
-      (response.body must contain("href='./list/?offset=20'")) and
+      (response.body must contain("href='../list/?offset=0'")) and
+      (response.body must contain("href='../list/?offset=20'")) and
       (response.body must not contain(">data/example2<"))
     }
     def test_list_by_value = get("/list/?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label") {

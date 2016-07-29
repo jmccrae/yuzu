@@ -3,7 +3,8 @@
 <%@ var variables: Seq[String] %>
 <%@ var sparql: SPARQLResult %>
 <%@ var displayer: Displayer %>
-<% attributes("layout") = "/WEB-INF/templates/layouts/default.ssp" %>
+<%@ var layout: String %>
+<% attributes("layout") = layout %>
 <% attributes("relPath") = relPath %>
 <html>
 <head>

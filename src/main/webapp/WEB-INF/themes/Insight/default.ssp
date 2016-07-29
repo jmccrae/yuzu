@@ -1,3 +1,7 @@
+<%@ var body: String %>
+<%@ var relPath: String %>
+<%@ var title: String = "Yuzu" %>
+<%@ var app_title: String = "Yuzu" %>
 <!DOCTYPE html>
 <!--[if IE 7]>
 <html class="ie ie7" lang="en-GB">
@@ -7,7 +11,6 @@
 <![endif]-->
 <!--[if !(IE 7) & !(IE 8)]><!-->
 <html lang="en-GB">
-{{#html}}
 <!--<![endif]-->
 <head>
 <meta name="google-site-verification" content="pr4rLZfIx8x9UbJhgObSo4MYj7qfW2an_hdcRBUGQXo" />
@@ -16,8 +19,8 @@
 <title>Unit for Natural Language Processing | Insight Centre for Data Analytics</title>
 <link rel="profile" href="http://gmpg.org/xfn/11" />
 <link rel="pingback" href="http://nlp.insight-centre.org/xmlrpc.php" />
-    <link href="{{relPath}}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
-    <link href="{{relPath}}/assets/insight.css" media="all" rel="stylesheet" type="text/css">
+    <link href="${relPath}/assets/bootstrap.min.css" media="all" rel="stylesheet" type="text/css">
+    <link href="${relPath}/assets/insight.css" media="all" rel="stylesheet" type="text/css">
 <!--[if lt IE 9]>
 <script src="http://nlp.insight-centre.org/wp-content/themes/twentytwelve/js/html5.js" type="text/javascript"></script>
 <![endif]-->
@@ -85,9 +88,7 @@ img.emoji {
 	<div id="main" class="wrapper">
 <!--	<div id="primary" class="site-content">
                 <div id="content" role="main">-->
-{{#body}}
-{{_}}
-{{/body}}
+${unescape(body)}
 							
 
 			
@@ -106,5 +107,4 @@ img.emoji {
 <script type='text/javascript' src='http://nlp.insight-centre.org/wp-content/plugins/easy-twitter-feed-widget/lib/js/widget-easy-twitter-feed-widget.js?ver=1.0'></script>
 <script type='text/javascript' src='http://nlp.insight-centre.org/wp-includes/js/wp-embed.min.js?ver=4.5.3'></script>
 </body>
-{{/html}}
 </html>

@@ -68,7 +68,7 @@ trait YuzuServletActions extends YuzuStack {
     contentType = "text/html"
     ssp("/search",
       "layout" -> layout,
-      "relPath" -> ".",
+      "relPath" -> "..",
       "results" -> results2.take(limit),
       "prev" -> prev,
       "has_prev" -> hasPrev,
@@ -89,7 +89,7 @@ trait YuzuServletActions extends YuzuStack {
           case TableResult(r, _) =>
             respondVary(ssp("/sparql-results", 
               "layout" -> layout,
-              "relPath" -> ".",
+              "relPath" -> "..",
               "variables" -> r.resultVars, 
               "sparql" -> result,
               "displayer" -> backend.displayer))
@@ -97,7 +97,7 @@ trait YuzuServletActions extends YuzuStack {
             val l = if(r) { "True" } else { "False" }
             respondVary(ssp("/sparql-results",
               "layout" -> layout,
-              "relPath" -> ".",
+              "relPath" -> "..",
               "variables" -> Nil,
               "sparql" -> result,
               "displayer" -> backend.displayer))
@@ -246,7 +246,8 @@ trait YuzuServletActions extends YuzuStack {
 
     contentType = "text/html"
     ssp("/list",
-      "relPath" -> (".":String),
+      "layout" -> layout,
+      "relPath" -> ("..":String),
       "qsb" -> (queryStringBase:String),
       "facets" -> (facets.toList:List[ListFacet]),
       "results" -> (results2.toList:List[ListResults]),
@@ -296,7 +297,33 @@ trait YuzuServletActions extends YuzuStack {
       case null =>
         NotFound()
       case None => 
-        NotFound()
+        backend.backlinks(id) match {
+          case null =>
+            NotFound()
+          case Seq() =>
+            NotFound()
+          case Seq(backlinks) =>
+            contentType = mime.mime
+            val base = getBase
+            lazy val model = ModelFactory.createDefaultModel()
+            respondVary(if(mime == json) {
+              toJson(model)
+            } else if(mime == rdfxml) {
+              toRDFXML(model)
+            } else if(mime == turtle) {
+              toTurtle(model)
+            } else if(mime == nt) {
+              toNTriples(model)
+            } else if(mime == csvw) {
+              throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
+            } else if(mime == html) {
+              val backlinks = backend.backlinks(id)
+              val html = toHtml(model, base, backlinks)(backend.displayer)
+              ssp("/rdf", (Seq("layout" -> layout, "relPath" -> relPath) ++ html):_*)
+            } else {
+              throw new IllegalArgumentException()
+            })
+        }
       case Some(JsDocument(model, context)) => {
         contentType = mime.mime
         val base = getBase
@@ -385,7 +412,7 @@ trait YuzuServletActions extends YuzuStack {
       toNTriples(metadata, None, base, addNamespaces _)
      } else if (mime == html) {
       val html = toHtml(metadata, None, base)(backend.displayer)
-      ssp("/rdf", (Seq("layout" -> layout, "relPath" -> ".") ++ html):_*)
+      ssp("/rdf", (Seq("layout" -> layout, "relPath" -> "..") ++ html):_*)
     } else {
       throw new IllegalArgumentException()
     })

@@ -1,8 +1,16 @@
+<%@ var title: String %>
 <%@ var is_test: Boolean = false %>
 <%@ var relPath: String %>
 <%@ var property_facets: List[org.insightcentre.nlp.yuzu.Facet] = Nil %>
 <% attributes("title") = "Test" %>
+<%@ var layout: String %>
+<% attributes("layout") = layout %>
 <% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
 #if(is_test)
     <div class="container">
         <div class="row">
@@ -53,3 +61,5 @@
                 </div>
             </div>
         </div>
+    </body>
+</html>

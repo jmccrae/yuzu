@@ -21,6 +21,7 @@ class OnboardingServlet extends YuzuStack {
       case None =>
         contentType = "text/html"
         ssp("/onboarding",
+          "layout" -> "/WEB-INF/templates/layouts/default.ssp",
           "relPath" -> ".",
           "title" -> "Welcome to Yuzu",
           "queryLimit" -> "1000")
@@ -100,6 +101,7 @@ class OnboardingServlet extends YuzuStack {
           case Left(error) =>
             contentType = "text/html"
             ssp("/onboarding",
+              "layout" -> "/WEB-INF/templates/layouts/default.ssp",
               "relPath" -> ".",
              "title" -> "Welcome to Yuzu",
              "baseURL" -> baseUrl.getOrElse(""),
