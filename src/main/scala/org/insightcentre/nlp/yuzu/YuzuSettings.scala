@@ -67,6 +67,7 @@ trait YuzuSiteSettings extends YuzuSettings {
   // The identifier for the server
   // The data will be available at BASE_NAME/NAME/file_name
   // Or "" if the resources are at BASE_NAME/file_name
+  def relPath = BASE_NAME
   def id2URI(id : String) = {
     BASE_NAME + "/" + id
   }

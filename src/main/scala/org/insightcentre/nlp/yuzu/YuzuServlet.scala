@@ -29,7 +29,7 @@ abstract class YuzuServlet extends YuzuServletActions {
       contentType = "text/html"
       ssp(uri,
         "layout" -> layout,
-        "relPath" -> relPath,
+        "relPath" -> siteSettings.relPath,
         "DATA_FILE" -> siteSettings.DATA_FILE.toString())
     } else {
       val (resource, ext) = params("splat") match {
@@ -52,14 +52,14 @@ abstract class YuzuServlet extends YuzuServletActions {
         case "" =>
           ssp("/index", 
             "layout" -> layout,
-            "relPath" -> ".",
+            "relPath" -> siteSettings.relPath,
             "is_test" -> isTest,
             "title" -> siteSettings.DISPLAY_NAME,
             "property_facets" -> siteSettings.FACETS.toList)
         case theme =>
           layoutTemplate(s"/WEB-INF/themes/$theme/index.ssp",
             "layout" -> layout,
-            "relPath" -> ".",
+            "relPath" -> siteSettings.relPath,
             "is_test" -> isTest,
             "title" -> siteSettings.DISPLAY_NAME,
             "property_facets" -> siteSettings.FACETS.toList)
@@ -71,7 +71,7 @@ abstract class YuzuServlet extends YuzuServletActions {
   get(("^%s(\\.html?)?/?$" format siteSettings.LICENSE_PATH).r) {
     catchErrors {
       contentType = "text/html"
-      ssp("/license", "layout" -> layout, "relPath" -> "..")
+      ssp("/license", "layout" -> layout, "relPath" -> siteSettings.relPath)
     }
   }
 
@@ -109,7 +109,7 @@ abstract class YuzuServlet extends YuzuServletActions {
           params.get("default-graph-uri"))
       } else {
           contentType = "text/html"
-          ssp("/sparql", "layout" -> layout, "relPath" -> "..")
+          ssp("/sparql", "layout" -> layout, "relPath" -> siteSettings.relPath)
       }
     }
   }
