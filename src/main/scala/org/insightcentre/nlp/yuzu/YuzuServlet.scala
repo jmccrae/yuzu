@@ -45,7 +45,7 @@ abstract class YuzuServlet extends YuzuServletActions {
 
   get("^/(index(\\.html?)?)?$".r) {
     catchErrors {
-      val isTest = siteSettings.uri2Id(request.getRequestURL().toString()) == None
+      val isTest = false // TODO: siteSettings.uri2Id(request.getRequestURL().toString()) == None
 
       contentType = "text/html"
       siteSettings.THEME match {
