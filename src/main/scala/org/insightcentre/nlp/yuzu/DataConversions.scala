@@ -103,7 +103,8 @@ object DataConversions {
     output.toString
   }
 
-  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL,
+
+  def toHtml(data : JsValue, context : Option[JsonLDContext], base : URL, relPath : String,
       backlinks : Seq[(URI, URI)] = Nil)(implicit displayer : Displayer) : 
       Seq[(String, Any)] = {
     val converter = new JsonLDConverter(Some(base))
@@ -115,7 +116,7 @@ object DataConversions {
     }) map {
       x => RDFValue(x._3.asInstanceOf[URI], displayer)
     }
-    val rdfBody = defaultToHtml(data, context, "", base, backlinks)
+    val rdfBody = defaultToHtml(data, context, relPath, base, backlinks)
     Seq(
       "title" -> display(URI(base.toString)),
       "uri" -> base.toString,
@@ -130,11 +131,11 @@ object DataConversions {
         "class_of" -> None)
   }
 
-  def toHtml(model : Model, base : URL, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : Seq[(String, Any)] = {
+  def toHtml(model : Model, base : URL, relPath : String, backlinks : Seq[(URI, URI)])(implicit displayer : Displayer) : Seq[(String, Any)] = {
     val it = model.listObjectsOfProperty(model.createResource(base.toString),
       model.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
     val clazz : Option[RDFValue] = it.toSeq.map(fromJena).headOption.map(RDFValue(_,displayer))
-    val rdfBody = defaultToHtml(model, "", base, backlinks)
+    val rdfBody = defaultToHtml(model, relPath, base, backlinks)
     println(rdfBody)
     Seq(
       "title" -> display(URI(base.toString)),

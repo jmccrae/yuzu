@@ -318,7 +318,7 @@ trait YuzuServletActions extends YuzuStack {
               throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
             } else if(mime == html) {
               val backlinks = backend.backlinks(id)
-              val html = toHtml(model, base, backlinks)(backend.displayer)
+              val html = toHtml(model, base, siteSettings.relPath, backlinks)(backend.displayer)
               ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
             } else {
               throw new IllegalArgumentException()
@@ -337,7 +337,7 @@ trait YuzuServletActions extends YuzuStack {
           toNTriples(model, Some(context), base, addNamespaces _)
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
-          val html = toHtml(model, Some(context), base, backlinks)(backend.displayer)
+          val html = toHtml(model, Some(context), base, siteSettings.relPath, backlinks)(backend.displayer)
           ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
         } else if(mime == csvw) {
           throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
@@ -388,7 +388,7 @@ trait YuzuServletActions extends YuzuStack {
           throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
-          val html = toHtml(model, base, backlinks)(backend.displayer)
+          val html = toHtml(model, base, siteSettings.relPath, backlinks)(backend.displayer)
           ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
         } else {
           throw new IllegalArgumentException()
@@ -411,7 +411,7 @@ trait YuzuServletActions extends YuzuStack {
     } else if(mime == nt) {
       toNTriples(metadata, None, base, addNamespaces _)
      } else if (mime == html) {
-      val html = toHtml(metadata, None, base)(backend.displayer)
+      val html = toHtml(metadata, None, base, siteSettings.relPath)(backend.displayer)
       ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
     } else {
       throw new IllegalArgumentException()
