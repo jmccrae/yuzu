@@ -1,0 +1,45 @@
+<% import org.insightcentre.nlp.yuzu._ %>
+<%@ var data : spray.json.JsObject %>
+<%@ var displayer : Displayer %>
+<%@ var uri: String %>
+<%@ var title : String = displayer.uriToStr(uri) %>
+<%@ var jsonld_context: jsonld.JsonLDContext %>
+<%@ var backlinks : Seq[(rdf.URI,rdf.URI)] %>
+<%@ var relPath: String %>
+<%@ var layout: String %>
+<% val html = (DataConversions.toHtml(data, Some(jsonld_context), new java.net.URL(uri),
+                                     relPath, backlinks)(displayer)).toMap %>
+<% attributes("layout") = layout %>
+<% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="rdf_header">
+                    <h1 style="word-wrap:break-word;display:inline;">${title}</h1>
+                    <ul class="nav nav-tabs pull-right">
+                        <li class="active">
+                           <a href="${uri}.html">HTML</a></li>
+                        <li>
+                            <a href="${uri}.rdf">RDF/XML</a></li>
+                        <li>
+                            <a href="${uri}.nt">N-Triples</a></li>
+                        <li>
+                            <a href="${uri}.ttl">Turtle</a></li>
+                        <li>
+                            <a href="${uri}.json">JSON-LD</a></li>
+                    </ul>
+                </div>
+                #match(html.get("class_of"))
+                #case(Some(c : RDFValue))
+                    <h5 class="rdf_classof">Instance of: <a href="${c.uri}" class="rdf_link">${c.display}</a></h5>
+                #case(_)
+                #end
+                ${unescape(html("rdfBody"))}
+            </div>
+        </div>
+    </body>
+</html>

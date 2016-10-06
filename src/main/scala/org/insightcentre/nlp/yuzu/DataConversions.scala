@@ -136,7 +136,6 @@ object DataConversions {
       model.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
     val clazz : Option[RDFValue] = it.toSeq.map(fromJena).headOption.map(RDFValue(_,displayer))
     val rdfBody = defaultToHtml(model, relPath, base, backlinks)
-    println(rdfBody)
     Seq(
       "title" -> display(URI(base.toString)),
       "uri" -> base.toString,
@@ -178,6 +177,8 @@ object DataConversions {
   }
 
   def display(node : RDFNode)(implicit displayer : Displayer) = node match {
+    case URI(uri) if uri.startsWith("inv:") =>
+      displayer.uriToStr(uri.drop(4)) + " of"
     case URI(uri) =>
       displayer.uriToStr(uri)
     case BlankNode(id) =>
@@ -236,29 +237,88 @@ object DataConversions {
   class HtmlBuilderJsonLDVistor(contextUrl : String, base : URL)  extends BaseJsonLDVisitor {
     val model = MutMap[Resource, MutMap[URI, ListBuffer[RDFNode]]]()
 
+    def isInverseTriple(subj : Resource, obj : RDFNode) = {
+      def drop_frag(s : String) = if(s.contains('#')) { s.take(s.indexOf('#')) } else { s }
+      subj match {
+        case URI(s) if drop_frag(s) != base.toString => 
+          obj match {
+            case URI(o) =>
+              drop_frag(o) == base.toString
+            case _ =>
+              false
+          }
+        case b : BlankNode => 
+          obj match {
+            case URI(o) =>
+              drop_frag(o) == base.toString
+            case _ =>
+              false
+          }
+        case _ => false
+      }
+    }
+
     def emitValue(subj : Resource, prop : URI, obj : RDFNode) {
       if(prop != null) {
-        model.get(subj) match {
-          case Some(p) =>
-            p.get(prop) match {
-              case Some(o) =>
-                o.append(obj)
-              case None =>
-                val os = ListBuffer[RDFNode](obj)
-                p.put(prop, os)
-            }
-          case None =>
-            val p = MutMap(prop -> ListBuffer(obj))
-            model.put(subj, p)
+        if(isInverseTriple(subj, obj)) {
+          val o = obj.asInstanceOf[Resource]
+          val prop2 = URI("inv:" + prop.value)
+          model.get(o) match {
+            case Some(p) =>
+              p.get(prop2) match {
+                case Some(o) =>
+                  o.append(subj)
+                case None =>
+                  p.put(prop2, ListBuffer(subj))
+              }
+            case None =>
+              val p = MutMap(prop2 -> ListBuffer[RDFNode](subj))
+              model.put(o, p)
+          }
+        } else {
+          model.get(subj) match {
+            case Some(p) =>
+              p.get(prop) match {
+                case Some(o) =>
+                  o.append(obj)
+                case None =>
+                  val os = ListBuffer[RDFNode](obj)
+                  p.put(prop, os)
+              }
+            case None =>
+              val p = MutMap(prop -> ListBuffer(obj))
+              model.put(subj, p)
+          }
         }
       }
+    }
+
+    def nameBlank(res : Resource) : Option[URI] = {
+      (model.toSeq.flatMap {
+        case (key, map) =>
+          map.flatMap {
+            case (prop, objs) if objs contains res =>
+              Some(prop)
+            case _ =>
+              None
+          }
+      }).headOption 
     }
 
     def toHtml(implicit displayer : Displayer) = (for(subj <- model.keys.toSeq.sortBy(res2key)) yield {
       val props = model(subj)
       (res2key(subj) match {
         case "" => ""
+        case key if key.startsWith("{_:{") => {
+          val prop = display(URI(key.take(key.indexOf("}")).drop(4)))
+          val id = key.drop(key.indexOf("}") + 1).dropRight(1)
+          s"""<span id="__bnode__$id">$prop</span>"""
+        }
         case key if key.startsWith("{_") => "<span id=\"__bnode__" + key.drop(3).dropRight(1) + "\"></span>"
+        case key if key.startsWith("{inv:") =>
+          s"""
+<h3 class="rdf_subheader"><a href="${key.drop(5).dropRight(1)}">${display(subj)}</a></h3>
+"""
         case key if key.startsWith("{") =>
           s"""
 <h3 class="rdf_subheader"><a href="${key.drop(1).dropRight(1)}">${display(subj)}</a></h3>
@@ -268,26 +328,39 @@ object DataConversions {
 """
         case _ => ""
       }) +
-      s"""<table class="rdf_table">${(for((p, objs) <- props) yield {
+      s"""<table class="rdf_table">${(for((p, objs) <- props if !objs.forall(_.isInstanceOf[BlankNode])) yield {
         s"""  <tr>
-                <td class="rdf_prop"><a href="${p.value}" class="rdf_link">${display(p)}</a></td>
+                <td class="rdf_prop"><a href="${if(p.value.startsWith("inv:")) { p.value.drop(4) } else { p.value }}" class="rdf_link">${display(p)}</a></td>
                 ${
-                  objs.map(obj => "<td>" + valueToHtml(p.value, obj, base, contextUrl) + "</td>").mkString("</tr>\n  <tr>\n    <td></td>\n    ")
+                  objs.filterNot(_.isInstanceOf[BlankNode]).map(obj => "<td>" + valueToHtml(p.value, obj, base, contextUrl) + "</td>").mkString("</tr>\n  <tr>\n    <td></td>\n    ")
                 }
               </tr>"""
         }).mkString("\n")
       }</table>"""
     }).mkString("\n\n")
 
-    def res2key(res : Resource) = res match {
+    def res2key(res : Resource) : String = res match {
       case URI(u) if u.startsWith(base.toString) =>
         u.drop(base.toString.length)
       case URI(u) =>
         "{%s}" format u
       case BlankNode(Some(id)) =>
-        "{_:%s}" format id
+        nameBlank(res) match {
+          case Some(prop) =>
+            val name = res2key(prop)
+            "{_:%s%s}" format (name, id)
+          case None =>
+            "{_:%s}" format id
+        }
       case b@BlankNode(None) =>
-        "{_:%d}" format System.identityHashCode(b)
+        val id = System.identityHashCode(b)
+        nameBlank(res) match {
+          case Some(prop) =>
+            val name = res2key(prop)
+            "{_:%s%d}" format (name, id)
+          case None =>
+            "{_:%d}" format id
+        }
     }
   }
 

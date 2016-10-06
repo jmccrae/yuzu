@@ -54,6 +54,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
     should work on example 52           $e52
     should work on example 53           $e53
     should work on example 54           $e54
+    should work on example 55           $e55
   IRI Converter
     should accept a simple IRI          $iri1
     should reject a plain String        $iri2
@@ -867,7 +868,31 @@ class JsonLDConverterSpec extends ScalatraSpec {
     triplesMustContain(triples) ((URI("http://example.com/"), URI("http://schema.org/blogPost"), URI("http://www.example.com/en")))
   }
     
-    
+  def e55 = {
+    val data = """{
+  "@context": {
+    "ontolex": "http://www.w3.org/ns/lemon/ontolex#",
+    "lemma": "ontolex:canonicalForm",
+    "writtenForm": "ontolex:writtenRep",
+    "partOfSpeech": { "@id": "wn:partOfSpeech", "@type": "@vocab" },
+    "sense": { "@id": "ontolex:sense", "@type": "@id"},
+    "synset": { "@id": "ontolex:reference", "@type": "@id" },
+    "noun": { "@id": "wn:noun" }
+  },
+  "lemma": {
+    "writtenForm": "malefactor"
+  },
+  "partOfSpeech": "noun",
+  "@id": "wn31-malefactor-n",
+  "sense": [{
+    "@id": "wn31-09997190-n-5",
+    "synset": "wn31-09997190-n"
+  }]
+}""".parseJson.asInstanceOf[JsObject]
+    val triples = new JsonLDConverter(base=Some(new URL("http://www.example.com/"))).toTriples(data, None)
+      println(triples)
+    triplesMustContain(triples) ((URI("http://www.example.com/wn31-09997190-n-5"), URI("http://www.w3.org/ns/lemon/ontolex#reference"), URI("http://www.example.com/wn31-09997190-n")))
+  }
 
   def iri1 = {
     //println("http".matches(JsonLDConverter.IRIParser.scheme))

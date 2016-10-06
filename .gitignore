@@ -65,4 +65,4 @@ target
 scala/linghub.sqlite
 linghub.full.nt.gz
 *.db
-
+.lib

@@ -19,25 +19,27 @@ abstract class YuzuServlet extends YuzuServletActions {
     }
   }
 
-  get("/*") {
+ get("/*") {
     val uri = "/" + params("splat")
+    val (resource, ext) = params("splat") match {
+      case pathWithExtension(r, ext) =>
+        (r, if(ext == "") { None } else { Some(ext.drop(1)) })
+      case r =>
+        (r, None) // Probably unreachable
+    }
     if(params("splat").startsWith(siteSettings.ASSETS_PATH.drop(1))) {
       pass()
+    } else if(request.getQueryString() == "context") {
+      showContext(resource)
     } else if(findTemplate(uri, Set("ssp")) != None) {
       val depth = uri.filter(_ == '/').size
       val relPath = (if(depth == 1) "." else Seq.fill(depth-1)("..").mkString("/"))
       contentType = "text/html"
-      ssp(uri,
+      ssp_themed(uri,
         "layout" -> layout,
         "relPath" -> siteSettings.relPath,
         "DATA_FILE" -> siteSettings.DATA_FILE.toString())
     } else {
-      val (resource, ext) = params("splat") match {
-        case pathWithExtension(r, ext) =>
-          (r, if(ext == "") { None } else { Some(ext.drop(1)) })
-        case r =>
-          (r, None) // Probably unreachable
-      }
       val mime = ContentNegotiation.negotiate(ext, request)
       showResource(resource, mime)
     }
@@ -48,22 +50,12 @@ abstract class YuzuServlet extends YuzuServletActions {
       val isTest = false // TODO: siteSettings.uri2Id(request.getRequestURL().toString()) == None
 
       contentType = "text/html"
-      siteSettings.THEME match {
-        case "" =>
-          ssp("/index", 
+      ssp_themed("/index",
             "layout" -> layout,
             "relPath" -> siteSettings.relPath,
             "is_test" -> isTest,
             "title" -> siteSettings.DISPLAY_NAME,
             "property_facets" -> siteSettings.FACETS.toList)
-        case theme =>
-          layoutTemplate(s"/WEB-INF/themes/$theme/index.ssp",
-            "layout" -> layout,
-            "relPath" -> siteSettings.relPath,
-            "is_test" -> isTest,
-            "title" -> siteSettings.DISPLAY_NAME,
-            "property_facets" -> siteSettings.FACETS.toList)
-      }
     }
   }
 
@@ -71,7 +63,7 @@ abstract class YuzuServlet extends YuzuServletActions {
   get(("^%s(\\.html?)?/?$" format siteSettings.LICENSE_PATH).r) {
     catchErrors {
       contentType = "text/html"
-      ssp("/license", "layout" -> layout, "relPath" -> siteSettings.relPath)
+      ssp_themed("/license", "layout" -> layout, "relPath" -> siteSettings.relPath)
     }
   }
 
@@ -109,7 +101,7 @@ abstract class YuzuServlet extends YuzuServletActions {
           params.get("default-graph-uri"))
       } else {
           contentType = "text/html"
-          ssp("/sparql", "layout" -> layout, "relPath" -> siteSettings.relPath)
+          ssp_themed("/sparql", "layout" -> layout, "relPath" -> siteSettings.relPath)
       }
     }
   }

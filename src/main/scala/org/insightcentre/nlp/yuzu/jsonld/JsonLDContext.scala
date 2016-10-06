@@ -101,6 +101,48 @@ class JsonLDContext(val definitions : Map[String, JsonLDDefinition],
     vocab.hashCode * 7 +
     language.hashCode * 7 +
     keywords.hashCode
+
+  def toJson : String = {
+    def pairToJson(s : (String, String)) = s match {
+      case (k, v) => s""""$k": $v"""
+    }
+    val baseToJson : Option[(String,String)] = base.map(url => "@base" -> s""""$url"""")
+    val languageToJson : Option[(String,String)] = language.map(lang => "@language" -> s""""$lang"""")
+    val vocabToJson : Option[(String,String)] = vocab.map(v => "@vocab" -> s""""$v"""")
+    val keywordsToJson : Option[(String,String)] = None // TODO
+    val definitionsToJson : Seq[(String,String)] = definitions.flatMap({
+      case (k, JsonLDAbbreviation(full)) =>
+        Some(k -> s""""$full"""")
+      case (k, JsonLDURIProperty(full)) =>
+        Some(k -> s"""{"@id": "$full", "@type": "@id" }""")
+      case (k, JsonLDTypedProperty(full, typeUri)) =>
+        Some(k -> s"""{"@id": "$full", "@type": "$typeUri" }""")
+      case (k, JsonLDLangProperty(full, lang)) =>
+        Some(k -> s"""{"@id": "$full", "@language": "$lang" }""")
+      case (k, JsonLDListContainer(full)) =>
+        Some(k -> s"""{"@id": "$full", "@container": "@list" }""")
+      case (k, JsonLDIDContainer(full)) =>
+        Some(k -> s"""{"@id": "$full", "@container": "@index" }""")
+      case (k, JsonLDLangContainer(full)) =>
+        Some(k -> s"""{"@id": "$full", "@container": "@language" }""")
+      case (k, JsonLDReverseProperty(full)) =>
+        Some(k -> s"""{"@reverse": "$full" }""")
+      case (k, JsonLDVocabProperty(full)) =>
+        Some(k -> s"""{"@id": "$full", "@type": "@vocab" }""")
+      case (k, JsonLDIgnore) =>
+        None
+    }).toSeq
+    s"""{
+  "@context": {
+    ${(definitionsToJson ++
+      baseToJson ++
+      vocabToJson ++
+      languageToJson ++
+      keywordsToJson).map(pairToJson).mkString(""",
+    """)}
+  }
+}"""
+  }
 }
 
 object JsonLDContext {
@@ -246,7 +288,14 @@ object JsonLDContext {
                 case _ =>
                   throw new JsonLDException("@id must be a string")
               }
-            case JsObject(data) if (data.get("@type") == Some(JsString("@id"))) =>
+            case JsObject(data) if (data.contains("@reverse")) =>
+              data("@reverse") match {
+                case JsString(s) =>
+                  JsonLDReverseProperty(resolveFull(s, context))
+                case _ =>
+                  throw new JsonLDException("@reverse must be a string")
+              }
+             case JsObject(data) if (data.get("@type") == Some(JsString("@id"))) =>
               JsonLDURIProperty(resolveFull(key, context))
             case JsObject(data) if (data.get("@type") == Some(JsString("@vocab"))) =>
               JsonLDVocabProperty(resolveFull(key, context))
@@ -264,14 +313,7 @@ object JsonLDContext {
                 case _ =>
                   throw new JsonLDException("@language must be a string")
               }
-            case JsObject(data) if (data.contains("@reverse")) =>
-              data("@reverse") match {
-                case JsString(s) =>
-                  JsonLDReverseProperty(resolveFull(s, context))
-                case _ =>
-                  throw new JsonLDException("@reverse must be a string")
-              }
-            case JsNull =>
+           case JsNull =>
               JsonLDIgnore
             case s =>
               throw new JsonLDException("Unexpected definition: " + s)

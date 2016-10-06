@@ -1,0 +1,97 @@
+<% import org.insightcentre.nlp.yuzu._ %>
+<% import spray.json._ %>
+<%@ var data : spray.json.JsObject %>
+<%@ var displayer : Displayer %>
+<%@ var uri: String %>
+<%@ var title : String = displayer.uriToStr(uri) %>
+<%@ var jsonld_context: jsonld.JsonLDContext %>
+<%@ var backlinks : Seq[(rdf.URI,rdf.URI)] %>
+<%@ var relPath: String %>
+<%@ var layout: String %>
+<% var page_title = data.fields.get("lemma") match {
+    case Some(JsObject(f)) =>
+        f.get("writtenForm") match {
+            case Some(JsString(t)) => t
+            case _ => "#error-no-written-rep#"
+        }
+    case _ =>
+        data.fields.get("@id") match {
+            case Some(JsString(t)) => t
+            case _ => "#error-no-id#"
+        }
+    } %>
+<% attributes("layout") = layout %>
+<% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <div class="body">
+        <span xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:lemon="http://lemon-model.net/lemon#" xmlns:wordnet-ontology="http://wordnet-rdf.princeton.edu/ontology#" resource="http://wordnet-rdf.princeton.edu/wn31/test-n">
+  <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type" style="display:none;" href="http://lemon-model.net/lemon#LexicalEntry">
+                ignore
+            </a>
+            <h1>${page_title}<img src="http://www.w3.org/RDF/icons/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/></h1>
+            <ul id="rdf_format_list">
+            <li class="rdf_format">
+            <a href="test-n.json">
+            JSON-LD
+            </a>
+            </li>
+            <li class="rdf_format">
+            <a href="test-n.nt">
+            N-Triples
+            </a>
+            </li>
+            <li class="rdf_format">
+            <a href="test-n.ttl">
+            Turtle
+            </a>
+            </li>
+            <li class="rdf_format">
+            <a href="test-n.rdf">
+            RDF/XML
+            </a>
+            </li>
+            </ul>
+        #if(data.fields.contains("lemma"))
+            <h3><%= data.fields("partOfSpeech").asInstanceOf[JsString].value %></h3>
+            <ul>
+            #for(sense <- data.fields("sense").asInstanceOf[JsArray].elements)
+            <li><a href="${sense.asInstanceOf[JsObject].fields("synset").asInstanceOf[JsString].value}">
+                ${sense.asInstanceOf[JsObject].fields("synset").asInstanceOf[JsString].value}</a></li>
+            #end
+            </ul>
+        #else
+            <h3>Synset (<a href="http://ili.globalwordnet.org/ili/${
+                data.fields("ili").asInstanceOf[JsString].value.drop(4)}">${
+                data.fields("ili").asInstanceOf[JsString].value.drop(4)}</a>)</h3>
+            #for(defn <- data.fields("definition").asInstanceOf[JsArray].elements)
+            <blockquote>
+                ${defn.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}
+            </blockquote>
+            #end
+
+            <ul>
+                <li>Part of Speech: ${data.fields("partOfSpeech").asInstanceOf[JsString].value}</li>
+                <li>Subject: ${data.fields("subject").asInstanceOf[JsString].value}</li>
+                <% val relByName = data.fields("relations").asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsObject]).groupBy(_.fields("relType").asInstanceOf[JsString].value) %>
+                #for(rel <- relByName)
+                <li>${rel._1}
+                    <ul>
+                        #for(targ <- rel._2)
+                            <% val rel_targ = targ.fields("target").asInstanceOf[JsString].value %>
+                            <li><a href="${rel_targ}">${rel_targ}</a></li>
+                        #end
+                    </ul>
+                </li>
+                #end
+            </ul>
+            
+        #end
+    </div>
+    </body>
+</html>
+    
+        

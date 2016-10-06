@@ -41,11 +41,31 @@ trait YuzuServletActions extends YuzuStack {
   private def respondVary(content : String) = 
     Ok(content, Map("Vary" -> "Accept", "Content-length" -> content.size.toString))
 
+  private def respondContext(content : String, base : URL) = 
+    Ok(content, Map("Vary" -> "Accept", "Content-length" -> content.size.toString,
+      "Link" -> s"""<$base?context>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json""""))
+
   private def nullToNil[A](s : Seq[A]) : Seq[A] = s match {
     case null => Nil
     case seq => seq
   }
 
+  protected def ssp_themed(path : String, params : (String, Any)*) = {
+    siteSettings.THEME match {
+      case "" =>
+        ssp(path, params:_*)
+      case theme =>
+        val themePath = s"/WEB-INF/themes/$theme$path.ssp"
+        val realPath = request.getServletContext().getRealPath(themePath)
+        if(new java.io.File(realPath).exists) {
+          ssp(themePath, params:_*)
+        } else {
+          ssp(path, params:_*)
+        }
+    }
+  }
+
+ 
   def search(query : String, property : Option[String], offset : Int) : Any = {
     val limit = 20
     val buf = new StringBuilder()
@@ -66,7 +86,7 @@ trait YuzuServletActions extends YuzuStack {
         link=(request.getServletContext().getContextPath() + "/" + result.id),
         model=nullToNil(backend.summarize(result.id))) }
     contentType = "text/html"
-    ssp("/search",
+    ssp_themed("/search",
       "layout" -> layout,
       "relPath" -> siteSettings.relPath,
       "results" -> results2.take(limit),
@@ -87,7 +107,7 @@ trait YuzuServletActions extends YuzuStack {
         contentType = "text/html"
         result match {
           case TableResult(r, _) =>
-            respondVary(ssp("/sparql-results", 
+            respondVary(ssp_themed("/sparql-results", 
               "layout" -> layout,
               "relPath" -> siteSettings.relPath,
               "variables" -> r.resultVars, 
@@ -95,7 +115,7 @@ trait YuzuServletActions extends YuzuStack {
               "displayer" -> backend.displayer))
           case BooleanResult(r) =>
             val l = if(r) { "True" } else { "False" }
-            respondVary(ssp("/sparql-results",
+            respondVary(ssp_themed("/sparql-results",
               "layout" -> layout,
               "relPath" -> siteSettings.relPath,
               "variables" -> Nil,
@@ -245,7 +265,7 @@ trait YuzuServletActions extends YuzuStack {
     }
 
     contentType = "text/html"
-    ssp("/list",
+    ssp_themed("/list",
       "layout" -> layout,
       "relPath" -> siteSettings.relPath,
       "qsb" -> (queryStringBase:String),
@@ -287,6 +307,15 @@ trait YuzuServletActions extends YuzuStack {
     }
   }
 
+  def showContext(id : String) : Any = {
+    val context = backend.context(id)
+
+    val response = context.toJson
+
+    Ok(response, Map("Content-type" -> "application/ld+json", "Content-length" -> response.size.toString))
+  }
+
+
   def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
     val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
@@ -319,7 +348,7 @@ trait YuzuServletActions extends YuzuStack {
             } else if(mime == html) {
               val backlinks = backend.backlinks(id)
               val html = toHtml(model, base, siteSettings.relPath, backlinks)(backend.displayer)
-              ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
+              ssp_themed("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
             } else {
               throw new IllegalArgumentException()
             })
@@ -327,23 +356,29 @@ trait YuzuServletActions extends YuzuStack {
       case Some(JsDocument(model, context)) => {
         contentType = mime.mime
         val base = getBase
-        respondVary(if(mime == json) {
-          toJson(model, Some(context), base)
-        } else if(mime == rdfxml) {
-          toRDFXML(model, Some(context), base, addNamespaces _)
-        } else if(mime == turtle) {
-          toTurtle(model, Some(context), base, addNamespaces _)
-        } else if(mime == nt) {
-          toNTriples(model, Some(context), base, addNamespaces _)
-        } else if(mime == html) {
-          val backlinks = backend.backlinks(id)
-          val html = toHtml(model, Some(context), base, siteSettings.relPath, backlinks)(backend.displayer)
-          ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
-        } else if(mime == csvw) {
-          throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
+        if(mime == json && context != None) {
+          respondContext(toJson(model, Some(context), base), base)
         } else {
-          throw new IllegalArgumentException()
-        })
+          respondVary(if(mime == json) {
+            toJson(model, Some(context), base)
+          } else if(mime == rdfxml) {
+            toRDFXML(model, Some(context), base, addNamespaces _)
+          } else if(mime == turtle) {
+            toTurtle(model, Some(context), base, addNamespaces _)
+          } else if(mime == nt) {
+            toNTriples(model, Some(context), base, addNamespaces _)
+          } else if(mime == html) {
+            val backlinks = backend.backlinks(id)
+            ssp_themed("/json", Seq("data" -> model,
+              "layout" -> layout, "relPath" -> siteSettings.relPath,
+              "jsonld_context" -> context, "uri" -> base.toString, "backlinks" -> backlinks,
+              "displayer" -> backend.displayer):_*)
+          } else if(mime == csvw) {
+            throw new IllegalArgumentException("Cannot generate CSV from non-CSV source")
+          } else {
+            throw new IllegalArgumentException()
+          })
+        }
       }
       case Some(CsvDocument(content, context)) => {
         contentType = mime.mime
@@ -360,7 +395,7 @@ trait YuzuServletActions extends YuzuStack {
           toNTriples(content, context, base, addNamespaces _)
         } else if(mime == html) {
           val html = toHtml(content, context, base)(backend.displayer)
-          ssp("/csv", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
+          ssp_themed("/csv", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
         } else {
           throw new IllegalArgumentException()
         })
@@ -389,7 +424,7 @@ trait YuzuServletActions extends YuzuStack {
         } else if(mime == html) {
           val backlinks = backend.backlinks(id)
           val html = toHtml(model, base, siteSettings.relPath, backlinks)(backend.displayer)
-          ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
+          ssp_themed("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
         } else {
           throw new IllegalArgumentException()
         })
@@ -412,7 +447,7 @@ trait YuzuServletActions extends YuzuStack {
       toNTriples(metadata, None, base, addNamespaces _)
      } else if (mime == html) {
       val html = toHtml(metadata, None, base, siteSettings.relPath)(backend.displayer)
-      ssp("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
+      ssp_themed("/rdf", (Seq("layout" -> layout, "relPath" -> siteSettings.relPath) ++ html):_*)
     } else {
       throw new IllegalArgumentException()
     })

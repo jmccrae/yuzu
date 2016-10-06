@@ -60,6 +60,7 @@
                         <select class="form-control" name="theme" id="theme">
                             <option value="">Default</option>
                             <option value="Insight">Insight</option>
+                            <option value="WordNet">WordNet</option>
                             #for (theme <- themes)
                                 <option>${theme}</option>
                             #end

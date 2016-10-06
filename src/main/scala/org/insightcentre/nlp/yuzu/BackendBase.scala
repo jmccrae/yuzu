@@ -135,8 +135,17 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
       searcher.findContext(e.take(i).mkString("/")) match {
         case Some(context) =>
           context.parseJson match {
-            case o : JsObject =>
-              return JsonLDContext(o)
+            case o@JsObject(fields) =>
+              fields.get("@context") match {
+                case Some(o2:JsObject) =>
+                  return JsonLDContext(o2)
+                case Some(a:JsArray) =>
+                  return JsonLDContext(a, NoRemoteResolve)
+                case Some(_) =>
+                  throw new IllegalArgumentException("Bad context document")
+                case None =>
+                  return JsonLDContext(o)
+              }
             case _ =>
           }
         case None =>

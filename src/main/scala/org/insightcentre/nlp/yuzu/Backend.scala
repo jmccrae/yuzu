@@ -76,6 +76,8 @@ trait Backend {
   def query(query : String, defaultGraphURI : Option[String]) : SPARQLResult
   /** Lookup all triples relating to be shown on a page */
   def lookup(id : String) : Option[BackendDocument]
+  /** Get the context for the id */
+  def context(id : String) : JsonLDContext
   /** By Dianthus */
   def lookup(id : DianthusID) : Option[DianthusLocalResult]
   /** Summarize the key triples to preview a page */
