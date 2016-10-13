@@ -126,3 +126,15 @@ tr.sparql_body {
     font-size: 90%;
 }
 
+p.synset_members {
+    font-weight: bold;
+    font-size: 1.25em;
+}
+
+.synset {
+    font-size: 1.15em;
+}
+
+.synset li b {
+    text-transform: capitalize;
+}

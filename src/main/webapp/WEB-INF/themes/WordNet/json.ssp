@@ -8,6 +8,13 @@
 <%@ var backlinks : Seq[(rdf.URI,rdf.URI)] %>
 <%@ var relPath: String %>
 <%@ var layout: String %>
+<%
+    def makeWords(v : JsValue) = v match {
+        case JsArray(e) => e.map({
+            case JsObject(f) => f("lemma").asInstanceOf[JsString].value
+        }).mkString(", ")
+    }
+%>
 <% var page_title = data.fields.get("lemma") match {
     case Some(JsObject(f)) =>
         f.get("writtenForm") match {
@@ -15,11 +22,58 @@
             case _ => "#error-no-written-rep#"
         }
     case _ =>
-        data.fields.get("@id") match {
-            case Some(JsString(t)) => t
-            case _ => "#error-no-id#"
+        data.fields.get("members") match {
+            case Some(w) => makeWords(w)
+            case _ => "WordNet"
         }
     } %>
+<%
+    def shortPos(name : String) = name match {
+        case "noun" => "n"
+        case "verb" => "v"
+        case "adverb" => "r"
+        case "adjective" => "a"
+        case "adjective_satellite" => "s"
+    }
+
+    def lemmaLink(lemma : String) = lemma.replace(" ", "_").replace("'", "-ap-").replace("(","-lb-").replace(")","-rb-").replace("/","-sl-")
+
+    def nameLang(code : String) = code match {
+        case "sq" => "Albanian"
+        case "ar" => "Arabic"
+        case "bg" => "Bulgarian"
+        case "ca" => "Catalan"
+        case "zh-Hans" => "Simplified Chinese"
+        case "da" => "Danish"
+        case "el" => "Greek"
+        case "en" => "English"
+        case "eu" => "Basque"
+        case "fa" => "Farsi"
+        case "fi" => "Finnish"
+        case "fr" => "French"
+        case "gl" => "Galician"
+        case "he" => "Hebrew"
+        case "hr" => "Croatian"
+        case "id" => "Bahasa Indonesia"
+        case "is" => "Icelandic"
+        case "it" => "Italian"
+        case "ja" => "Japanese"
+        case "lt" => "Lithuanian"
+        case "nl" => "Dutch"
+        case "nn" => "Norwegian (Nynorsk)"
+        case "nb" => "Norwegian (Bokmål)"
+        case "pl" => "Polish"
+        case "pt" => "Portuguese"
+        case "zh-Hant" => "Traditional Chinese"
+        case "ro" => "Romanian"
+        case "sk" => "Slovakian"
+        case "sl" => "Slovenian"
+        case "es" => "Spanish"
+        case "sv" => "Swedish"
+        case "th" => "Thai"
+        case "ms" => "Bahasa Malay"
+  }
+%>
 <% attributes("layout") = layout %>
 <% attributes("relPath") = relPath %>
 <html>
@@ -35,22 +89,22 @@
             <h1>${page_title}<img src="http://www.w3.org/RDF/icons/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/></h1>
             <ul id="rdf_format_list">
             <li class="rdf_format">
-            <a href="test-n.json">
+            <a href="${uri}.json">
             JSON-LD
             </a>
             </li>
             <li class="rdf_format">
-            <a href="test-n.nt">
+            <a href="${uri}.nt">
             N-Triples
             </a>
             </li>
             <li class="rdf_format">
-            <a href="test-n.ttl">
+            <a href="${uri}.ttl">
             Turtle
             </a>
             </li>
             <li class="rdf_format">
-            <a href="test-n.rdf">
+            <a href="${uri}.rdf">
             RDF/XML
             </a>
             </li>
@@ -60,33 +114,49 @@
             <ul>
             #for(sense <- data.fields("sense").asInstanceOf[JsArray].elements)
             <li><a href="${sense.asInstanceOf[JsObject].fields("synset").asInstanceOf[JsString].value}">
-                ${sense.asInstanceOf[JsObject].fields("synset").asInstanceOf[JsString].value}</a></li>
+                ${sense.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}</a></li>
             #end
             </ul>
-        #else
-            <h3>Synset (<a href="http://ili.globalwordnet.org/ili/${
+        #elseif(data.fields.contains("members"))
+            <h3>Intelingual Index: <a href="http://ili.globalwordnet.org/ili/${
                 data.fields("ili").asInstanceOf[JsString].value.drop(4)}">${
-                data.fields("ili").asInstanceOf[JsString].value.drop(4)}</a>)</h3>
-            #for(defn <- data.fields("definition").asInstanceOf[JsArray].elements)
+                data.fields("ili").asInstanceOf[JsString].value.drop(4)}</a></h3>
+            <h4>Synset Members: 
+                #for(elem <- data.fields("members").asInstanceOf[JsArray].elements)
+                <a href="${lemmaLink(elem.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value)}-${shortPos(elem.asInstanceOf[JsObject].fields("partOfSpeech").asInstanceOf[JsString].value)}">${elem.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value}</a>&nbsp;
+                #end
+                </h4>
+             #for(defn <- data.fields("definition").asInstanceOf[JsArray].elements)
             <blockquote>
                 ${defn.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}
             </blockquote>
             #end
 
-            <ul>
-                <li>Part of Speech: ${data.fields("partOfSpeech").asInstanceOf[JsString].value}</li>
-                <li>Subject: ${data.fields("subject").asInstanceOf[JsString].value}</li>
+            <ul class="synset">
+                <li><b>Part of Speech</b>: ${data.fields("partOfSpeech").asInstanceOf[JsString].value}</li>
+                <li><b>Subject</b>: ${data.fields("subject").asInstanceOf[JsString].value}</li>
                 <% val relByName = data.fields("relations").asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsObject]).groupBy(_.fields("relType").asInstanceOf[JsString].value) %>
                 #for(rel <- relByName)
-                <li>${rel._1}
+                <li><b>${rel._1.replaceAll("_", " ")}</b>
                     <ul>
-                        #for(targ <- rel._2)
+                        #for(targ <- rel._2.sortBy(x => makeWords(x.fields("words"))))
                             <% val rel_targ = targ.fields("target").asInstanceOf[JsString].value %>
-                            <li><a href="${rel_targ}">${rel_targ}</a></li>
+                            <li><a href="${rel_targ}">
+                                ${makeWords(targ.fields("words"))}<br/><i>${targ.fields("gloss").asInstanceOf[JsString].value}</i></a></li>
                         #end
                     </ul>
                 </li>
                 #end
+                <li><b>Translations</b></li>
+                    <ul>
+<% val transByName = data.fields("translations").asInstanceOf[JsArray].elements.sortBy(
+    x => nameLang(
+        x.asInstanceOf[JsObject].fields("language").asInstanceOf[JsString].value)) %>
+                        #for(trans <- transByName)
+                            <% val lang = trans.asInstanceOf[JsObject].fields("language").asInstanceOf[JsString].value %>
+                            <li><img src="/assets/flag/${lang.take(2)}.gif"/>&nbsp;${nameLang(lang)}: ${trans.asInstanceOf[JsObject].fields("translation").asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsString].value).mkString(", ")}
+</li>
+                        #end
             </ul>
             
         #end
