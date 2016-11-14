@@ -1,4 +1,5 @@
 <% import org.insightcentre.nlp.yuzu._ %>
+<% import org.insightcentre.nlp.yuzu.rdf.URI %>
 <% import spray.json._ %>
 <%@ var data : spray.json.JsObject %>
 <%@ var displayer : Displayer %>
@@ -22,8 +23,8 @@
             case _ => "#error-no-written-rep#"
         }
     case _ =>
-        data.fields.get("members") match {
-            case Some(w) => makeWords(w)
+        data.fields.get("ili") match {
+            case Some(JsString(w)) => w.drop(4)
             case _ => "WordNet"
         }
     } %>
@@ -72,7 +73,19 @@
         case "sv" => "Swedish"
         case "th" => "Thai"
         case "ms" => "Bahasa Malay"
+        case "mt" => "Maltese"
+        case l => "Unknown language (" + l + ")"
   }
+
+    val LEURI = "http://.*/(\\w{2})/(.*-[0-9a-f]{8}-.)".r
+    def showLEURI(uri : String) = {
+        uri match {
+            case LEURI(lang, id) =>
+                nameLang(lang) + ": " + id
+            case _ =>
+                uri
+        }
+    }
 %>
 <% attributes("layout") = layout %>
 <% attributes("relPath") = relPath %>
@@ -110,22 +123,24 @@
             </li>
             </ul>
         #if(data.fields.contains("lemma"))
-            <h3><%= data.fields("partOfSpeech").asInstanceOf[JsString].value %></h3>
+            <h3><%= nameLang(data.fields("language").asInstanceOf[JsString].value) %> 
+<%= data.fields("partOfSpeech").asInstanceOf[JsString].value %></h3>
             <ul>
             #for(sense <- data.fields("sense").asInstanceOf[JsArray].elements)
             <li><a href="${sense.asInstanceOf[JsObject].fields("synset").asInstanceOf[JsString].value}">
                 ${sense.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}</a></li>
             #end
             </ul>
-        #elseif(data.fields.contains("members"))
+        #elseif(data.fields.contains("ili"))
+            <ul>
+            #for(bl <- backlinks if bl._1 == URI("http://www.w3.org/ns/lemon/ontolex#isLexicalizedSenseOf")) 
+            <li><a href="${bl._2.value}">${showLEURI(bl._2.value)}</a></li>
+            #end
+            </ul>
+
             <h3>Interlingual Index: <a href="http://ili.globalwordnet.org/ili/${
                 data.fields("ili").asInstanceOf[JsString].value.drop(4)}">${
                 data.fields("ili").asInstanceOf[JsString].value.drop(4)}</a></h3>
-            <h4>Synset Members: 
-                #for(elem <- data.fields("members").asInstanceOf[JsArray].elements)
-                <a href="${lemmaLink(elem.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value)}-${shortPos(elem.asInstanceOf[JsObject].fields("partOfSpeech").asInstanceOf[JsString].value)}">${elem.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value}</a>&nbsp;
-                #end
-                </h4>
              #for(defn <- data.fields("definition").asInstanceOf[JsArray].elements)
             <blockquote>
                 ${defn.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}
@@ -147,16 +162,6 @@
                     </ul>
                 </li>
                 #end
-                <li><b>Translations</b></li>
-                    <ul>
-<% val transByName = data.fields("translations").asInstanceOf[JsArray].elements.sortBy(
-    x => nameLang(
-        x.asInstanceOf[JsObject].fields("language").asInstanceOf[JsString].value)) %>
-                        #for(trans <- transByName)
-                            <% val lang = trans.asInstanceOf[JsObject].fields("language").asInstanceOf[JsString].value %>
-                            <li><img src="/assets/flag/${lang.take(2)}.gif"/>&nbsp;${nameLang(lang)}: ${trans.asInstanceOf[JsObject].fields("translation").asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsString].value).mkString(", ")}
-</li>
-                        #end
             </ul>
             
         #end

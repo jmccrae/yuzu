@@ -23,7 +23,7 @@
                 #for (result <- results)
             <div class="panel panel-default rdf_embedded_table">
                 <div class="panel-heading rdf_embedded_table_heading">
-                    <a href="${result.link}" class="rdf_link">${result.title}</a>
+                    <a href="${result.link}" class="rdf_link"><%= if(result.title != "" && result.title != null) { result.title } else { result.link } %></a>
                 </div>
                 <table class="panel-body">
                     #for (fv <- result.model)

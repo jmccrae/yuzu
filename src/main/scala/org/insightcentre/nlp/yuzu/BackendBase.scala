@@ -370,29 +370,51 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
 
   val RDF_SUFFIXES = Map(".rdf" -> rdfxml, ".ttl" -> turtle, ".nt" -> nt)
 
+  private def resInPage(id : String, subject : Resource) = {
+    subject match {
+      case rs@URI(su) =>
+        uri2Id(su) match {
+          case Some(u2) =>
+            (u2.contains("#") && u2.takeWhile(_ != '#') == id) ||
+            (u2.contains("?") && u2.takeWhile(_ != '?') == id) ||
+            u2 == id
+          case None =>
+            false
+        }
+      case _ =>
+        false
+    }
+  }
+
+
   private def loadDocumentTriple(document : DocumentLoader, loader : Loader,
       id : String, subject : Resource, prop : URI, obj : RDFNode) = {
     val isFacet = FACETS.exists(_.uri == prop.value)
-    obj match {
-      case r@URI(u) =>
-        uri2Id(u) match {
-          case Some(u2) =>
-            loader.addBackLink(u2, prop, id)
-          case None =>
+    subject match {
+      case rs@URI(su) if(!resInPage(id, subject)) =>
+      case _ => {
+        obj match {
+          case r@URI(u) =>
+            uri2Id(u) match {
+              case Some(u2) if(!resInPage(id, r)) =>
+                loader.addBackLink(u2, prop, id)
+              case _ =>
+            }
+            document.addProp(prop, r, isFacet)
+          case r : Resource =>
+            document.addProp(prop, r, isFacet)
+          case l@LangLiteral(lv, lang) =>
+            if(prop.value == LABEL_PROP.toString && lang == LANG) {
+              document.addLabel(lv)
+            }
+            document.addProp(prop, l, isFacet)
+          case l : Literal =>
+            if(prop.value == LABEL_PROP.toString) {
+              document.addLabel(l.value)
+            }
+            document.addProp(prop, l, isFacet)
         }
-        document.addProp(prop, r, isFacet)
-      case r : Resource =>
-        document.addProp(prop, r, isFacet)
-      case l@LangLiteral(lv, lang) =>
-        if(prop.value == LABEL_PROP.toString && lang == LANG) {
-          document.addLabel(lv)
-        }
-        document.addProp(prop, l, isFacet)
-      case l : Literal =>
-        if(prop.value == LABEL_PROP.toString) {
-          document.addLabel(l.value)
-        }
-        document.addProp(prop, l, isFacet)
+      }
     }
   }
 
@@ -413,7 +435,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
         val jsonLD = io.Source.fromInputStream(zf.getInputStream(e)).mkString.parseJson match {
           case o : JsObject =>
             loader.addContext(name, o.toString)
-            JsonLDContext(o)
+            JsonLDContext.loadContext(o)
           case _ =>
             throw new RuntimeException("Context is not an object")
         }

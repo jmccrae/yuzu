@@ -39,10 +39,12 @@ trait YuzuServletActions extends YuzuStack {
   def quotePlus(s : String) = java.net.URLEncoder.encode(s, "UTF-8")
 
   private def respondVary(content : String) = 
-    Ok(content, Map("Vary" -> "Accept", "Content-length" -> content.size.toString))
+    Ok(content, Map("Vary" -> "Accept", "Content-length" -> content.size.toString,
+      "Access-Control-Allow-Origin" -> "*"))
 
   private def respondContext(content : String, base : URL) = 
     Ok(content, Map("Vary" -> "Accept", "Content-length" -> content.size.toString,
+      "Access-Control-Allow-Origin" -> "*",
       "Link" -> s"""<$base?context>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json""""))
 
   private def nullToNil[A](s : Seq[A]) : Seq[A] = s match {

@@ -186,10 +186,10 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
 
     def backlinks(implicit searcher : Searcher) : Seq[(URI, String)] = {
       implicit val session = searcher.session
-      sql"""SELECT pids.n3, sids.pageId FROM tripids
-            JOIN ids AS pids ON pids.id=tripids.pid
-            JOIN ids AS sids ON sids.id=tripids.sid
-            WHERE tripids.oid=$i""".as2[String, String].map({
+      sql"""SELECT pids.n3, oids.pageId FROM backlinks
+            JOIN ids AS pids ON pids.id=backlinks.pid
+            JOIN ids AS oids ON oids.id=backlinks.fid
+            WHERE backlinks.id=$i""".as2[String, String].map({
               case (s, t) => (toURI(s), t)
             }).toList
     }

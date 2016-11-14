@@ -11,6 +11,7 @@ class JsonLDContextSpec extends ScalatraSpec {
     should resolve a URI                 $t1
   apply
     should build a context               $t2
+  test with WN Spec                      wnspec
   """
 
   def t1 = {
@@ -106,5 +107,16 @@ class JsonLDContextSpec extends ScalatraSpec {
    (result.definitions("telephone") must_== JsonLDAbbreviation("http://schema.org/telephone")) and
    (result.definitions("spouse") must_== JsonLDURIProperty("http://schema.org/spouse")) and
    (result.definitions("foaf:depiction") must_== JsonLDURIProperty("http://xmlns.com/foaf/0.1/depiction"))
+  }
+
+  def wnspec = {
+    val url = new java.net.URL("http://globalwordnet.github.io/schemas/wn-json-context-1.0.json")
+    val jsonLD = io.Source.fromInputStream(url.openStream).mkString.parseJson match {
+      case o : JsObject =>
+        JsonLDContext.loadContext(o)
+      case _ =>
+        throw new RuntimeException("Context is not an object")
+    }
+    (jsonLD.definitions.size must be greaterThan(0))
   }
 }

@@ -179,6 +179,15 @@ object JsonLDContext {
     }
   }
 
+  def loadContext(data : JsObject) = {
+    data.fields.get("@context") match {
+      case Some(o : JsObject) =>
+        JsonLDContext(o)
+      case _ =>
+        throw new JsonLDException("Context document did not contain @context")
+    }
+  }
+
   def loadContext(uri : String) = {
     try { 
       io.Source.fromInputStream(new java.net.URL(uri).openStream()).

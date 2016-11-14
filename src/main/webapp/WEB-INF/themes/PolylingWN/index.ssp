@@ -1,0 +1,63 @@
+<%@ var title: String %>
+<%@ var is_test: Boolean = false %>
+<%@ var relPath: String %>
+<%@ var property_facets: List[org.insightcentre.nlp.yuzu.Facet] = Nil %>
+<% attributes("title") = "Test" %>
+<%@ var layout: String %>
+<% attributes("layout") = layout %>
+<% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+#if (is_test)
+    <div class="container">
+        <div class="row">
+            <div class="alert alert-danger">
+                <h3 style="margin-top:5px;">This is a Test Instance</h3>
+                <p>The URL used to access this instance does not correspond to the configuration.</p>
+            </div>
+        </div>
+    </div>
+#end
+        <div>
+            <div class="container">
+                <h1 style="color:#000;font-size:7vmin;"><b>Saffron NLP Data</b></h1>
+                <p><a class="btn btn-info btn-lg pull-right" href="${relPath}/list">Browse</a></p>
+            </div>
+        </div>
+         <div class="container">
+            <div class="row">
+                <div class="col-lg-6 col-lg-offset-3">
+                    <form action="${relPath}/search" method="get">
+                        <fieldset>
+                            <legend>Search</legend>
+                            <div class="form-group">
+                                <label for="property" class="control-label">Property</label><br/>
+                                <select name="property" id="property" class="form-control">
+                                    <option value=''>Search all properties</option>
+#for (facet <- property_facets)
+                                    <option value='${facet.uri}'>${facet.label}</option>
+#end
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="query" class="control-label">Query</label><br/>
+                                <div>
+                                    <input type="text" class="form-control" id="query" name="query"/>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="pull-right">
+                                    <button type="submit" class="btn btn-success">Search</button>
+                                    <a class="btn btn-default" href="${relPath}/sparql/">Advanced Search</a>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
