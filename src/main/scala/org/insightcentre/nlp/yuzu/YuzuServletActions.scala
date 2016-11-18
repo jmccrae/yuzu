@@ -262,7 +262,7 @@ trait YuzuServletActions extends YuzuStack {
     val results2 = for(result <- results) yield {
       ListResults(
         title=result.label,
-        link=(request.getServletContext().getContextPath() + "/" + result.id),
+        link=(siteSettings.relPath + "/" + result.id),
         model=nullToNil(backend.summarize(result.id)))
     }
 

@@ -74,10 +74,16 @@
         case "th" => "Thai"
         case "ms" => "Bahasa Malay"
         case "mt" => "Maltese"
+        case "cs" => "Czech"
+        case "hu" => "Hungarian"
+        case "de" => "German"
+        case "lv" => "Latvian"
+        case "et" => "Estonian"
+        case "ga" => "Irish"
         case l => "Unknown language (" + l + ")"
   }
 
-    val LEURI = "http://.*/(\\w{2})/(.*-[0-9a-f]{8}-.)".r
+    val LEURI = "http://.*/(\\w{2})/(.*-[0-9a-f]{1,8}-.)".r
     def showLEURI(uri : String) = {
         uri match {
             case LEURI(lang, id) =>
