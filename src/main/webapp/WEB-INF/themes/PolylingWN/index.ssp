@@ -23,7 +23,7 @@
 #end
         <div>
             <div class="container">
-                <h1 style="color:#000;font-size:7vmin;"><b>Saffron NLP Data</b></h1>
+                <h1 style="color:#000;font-size:7vmin;"><b>Polylingual WordNet</b></h1>
                 <p><a class="btn btn-info btn-lg pull-right" href="${relPath}/list">Browse</a></p>
             </div>
         </div>
