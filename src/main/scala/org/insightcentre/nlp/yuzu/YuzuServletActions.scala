@@ -85,7 +85,7 @@ trait YuzuServletActions extends YuzuStack {
     val results2 = for(result <- results) yield {
       ListResults(
         title=result.label,
-        link=(request.getServletContext().getContextPath() + "/" + result.id),
+        link=(siteSettings.relPath + "/" + result.id),
         model=nullToNil(backend.summarize(result.id))) }
     contentType = "text/html"
     ssp_themed("/search",
@@ -320,10 +320,6 @@ trait YuzuServletActions extends YuzuStack {
 
   def showResource(id : String, mime : ResultType) : Any = {
     val modelOption = backend.lookup(id)
-    val uri2 = UnicodeEscape.safeURI(request.getRequestURI().substring(request.getContextPath().length))
-    val uri = if(!uri2.startsWith("/")) { "/" + uri2 } else { uri2 }
-    val depth = uri.filter(_ == '/').size
-    val relPath = (if(depth == 1) "." else Seq.fill(depth-1)("..").mkString("/"))
     modelOption match {
       case null =>
         NotFound()
