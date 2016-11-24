@@ -133,24 +133,53 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             }).toList
     }
 
-    def freeText(query : String, property : Option[URI], offset : Int,
-      limit : Int) = {
+    def freeText(query : String, property : Option[URI], filter : Option[(rdf.URI, rdf.RDFNode)],
+      offset : Int, limit : Int) = {
       property match {
         case Some(p) =>
-          sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
-                JOIN ids ON free_text.sid=ids.id
-                JOIN ids AS pids ON free_text.pid=pids.id
-                WHERE pids.n3=${p.toString} AND object MATCH $query
-                LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
-                  case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
-                })
+          filter match {
+            case Some((f, v)) =>
+              sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
+                    JOIN ids ON free_text.sid=ids.id
+                    JOIN ids AS pids ON free_text.pid=pids.id
+                    JOIN tripids ON free_text.sid=tripids.sid
+                    JOIN ids AS pid2 ON tripids.pid=pid2.id
+                    JOIN ids AS oid2 ON tripids.oid=oid2.id
+                    WHERE pids.n3=${p.toString} AND object MATCH $query AND
+                    pid2.n3=${f.toString} AND oid2.n3=${v.toString}
+                    LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
+                      case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
+                    })
+            case None => 
+              sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
+                    JOIN ids ON free_text.sid=ids.id
+                    JOIN ids AS pids ON free_text.pid=pids.id
+                    WHERE pids.n3=${p.toString} AND object MATCH $query
+                    LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
+                      case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
+                    })
+          }
         case None =>
-          sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
-                JOIN ids AS sids ON free_text.sid=sids.id
-                WHERE object MATCH $query
-                LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
-                  case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
-                })
+          filter match {
+            case Some((f, v)) =>
+              sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
+                    JOIN ids AS sids ON free_text.sid=sids.id
+                    JOIN tripids ON free_text.sid=tripids.sid
+                    JOIN ids AS pid2 ON tripids.pid=pid2.id
+                    JOIN ids AS oid2 ON tripids.oid=oid2.id
+                    WHERE object MATCH $query AND pid2.n3=${f.toString} AND 
+                    oid2.n3=${v.toString}
+                    LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
+                      case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
+                    })
+            case None =>
+              sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
+                    JOIN ids AS sids ON free_text.sid=sids.id
+                    WHERE object MATCH $query
+                    LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
+                      case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
+                    })
+          }
       }
     }
   }

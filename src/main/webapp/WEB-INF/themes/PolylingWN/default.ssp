@@ -145,8 +145,8 @@ p.synset_members {
 <div id="page" class="hfeed site">
 	<header id="masthead" class="site-header" role="banner">
 
-				<a href="http://nlp.insight-centre.org/"><img src="http://nuig.insight-centre.org/unlp/wp-content/uploads/sites/18/2014/05/Insight-JPG-e1411132335948.jpg" class="header-image" height="84" alt="Unit for Natural Language Processing" /></a>
-		
+				<h1><a href="http://nlp.insight-centre.org/"><img src="http://nuig.insight-centre.org/unlp/wp-content/uploads/sites/18/2014/05/Insight-JPG-e1411132335948.jpg" class="header-image" height="84" alt="Unit for Natural Language Processing" /></a>
+	<a href="${relPath}">Polylingual WordNet</a></h1>	
 	</header><!-- #masthead -->
 
 	<div id="main" class="wrapper">

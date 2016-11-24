@@ -354,7 +354,7 @@ object SchemaReader {
 
   // So this is the CSVW context included in the source file. This makes the 
   // system robust in that we don't have to go find it.
-  lazy val csvwContext = JsonLDContext("""{
+  lazy val csvwContext = JsonLDContext.fromJsObj("""{
     "cc": "http://creativecommons.org/ns#",
     "csvw": "http://www.w3.org/ns/csvw#",
     "ctag": "http://commontag.org/ns#",

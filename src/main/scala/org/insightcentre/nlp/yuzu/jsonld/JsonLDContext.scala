@@ -182,7 +182,7 @@ object JsonLDContext {
   def loadContext(data : JsObject) = {
     data.fields.get("@context") match {
       case Some(o : JsObject) =>
-        JsonLDContext(o)
+        JsonLDContext.fromJsObj(o)
       case _ =>
         throw new JsonLDException("Context document did not contain @context")
     }
@@ -195,7 +195,7 @@ object JsonLDContext {
           case JsObject(data) =>
             data.get("@context") match {
               case Some(o : JsObject) =>
-                JsonLDContext(o)
+                JsonLDContext.fromJsObj(o)
               case _ =>
                 throw new JsonLDException("Context document did not contain @context")
             }
@@ -209,20 +209,20 @@ object JsonLDContext {
   }
 
 
-  def apply(contexts : JsArray, resolveRemote : RemoteResolver) : JsonLDContext = {
+  def fromJsArray(contexts : JsArray, resolveRemote : RemoteResolver) : JsonLDContext = {
     contexts.elements.foldLeft(new JsonLDContext(Map(),None,None,None))({
       (l, r) => r match {
         case JsString(s) =>
           l ++ resolveRemote.resolve(s)
         case o : JsObject =>
-          l ++ apply(o)
+          l ++ fromJsObj(o)
         case _ =>
           throw new JsonLDException("@context must be a list of strings and objects")
       }
     })
   }
 
-  def apply(context : JsObject) : JsonLDContext = {
+  def fromJsObj(context : JsObject) : JsonLDContext = {
     val map1 =  context.fields.filter({
       case (key, value) => !key.startsWith("@")  
     }) 

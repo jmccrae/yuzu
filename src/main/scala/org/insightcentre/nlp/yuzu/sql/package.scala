@@ -700,8 +700,13 @@ package object sql {
   implicit class RDFSQLHelper(val sc : StringContext) extends AnyVal {
     def sql(args : Any*)(implicit session : Session) = {
       val query = sc.parts.mkString("?")
-        apply(query, args:_*)
-      }
+      apply(query, args:_*)
+    }
+    def sql_dbg(args : Any*)(implicit session : Session) = {
+      val query = sc.parts.mkString("?")
+      println(query + " <= " + args.mkString(", "))
+      apply(query, args:_*)
+    }
   }
 
   /** Implicit type conversion object */

@@ -55,6 +55,9 @@ object RDFValue {
         RDFValue(displayer.display(n), `type`=RDFValue(displayer.display(URI(t)), link=t))
     }
   }
+
+  def apply(n3 : String, displayer : Displayer) : RDFValue = apply(RDFNode(n3), displayer)
+
 }
   
 sealed trait BackendDocument 
@@ -104,7 +107,7 @@ trait Backend {
    * @param property The property
    * @param limit The limit
    */
-  def search(query : String, property : Option[String], 
+  def search(query : String, property : Option[String], filters : Option[(rdf.URI, rdf.RDFNode)],
              offset : Int, limit : Int) : Seq[SearchResult]
   /**
    * Load the data from an input stream 

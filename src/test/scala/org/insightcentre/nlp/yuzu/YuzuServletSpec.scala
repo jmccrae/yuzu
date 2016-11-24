@@ -59,7 +59,7 @@ class YuzuServletSpec extends ScalatraSpec {
   addServlet(new YuzuServlet {
    val backend = mock(classOf[Backend]) 
    when(backend.listResources(0, 1)).thenReturn((false, Nil))
-   when(backend.search("test", None, 0, 21)).thenReturn(Nil)
+   when(backend.search("test", None, None, 0, 21)).thenReturn(Nil)
    when(backend.listResources(0, 20, Nil)).thenReturn((false, Nil))
    when(backend.lookup("notaresource")).thenReturn(None)
    when(backend.backlinks("test")).thenReturn(Nil)

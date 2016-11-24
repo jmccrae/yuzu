@@ -220,9 +220,9 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
       case Some(JsString(uri)) if isAbsoluteIRI(uri) =>
         Some(resolveRemote.resolve(uri))
       case Some(o : JsObject) =>
-        Some(JsonLDContext(o))
+        Some(JsonLDContext.fromJsObj(o))
       case Some(a : JsArray) =>
-        Some(JsonLDContext(a, resolveRemote))
+        Some(JsonLDContext.fromJsArray(a, resolveRemote))
       case _ =>
         context2
     } 
@@ -377,6 +377,8 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
     lang match {
       case Some(null) =>
         PlainLiteral(s)
+      case Some("") =>
+        PlainLiteral(s)
       case Some(l) =>
         LangLiteral(s, l)
       case None =>
@@ -399,16 +401,16 @@ class JsonLDConverter(base : Option[URL] = None, resolveRemote : RemoteResolver 
         case Some(obj : JsObject) =>
           context2 match {
             case Some(c1) =>
-              Some(c1 ++ JsonLDContext(obj))
+              Some(c1 ++ JsonLDContext.fromJsObj(obj))
             case None =>
-              Some(JsonLDContext(obj))
+              Some(JsonLDContext.fromJsObj(obj))
           }
         case Some(a : JsArray) =>
           context2 match {
             case Some(c1) =>
-              Some(c1 ++ JsonLDContext(a, resolveRemote))
+              Some(c1 ++ JsonLDContext.fromJsArray(a, resolveRemote))
             case None =>
-              Some(JsonLDContext(a, resolveRemote))
+              Some(JsonLDContext.fromJsArray(a, resolveRemote))
           }
         case _ =>
           context2

@@ -36,8 +36,8 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     def listByObj(offset : Int, limit : Int, obj : RDFNode) : Iterable[Document]
     def listByPropObjs(offset : Int, limit : Int, propObj : Seq[(URI, Option[RDFNode])]) : Iterable[Document] 
     def listVals(offset : Int, limit : Int, property : URI) : Iterable[(Int, RDFNode)]
-    def freeText(query : String, property : Option[URI], offset : Int,
-      limit : Int) : Iterable[Document]
+    def freeText(query : String, property : Option[URI], filters : Option[(rdf.URI, rdf.RDFNode)], 
+      offset : Int, limit : Int) : Iterable[Document]
   }
 
   type Searcher <: BackendSearcher
@@ -138,13 +138,13 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
             case o@JsObject(fields) =>
               fields.get("@context") match {
                 case Some(o2:JsObject) =>
-                  return JsonLDContext(o2)
+                  return JsonLDContext.fromJsObj(o2)
                 case Some(a:JsArray) =>
-                  return JsonLDContext(a, NoRemoteResolve)
+                  return JsonLDContext.fromJsArray(a, NoRemoteResolve)
                 case Some(_) =>
                   throw new IllegalArgumentException("Bad context document")
                 case None =>
-                  return JsonLDContext(o)
+                  return JsonLDContext.fromJsObj(o)
               }
             case _ =>
           }
@@ -153,7 +153,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     }
     searcher.findContext("").map(_.parseJson match {
       case o : JsObject =>
-        JsonLDContext(o)
+        JsonLDContext.fromJsObj(o)
       case _ =>
         DEFAULT_CONTEXT
     }).getOrElse(DEFAULT_CONTEXT)
@@ -351,9 +351,9 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
     }).toList)
   }
 
-  def search(query : String, property : Option[String], offset : Int, 
-      limit : Int) = search { implicit searcher =>
-    searcher.freeText(query, property.map(URI(_)), offset, limit).map({
+  def search(query : String, property : Option[String], filters : Option[(rdf.URI, rdf.RDFNode)],
+    offset : Int, limit : Int) = search { implicit searcher =>
+    searcher.freeText(query, property.map(URI(_)), filters, offset, limit).map({
       doc =>
         SearchResult(doc.label.getOrElse(displayer.magicString(doc.id)), doc.id)
     }).toList
@@ -521,6 +521,7 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
                 loader.insertDoc(id, data, resultType, document => {
                   val model = ModelFactory.createDefaultModel()
                   RDFDataMgr.read(model, zf.getInputStream(entry), 
+                    relPath + "/" + entry.getName().dropRight(rdfSuffix.length),
                     resultType.jena.get.getLang())
                   for(stat <- model.listStatements()) {
                     val (subj, prop, obj) = fromJena(stat)

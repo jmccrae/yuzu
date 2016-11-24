@@ -25,7 +25,7 @@ class DataConversionsSpec extends ScalatraSpec {
     "foo": "bar"
   }""".parseJson
 
-  val testContext = Some(JsonLDContext("""{
+  val testContext = Some(JsonLDContext.fromJsObj("""{
     "foo": "http://www.example.com/foo"
   }""".parseJson.asInstanceOf[JsObject]))
 

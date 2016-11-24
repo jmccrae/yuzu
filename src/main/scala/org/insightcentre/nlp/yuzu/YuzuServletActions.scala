@@ -68,10 +68,11 @@ trait YuzuServletActions extends YuzuStack {
   }
 
  
-  def search(query : String, property : Option[String], offset : Int) : Any = {
+  def search(query : String, property : Option[String], filters : Option[(rdf.URI, rdf.RDFNode)],
+      offset : Int) : Any = {
     val limit = 20
     val buf = new StringBuilder()
-    val results = backend.search(query, property, offset, limit + 1)
+    val results = backend.search(query, property, filters, offset, limit + 1)
     val prev = math.max(0, offset - limit)
     val next = offset + limit
     val pages = "%d - %d" format (offset + 1, offset + math.min(limit, results.size))
@@ -84,7 +85,7 @@ trait YuzuServletActions extends YuzuStack {
       })
     val results2 = for(result <- results) yield {
       ListResults(
-        title=result.label,
+        title=if(result.label == "" || result.label == null) { result.id } else { result.label },
         link=(siteSettings.relPath + "/" + result.id),
         model=nullToNil(backend.summarize(result.id))) }
     contentType = "text/html"

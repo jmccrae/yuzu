@@ -86,7 +86,19 @@ abstract class YuzuServlet extends YuzuServletActions {
             0
         }
         contentType = "text/html"
-        search(query, prop, offset)
+        val filter = params.get("filter_prop") match {
+          case Some(x) if x.toString != "" =>
+            params.get("filter_val") match {
+              case Some(y) if y.toString != "" =>
+                Some((rdf.URI(x), rdf.RDFNode(y)))
+              case _ =>
+                None
+            }
+          case _ =>
+            None
+        }
+
+        search(query, prop, filter, offset)
       } else {
         BadRequest(YZ_NO_QUERY)
       }
@@ -148,7 +160,7 @@ abstract class YuzuServlet extends YuzuServletActions {
   }
 
   get(("^/%s$" format siteSettings.dataFile.getName()).r) {
-    Ok(siteSettings.DATA_FILE)
+    Ok(siteSettings.dataFile)
   }
 
   get("/favicon.ico") {

@@ -103,7 +103,7 @@ class JsonLDContextSpec extends ScalatraSpec {
       "country": "http://www.w3.org/2006/vcard/ns#country",
       "postalCode": "http://www.w3.org/2006/vcard/ns#postal-code"
 }""".parseJson.asInstanceOf[JsObject]
-   val result = JsonLDContext.apply(data)
+   val result = JsonLDContext.fromJsObj(data)
    (result.definitions("telephone") must_== JsonLDAbbreviation("http://schema.org/telephone")) and
    (result.definitions("spouse") must_== JsonLDURIProperty("http://schema.org/spouse")) and
    (result.definitions("foaf:depiction") must_== JsonLDURIProperty("http://xmlns.com/foaf/0.1/depiction"))

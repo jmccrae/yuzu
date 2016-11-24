@@ -367,7 +367,7 @@ object YuzuSiteSettings {
     override val LABEL_PROP = str("labelProp").map(URI.create).getOrElse(super.LABEL_PROP)
     override val DEFAULT_CONTEXT = obj.fields.get("context") match {
       case Some(o : JsObject) => 
-        JsonLDContext(o)
+        JsonLDContext.fromJsObj(o)
       case Some(_) =>
         throw new MetadataException("context must be an object")
       case None =>

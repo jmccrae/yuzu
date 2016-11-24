@@ -11,41 +11,48 @@
         <title>${title}</title>
     </head>
     <body>
-#if (is_test)
-    <div class="container">
-        <div class="row">
-            <div class="alert alert-danger">
-                <h3 style="margin-top:5px;">This is a Test Instance</h3>
-                <p>The URL used to access this instance does not correspond to the configuration.</p>
-            </div>
-        </div>
-    </div>
-#end
-        <div>
-            <div class="container">
-                <h1 style="color:#000;font-size:7vmin;"><b>Polylingual WordNet</b></h1>
-                <p><a class="btn btn-info btn-lg pull-right" href="${relPath}/list">Browse</a></p>
-            </div>
-        </div>
          <div class="container">
             <div class="row">
                 <div class="col-lg-6 col-lg-offset-3">
                     <form action="${relPath}/search" method="get">
                         <fieldset>
-                            <legend>Search</legend>
+                            <legend>Search for a word</legend>
                             <div class="form-group">
-                                <label for="property" class="control-label">Property</label><br/>
-                                <select name="property" id="property" class="form-control">
-                                    <option value=''>Search all properties</option>
-#for (facet <- property_facets)
-                                    <option value='${facet.uri}'>${facet.label}</option>
-#end
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="query" class="control-label">Query</label><br/>
                                 <div>
-                                    <input type="text" class="form-control" id="query" name="query"/>
+                                    <input type="text" class="form-control" id="query" name="query" placeholder="Enter a word..."/>
+                                </div>
+                            </div>
+                            <input type="hidden" id="filter_prop" name="filter_prop" value="http://purl.org/dc/terms/language"/>
+                            <div class="form-group">
+                                <label for="filter_val" class="control-label">Language</label>
+                                <div>
+                                    <select name="filter_val" id="filter_val" class="form-control">
+                                        <option value="">All languages</option>
+                                        <option value='"en"@'>English</option>
+                                        <option value='"bg"@'>Bulgarian</option>
+                                        <option value='"hr"@'>Croatian</option>
+                                        <option value='"cs"@'>Czech</option>
+                                        <option value='"da"@'>Danish</option>
+                                        <option value='"nl"@'>Dutch</option>
+                                        <option value='"et"@'>Estonian</option>
+                                        <option value='"fi"@'>Finnish</option>
+                                        <option value='"fr"@'>French</option>
+                                        <option value='"de"@'>German</option>
+                                        <option value='"el"@'>Greek</option>
+                                        <option value='"ga"@'>Irish</option>
+                                        <option value='"it"@'>Italian</option>
+                                        <option value='"hu"@'>Hungarian</option>
+                                        <option value='"lv"@'>Latvian</option>
+                                        <option value='"lt"@'>Lithuanian</option>
+                                        <option value='"mt"@'>Maltese</option>
+                                        <option value='"pl"@'>Polish</option>
+                                        <option value='"pt"@'>Portuguese</option>
+                                        <option value='"ro"@'>Romanian</option>
+                                        <option value='"sk"@'>Slovakian</option>
+                                        <option value='"sl"@'>Slovenian</option>
+                                        <option value='"es"@'>Spanish</option>
+                                        <option value='"sv"@'>Swedish</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -56,6 +63,10 @@
                             </div>
                         </fieldset>
                     </form>
+
+                    <h3>
+                    <center><a class="btn btn-success" href="${relPath}/polylingwn.zip">Download Polylingual WordNet</a></center>
+                    </h3>
                 </div>
             </div>
         </div>

@@ -46,7 +46,7 @@ class SQLiteBackendSpec extends BackendBaseSpec with BeforeAll with AfterAll {
      val f = new File("test.db")
      if(f.exists) {
       System.err.println("Delete DB")
-       f.delete()
+       //f.delete()
      }
   }
 

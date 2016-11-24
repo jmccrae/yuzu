@@ -83,8 +83,8 @@ class TestBackendBase(siteSettings : YuzuSiteSettings)
           (1, LangLiteral("Unicode test \u2713", "en"))).drop(offset).take(limit)
       case _ => Nil
     }
-    def freeText(query : String, property : Option[URI], offset : Int,
-      limit : Int) = query match {
+    def freeText(query : String, property : Option[URI], filter : Option[(rdf.URI, rdf.RDFNode)],
+      offset : Int, limit : Int) = query match {
         case "text" => Seq(ExampleDocument)
         case "another" => Seq(ExampleDocument2)
     }
@@ -258,7 +258,7 @@ trait BackendBaseSpec extends Specification {
   }
 
   def findContext = {
-    backend.context("saldo/test").toString must_== JsonLDContext(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString.parseJson.asInstanceOf[JsObject]).toString
+    backend.context("saldo/test").toString must_== JsonLDContext.loadContext("file:src/test/resources/server-spec-data/context.json").toString
   }
 
   def summarize = {
@@ -278,7 +278,7 @@ trait BackendBaseSpec extends Specification {
   }
 
   def search = {
-    backend.search("text", None, 0, 1) must_== Seq(
+    backend.search("text", None, None, 0, 1) must_== Seq(
       SearchResult("Example with English text", "example"))
   }
 

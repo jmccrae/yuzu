@@ -25,27 +25,27 @@ class ServerSpec extends ScalatraSpec {
     io.Source.fromFile("src/test/resources/server-spec-data/example3.csv").mkString,
     io.Source.fromFile("src/test/resources/server-spec-data/example4.ttl").mkString
   )
-  val context = JsonLDContext(io.Source.fromFile("src/test/resources/server-spec-data/context.json").mkString.parseJson.asInstanceOf[JsObject])
+  val context = JsonLDContext.loadContext("file:src/test/resources/server-spec-data/context.json")
 
   addServlet(new YuzuServlet {
    val backend = mock(classOf[Backend]) 
    when(backend.listResources(0, 1)).thenReturn((true, 
      Seq(SearchResult("Example Resource", "data/example"))))
-   when(backend.search("test", None, 0, 21)).thenReturn(Nil)
+   when(backend.search("test", None, None, 0, 21)).thenReturn(Nil)
 
-   when(backend.search("test", None, 0, 21)).thenReturn(Nil)
-   when(backend.search("English", None, 0, 21)).thenReturn(Seq(
+   when(backend.search("test", None, None, 0, 21)).thenReturn(Nil)
+   when(backend.search("English", None, None, 0, 21)).thenReturn(Seq(
      SearchResult("Example", "data/example"),
      SearchResult("Example", "data/example2")
      ))
-   when(backend.search("English example", None, 0, 21)).thenReturn(Seq(
+   when(backend.search("English example", None, None, 0, 21)).thenReturn(Seq(
      SearchResult("Example", "data/example")
      ))
-   when(backend.search("gobbledegook", None, 0, 21)).thenReturn(Nil)
-   when(backend.search("English", Some("http://www.w3.org/2000/01/rdf-schema#label"), 0, 21)).thenReturn(Seq(
+   when(backend.search("gobbledegook", None, None, 0, 21)).thenReturn(Nil)
+   when(backend.search("English", Some("http://www.w3.org/2000/01/rdf-schema#label"), None, 0, 21)).thenReturn(Seq(
      SearchResult("Example", "data/example")
      ))
-   when(backend.search("", None, 0, 21)).thenReturn(Nil)
+   when(backend.search("", None, None, 0, 21)).thenReturn(Nil)
 
    when(backend.listResources(0, 20, Nil)).thenReturn((false, Seq(
      SearchResult("Example", "data/example"),
@@ -143,7 +143,7 @@ class ServerSpec extends ScalatraSpec {
     }
 
     def test_list = get("/list") {
-      (response.body must contain("href=\"/data/example\"")) and
+      (response.body must contain("href=\"http://localhost:8080/data/example\"")) and
       (response.body must contain("href='http://localhost:8080/list/?offset=0'")) and
       (response.body must contain("href='http://localhost:8080/list/?offset=20'")) and
       (response.body must not contain(">data/example2<"))
@@ -154,7 +154,7 @@ class ServerSpec extends ScalatraSpec {
 
     def test_list_by_value_object = get("/list?prop=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label&obj=%22Beispiel%22%40de") {
         (response.body must contain("Beispiel")) and
-        (response.body must not contain("href=\"/data/example2\""))
+        (response.body must not contain("href=\"http://localhost:8080/data/example2\""))
     }
 
     def test_page = get("/data/example") {
@@ -233,13 +233,13 @@ class ServerSpec extends ScalatraSpec {
     }
 
     def test_search = get("/search/?property=&query=English") {
-        (response.body must contain("href=\"/data/example2\"")) and
+        (response.body must contain("href=\"http://localhost:8080/data/example2\"")) and
         (response.body must not contain("No Results")) and
-        (response.body must not contain("href='/search/?offset=20&amp;query=test' class='btn btn-default  disabled'"))
+        (response.body must not contain("href='http://localhost:8080/search/?offset=20&amp;query=test' class='btn btn-default  disabled'"))
     }
 
     def test_search2 = get("/search/?property=&query=English+example") {
-        response.body must contain("href=\"/data/example\"")
+        response.body must contain("href=\"http://localhost:8080/data/example\"")
     }
 
     def test_search_fail = get("/search/?property=&query=gobbledegook") {
@@ -251,8 +251,8 @@ class ServerSpec extends ScalatraSpec {
     }
 
     def test_search_prop =get("/search/?property=http%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label&query=English") {
-        (response.body must contain("href=\"/data/example\"")) and
-        (response.body must not contain("href=\"/data/example2\""))
+        (response.body must contain("href=\"http://localhost:8080/data/example\"")) and
+        (response.body must not contain("href=\"http://localhost:8080/data/example2\""))
     }
 
     def test_dump = get("/example.zip") {
