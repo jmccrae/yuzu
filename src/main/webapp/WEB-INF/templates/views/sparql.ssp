@@ -18,7 +18,7 @@
             <label for="query" class="col-lg-2 control-label">Query</label>
             <div class="col-lg-10">
                 <textarea rows="25" style="width:100%;" id="query" name="query">SELECT ?s ?label WHERE {
-  ?s $lt;http://www.w3.org/2000/01/rdf-schema#label&gt; ?label
+  ?s &lt;http://www.w3.org/2000/01/rdf-schema#label&gt; ?label
 } LIMIT 100</textarea>
             </div>
         </div>

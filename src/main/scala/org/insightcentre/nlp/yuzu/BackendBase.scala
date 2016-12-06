@@ -232,7 +232,11 @@ abstract class BackendBase(siteSettings : YuzuSiteSettings) extends Backend {
   }
 
   private def mapResultSet(rs : com.hp.hpl.jena.query.ResultSet) = {
-    def bindings : Stream[Binding] = rs.nextBinding() #:: (if(rs.hasNext()) { bindings } else { Stream[Binding]() })
+    def bindings : Stream[Binding] = if(rs.hasNext) {
+      rs.nextBinding() #:: (if(rs.hasNext()) { bindings } else { Stream[Binding]() })
+    } else {
+      Stream()
+    }
     ResultSet(rs.getResultVars().toList,
       (for(b <- bindings) yield {
         (for(v <- b.vars) yield {

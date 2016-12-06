@@ -15,7 +15,7 @@ abstract class YuzuServlet extends YuzuServletActions {
     } catch {
       case x : Exception =>
         x.printStackTrace()
-        InternalServerError(x.getMessage())
+        InternalServerError(errorPage(x.getMessage(), x))
     }
   }
 
@@ -100,7 +100,7 @@ abstract class YuzuServlet extends YuzuServletActions {
 
         search(query, prop, filter, offset)
       } else {
-        BadRequest(YZ_NO_QUERY)
+        BadRequest(errorPage(YZ_NO_QUERY, ""))
       }
     }
   }
@@ -188,7 +188,7 @@ abstract class YuzuServlet extends YuzuServletActions {
         case DianthusRedirect(url) =>
           SeeOther(url.toString)
         case DianthusFailed() =>
-          NotFound()
+          NotFound(errorPage("404", "Not Found"))
       }
     }
   }
@@ -210,5 +210,9 @@ abstract class YuzuServlet extends YuzuServletActions {
         })
       Ok()
     }
+  }
+
+  notFound {
+    NotFound(errorPage("404", "Not Found"))
   }
 }

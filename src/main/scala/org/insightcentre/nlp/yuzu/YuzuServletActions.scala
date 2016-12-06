@@ -105,6 +105,7 @@ trait YuzuServletActions extends YuzuStack {
   def sparqlQuery(query : String, mimeType : ResultType, 
                   defaultGraphURI : Option[String], timeout : Int = 10) : Any = {
     try {
+      println(query)
       val result = backend.query(query, defaultGraphURI)
       if(mimeType == html) {
         contentType = "text/html"
@@ -132,7 +133,7 @@ trait YuzuServletActions extends YuzuStack {
             throw new RuntimeException("TODO")
             //respondVary(addContextToJsonLD(out.toString()))
           case ErrorResult(msg, t) =>
-            InternalServerError(t)
+            BadRequest(errorPage(msg, t))
         }
       } else {
         result match {
@@ -170,12 +171,12 @@ trait YuzuServletActions extends YuzuStack {
               respondVary(out.toString())
             }
           case ErrorResult(msg, t) =>
-            InternalServerError(t)
+            BadRequest(errorPage(msg, t))
         }
       }
     } catch {
       case x : TimeoutException => 
-        RequestTimeout(YZ_TIME_OUT)
+        RequestTimeout(errorPage(YZ_TIME_OUT, ""))
     }
   }
   
@@ -293,23 +294,6 @@ trait YuzuServletActions extends YuzuStack {
 //      "query" -> queryString)
   }
 
-  private def getBase = {
-    val s = request.getRequestURL().toString()
-    if(s.endsWith(".nt")) {
-      new URL(s.dropRight(3))
-    } else if(s.endsWith(".rdf")) {
-      new URL(s.dropRight(4))
-    } else if(s.endsWith(".ttl")) {
-      new URL(s.dropRight(4))
-    } else if(s.endsWith(".json")) {
-      new URL(s.dropRight(5))
-    } else if(s.endsWith(".html")) {
-      new URL(s.dropRight(5))
-    } else {
-      new URL(s)
-    }
-  }
-
   def showContext(id : String) : Any = {
     val context = backend.context(id)
 
@@ -332,7 +316,7 @@ trait YuzuServletActions extends YuzuStack {
             NotFound()
           case Seq(backlinks) =>
             contentType = mime.mime
-            val base = getBase
+            val base = new URL(siteSettings.id2URI(id))
             lazy val model = ModelFactory.createDefaultModel()
             respondVary(if(mime == json) {
               toJson(model)
@@ -354,7 +338,7 @@ trait YuzuServletActions extends YuzuStack {
         }
       case Some(JsDocument(model, context)) => {
         contentType = mime.mime
-        val base = getBase
+        val base = new URL(siteSettings.id2URI(id))
         if(mime == json && context != None) {
           respondContext(toJson(model, Some(context), base), base)
         } else {
@@ -381,7 +365,7 @@ trait YuzuServletActions extends YuzuStack {
       }
       case Some(CsvDocument(content, context)) => {
         contentType = mime.mime
-        val base = getBase
+        val base = new URL(siteSettings.id2URI(id))
         respondVary(if(mime == csvw) {
           content
         } else if(mime == json) {
@@ -401,7 +385,7 @@ trait YuzuServletActions extends YuzuStack {
       }
       case Some(RdfDocument(content, format)) => {
         contentType = mime.mime
-        val base = getBase
+        val base = new URL(siteSettings.id2URI(id))
         lazy val model = {
           val m = ModelFactory.createDefaultModel()
           RDFDataMgr.read(m, new StringReader(content), base.toString, format.lang)
@@ -435,7 +419,7 @@ trait YuzuServletActions extends YuzuStack {
 
   def metadata(metadata : JsValue, mime : ResultType) : Any = {
     contentType = mime.mime
-    val base = getBase
+    val base = new URL(siteSettings.id2URI(siteSettings.METADATA_PATH.drop(1)))
     respondVary(if(mime == json) {
       toJson(metadata, None, base)
     } else if(mime == rdfxml) {
@@ -451,6 +435,20 @@ trait YuzuServletActions extends YuzuStack {
       throw new IllegalArgumentException()
     })
   }
+
+  def errorPage(title : String, message : String) = {
+    ssp_themed("/error", Seq("layout" -> layout, "relPath" -> siteSettings.relPath,
+      "error_title" -> title, "error_msg" -> message):_*)
+  }
+
+  def errorPage(title : String, t : Throwable) = {
+    val sw = new java.io.StringWriter()
+    val pw = new java.io.PrintWriter(sw)
+    t.printStackTrace(pw)
+    ssp_themed("/error", Seq("layout" -> layout, "relPath" -> siteSettings.relPath,
+      "error_title" -> title, "error_msg" -> ("<pre>%s</pre>" format sw.toString)):_*)
+  }
+
 
 
   ////////////////////////////////////////////////////////////////////
