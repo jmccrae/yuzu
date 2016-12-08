@@ -213,6 +213,6 @@ abstract class YuzuServlet extends YuzuServletActions {
   }
 
   notFound {
-    NotFound(errorPage("404", "Not Found"))
+    serveStaticResource() getOrElse NotFound(errorPage("404", "Not Found"))
   }
 }
