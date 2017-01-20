@@ -62,6 +62,7 @@
                             <option value="Insight">Insight</option>
                             <option value="WordNet">WordNet</option>
                             <option value="PolylingWN">Polylingual WordNet</option>
+                            <option value="ColloqWN">Colloquial WordNet</option>
                             #for (theme <- themes)
                                 <option>${theme}</option>
                             #end

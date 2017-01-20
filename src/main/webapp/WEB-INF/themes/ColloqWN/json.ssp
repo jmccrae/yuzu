@@ -1,0 +1,146 @@
+<% import org.insightcentre.nlp.yuzu._ %>
+<% import org.insightcentre.nlp.yuzu.rdf.URI %>
+<% import spray.json._ %>
+<%@ var data : spray.json.JsObject %>
+<%@ var displayer : Displayer %>
+<%@ var uri: String %>
+<%@ var title : String = displayer.uriToStr(uri) %>
+<%@ var jsonld_context: jsonld.JsonLDContext %>
+<%@ var backlinks : Seq[(rdf.URI,rdf.URI)] %>
+<%@ var relPath: String %>
+<%@ var layout: String %>
+<%
+    def makeWords(v : JsValue) = v match {
+        case JsArray(e) => e.map({
+            case JsObject(f) => f("lemma").asInstanceOf[JsString].value
+        }).mkString(", ")
+    }
+%>
+<% var page_title = data.fields.get("lemma") match {
+    case Some(JsObject(f)) =>
+        f.get("writtenForm") match {
+            case Some(JsString(t)) => t
+            case _ => "#error-no-written-rep#"
+        }
+    case _ =>
+        data.fields.get("ili") match {
+            case Some(JsString("in")) => data.fields("@id").asInstanceOf[JsString].value
+            case Some(JsString(w)) => w
+            case _ => "WordNet"
+        }
+    } %>
+<%
+    def shortPos(name : String) = name match {
+        case "noun" => "n"
+        case "verb" => "v"
+        case "adverb" => "r"
+        case "adjective" => "a"
+        case "adjective_satellite" => "s"
+    }
+
+    def toPolyWNEntry(obj : JsObject) = {
+        val lemma = obj.fields("lemma").asInstanceOf[JsString].value
+        val pos   = obj.fields("partOfSpeech").asInstanceOf[JsString].value
+        "%s-%s-%s" format(lemma.replaceAll(" ", "_"), 
+            scala.util.hashing.MurmurHash3.stringHash(lemma).toHexString, pos)
+    }
+
+    def isIliNew = data.fields.get("ili") == Some(JsString("in"))
+
+    def lemmaLink(lemma : String) = lemma.replace(" ", "_").replace("'", "-ap-").replace("(","-lb-").replace(")","-rb-").replace("/","-sl-")
+
+
+    val LEURI = "http://.*/(\\w{2})/((.*)-[0-9a-f]{1,8}-.)".r
+    def showLEURI(uri : String) = uri
+%>
+<% attributes("layout") = layout %>
+<% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <div class="body">
+        <span xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:lemon="http://lemon-model.net/lemon#" xmlns:wordnet-ontology="http://wordnet-rdf.princeton.edu/ontology#" resource="http://wordnet-rdf.princeton.edu/wn31/test-n">
+  <a property="http://www.w3.org/1999/02/22-rdf-syntax-ns#type" style="display:none;" href="http://lemon-model.net/lemon#LexicalEntry">
+                ignore
+            </a>
+            <h1>${page_title}<img src="http://www.w3.org/RDF/icons/rdf_w3c_icon.48.gif" height="28px" onclick="document.getElementById('rdf_format_list').style.display='inline';" style="float:right;"/></h1>
+            <ul id="rdf_format_list">
+            <li class="rdf_format">
+            <a href="${uri}.json">
+            JSON-LD
+            </a>
+            </li>
+            <li class="rdf_format">
+            <a href="${uri}.nt">
+            N-Triples
+            </a>
+            </li>
+            <li class="rdf_format">
+            <a href="${uri}.ttl">
+            Turtle
+            </a>
+            </li>
+            <li class="rdf_format">
+            <a href="${uri}.rdf">
+            RDF/XML
+            </a>
+            </li>
+            </ul>
+        #if(data.fields.contains("lemma"))
+            <h3><%= data.fields("partOfSpeech").asInstanceOf[JsString].value %>
+                (<%= data.fields("note").asInstanceOf[JsString].value %>)</h3>
+            <ul>
+            #for(sense <- data.fields("sense").asInstanceOf[JsArray].elements)
+            <li><a href="${sense.asInstanceOf[JsObject].fields("synset").asInstanceOf[JsString].value}">
+                ${sense.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}</a></li>
+            #end
+            </ul>
+        #elseif(data.fields.contains("ili"))
+            <ul>
+            #for(bl <- backlinks if bl._1 == URI("http://www.w3.org/ns/lemon/ontolex#isLexicalizedSenseOf")) 
+            <li><a href="${bl._2.value}">${showLEURI(bl._2.value)}</a></li>
+            #end
+            </ul>
+
+            #if(!isIliNew)
+            <h3>Interlingual Index: <a href="http://polylingwn.linguistic-lod.org/${
+                data.fields("ili").asInstanceOf[JsString].value}">${
+                data.fields("ili").asInstanceOf[JsString].value}</a></h3>
+            #end
+             #for(defn <- data.fields("definition").asInstanceOf[JsArray].elements)
+            <blockquote>
+                ${defn.asInstanceOf[JsObject].fields("gloss").asInstanceOf[JsString].value}
+            </blockquote>
+            #end
+
+            <ul class="synset">
+                <li><b>Part of Speech</b>: ${data.fields("partOfSpeech").asInstanceOf[JsString].value}</li>
+                <li><b>Members</b>: #for(m <- data.fields("members").asInstanceOf[JsArray].elements)
+                    #if(isIliNew)
+                    <a href="${m.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value}-${m.asInstanceOf[JsObject].fields("partOfSpeech").asInstanceOf[JsString].value}">${m.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value}</a>&nbsp;
+                    #else
+                    <a href="http://polylingwn.linguistic-lod.org/en/${toPolyWNEntry(m.asInstanceOf[JsObject])}">${m.asInstanceOf[JsObject].fields("lemma").asInstanceOf[JsString].value}</a>&nbsp;
+                    #end
+                #end</li>
+                <% val relByName = data.fields("relations").asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsObject]).groupBy(_.fields("relType").asInstanceOf[JsString].value) %>
+                #for(rel <- relByName)
+                <li><b>${rel._1.replaceAll("_", " ")}</b>
+                    <ul>
+                        #for(targ <- rel._2.sortBy(x => makeWords(x.fields("words"))))
+                            <% val rel_targ = targ.fields("target").asInstanceOf[JsString].value %>
+                            <li><a href="${rel_targ}">
+                                ${makeWords(targ.fields("words"))}<br/><i>${targ.fields("gloss").asInstanceOf[JsString].value}</i></a></li>
+                        #end
+                    </ul>
+                </li>
+                #end
+            </ul>
+            
+        #end
+    </div>
+    </body>
+</html>
+    
+        
