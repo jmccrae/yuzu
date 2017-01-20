@@ -30,12 +30,14 @@
                             </div>
                         </fieldset>
                     </form>
+                </div>
+                <div class="col-lg-8 col-lg-offset-2">
 
                     <h3>
                     <center>
                     <a class="btn btn-success" href="${relPath}/list/">See All Entries</a>
                     <a class="btn btn-success" href="${relPath}/colloqwn.zip">Download (JSON-LD)</a>
-                    <a class="btn btn-success" href="${relPath}/colloqwn-1.0.xml">Download (XML)</a>
+                    <a class="btn btn-success" href="${relPath}/assets/colloqwn-1.0.xml">Download (XML)</a>
                     </center>
                     </h3>
                 </div>
