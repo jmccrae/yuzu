@@ -73,7 +73,7 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col-lg-8 col-lg-offset-1">
+                <div class="col-lg-10 col-lg-offset-1">
                 <p>Polylingual WordNet is an extension of <a href="http://wordnet.princeton.edu">Princeton WordNet</a> developed by <a href="https://www.insight-centre.org/users/mihael-arcan">Mihael Arcan</a>, <a href="https://john.mccr.ae/">John P. McCrae</a> and <a href="http://www.paulbuitelaar.net/">Paul Buitelaar</a> at the <a href="http://www.insight-centre.org/">Insight Centre for Data Analytics</a> at the <a href="http://nuigalway.ie">National University of Ireland Galway</a>. Polylingual WordNet extends WordNet for 23 languages by automatic translation and is released as both <a href="http://www.w3.org/2016/05/ontolex">OntoLex</a> JSON-LD as well as in the <a href="http://globalwordnet.github.io/schemas">Global WordNet LMF</a>. This resource is available for re-use under the <a href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 License</a>. When citing this work please refer to the following paper</p>
 
 <p style="padding-left:10px"><b><a class="publication" href="https://www.aclweb.org/anthology/C/C16/C16-1010.pdf">Expanding wordnets to new languages with multilingual sense disambiguation</a></b>. Mihael Arcan, John P. McCrae and Paul Buitelaar, <i>Proceedings of The 26th International Conference on Computational Linguistics</i>, (2016).</p>
