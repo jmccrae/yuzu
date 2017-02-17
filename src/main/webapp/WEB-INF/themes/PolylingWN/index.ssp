@@ -66,8 +66,8 @@
 
                     <h3>
                     <center>
-                    <a class="btn btn-success" href="${relPath}/polylingwn.zip">Download Polylingual WordNet (JSON-LD)</a>
-                    <a class="btn btn-success" href="${relPath}/polylingwn.xml.gz">Download Polylingual WordNet (LMF-XML)</a>
+                    <a class="btn btn-success" href="${relPath}/polylingwn.zip">Download (JSON-LD)</a>&nbsp;&nbsp;
+                    <a class="btn btn-success" href="${relPath}/assets/polylingwn.xml.gz">Download (LMF-XML)</a>
                     </center>
                     </h3>
                 </div>
