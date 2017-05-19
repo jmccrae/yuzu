@@ -1,0 +1,28 @@
+<%@ var title: String %>
+<%@ var is_test: Boolean = false %>
+<%@ var relPath: String %>
+<%@ var property_facets: List[org.insightcentre.nlp.yuzu.Facet] = Nil %>
+<% attributes("title") = "Test" %>
+<%@ var layout: String %>
+<% attributes("layout") = layout %>
+<% attributes("relPath") = relPath %>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+         <div class="container">
+            <div class="row">
+                <div class="col-lg-6 col-lg-offset-3">
+                    <h1>Previous Versions</h1>
+
+                    <ul>
+                        <li>Version 1.1: <a href="${relPath}/assets/polylingwn-1.1.zip">JSON</a>&nbsp;
+                                         <a href="${relPath}/assets/polylingwn.xml.gz">XML</a></li>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
