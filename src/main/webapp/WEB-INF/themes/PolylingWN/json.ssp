@@ -158,7 +158,7 @@
                 <li><b>Subject</b>: ${data.fields("subject").asInstanceOf[JsString].value}</li>
                 <% val relByName = data.fields("relations").asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsObject]).groupBy(_.fields("relType").asInstanceOf[JsString].value) %>
                 #for(rel <- relByName)
-                <li><b>${if(rel == "other") "Emotion" else rel._1.replaceAll("_", " ")}</b>
+                <li><b>${rel._1.replaceAll("_", " ").replaceAll("[Oo]ther","Emotion")}</b>
                     <ul>
                         #for(targ <- rel._2.sortBy(x => makeWords(x.fields("words"))))
                             <% val rel_targ = targ.fields("target").asInstanceOf[JsString].value %>
