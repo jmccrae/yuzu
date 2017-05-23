@@ -31,7 +31,7 @@ abstract class YuzuServlet extends YuzuServletActions {
       pass()
     } else if(request.getQueryString() == "context") {
       showContext(resource)
-    } else if(findTemplate(uri, Set("ssp")) != None) {
+    } else if(findTemplateThemed(uri) != None) {
       val depth = uri.filter(_ == '/').size
       val relPath = (if(depth == 1) "." else Seq.fill(depth-1)("..").mkString("/"))
       contentType = "text/html"

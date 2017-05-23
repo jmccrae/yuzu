@@ -1,4 +1,3 @@
-<%@ var title: String %>
 <%@ var is_test: Boolean = false %>
 <%@ var relPath: String %>
 <%@ var property_facets: List[org.insightcentre.nlp.yuzu.Facet] = Nil %>
@@ -8,7 +7,7 @@
 <% attributes("relPath") = relPath %>
 <html>
     <head>
-        <title>${title}</title>
+        <title>Previous Versions</title>
     </head>
     <body>
          <div class="container">

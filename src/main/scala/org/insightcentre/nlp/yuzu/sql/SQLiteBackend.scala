@@ -363,6 +363,7 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
                                             format varchar(6),
                                             foreign key (id) references ids)""".execute
     sql"""CREATE INDEX pagesIdx ON pages (id)""".execute
+    sql"""CREATE INDEX pagesIdIdx ON ids (pageId)""".execute
     sql"""CREATE TABLE IF NOT EXISTS contexts (path text not null, page text)""".execute
     sql"""CREATE INDEX contextIdx ON contexts (path)""".execute
     sql"""CREATE TABLE IF NOT EXISTS backlinks (id integer not null,

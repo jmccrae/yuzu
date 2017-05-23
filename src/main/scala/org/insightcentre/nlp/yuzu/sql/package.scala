@@ -627,6 +627,7 @@ package object sql {
     val conn = session.conn
     val ps = conn.prepareStatement(query)
     session.monitor(ps)
+    //println(query + " -- " + args.map(_.toString).mkString(" ||| "))
     for((arg, idx) <- args.zipWithIndex) {
       arg match {
         case array : java.sql.Array =>

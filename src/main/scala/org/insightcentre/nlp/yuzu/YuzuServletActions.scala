@@ -6,7 +6,7 @@ import org.insightcentre.nlp.yuzu.jsonld.JsonLDContext
 import com.hp.hpl.jena.query.ResultSetFormatter
 import com.hp.hpl.jena.rdf.model.Model
 import com.hp.hpl.jena.vocabulary._
-import java.io.StringReader
+import java.io.{File, StringReader}
 import java.net.URL
 import java.util.concurrent.TimeoutException
 import org.apache.jena.riot.RDFDataMgr
@@ -51,6 +51,23 @@ trait YuzuServletActions extends YuzuStack {
     case null => Nil
     case seq => seq
   }
+
+  protected def findTemplateThemed(uri : String) : Option[String] = 
+    findTemplate(uri, Set("ssp")) match {
+      case None =>
+        siteSettings.THEME match {
+          case "" => None
+          case theme =>
+            val themePath = s"/WEB-INF/themes/$theme$uri.ssp"
+            val realPath = request.getServletContext().getRealPath(themePath)
+            if(new java.io.File(realPath).exists) {
+              Some(realPath)
+            } else {
+              None
+            }
+        }
+      case otherwise => otherwise
+    }
 
   protected def ssp_themed(path : String, params : (String, Any)*) = {
     siteSettings.THEME match {
@@ -105,7 +122,7 @@ trait YuzuServletActions extends YuzuStack {
   def sparqlQuery(query : String, mimeType : ResultType, 
                   defaultGraphURI : Option[String], timeout : Int = 10) : Any = {
     try {
-      println(query)
+      //println(query)
       val result = backend.query(query, defaultGraphURI)
       if(mimeType == html) {
         contentType = "text/html"
