@@ -133,23 +133,40 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
             }).toList
     }
 
+    private def findFilter(f : (rdf.URI, rdf.RDFNode)) : Option[(Int, Int)] = {
+      sql"""SELECT id FROM ids WHERE n3=${f._1.toString}""".as1[Int].
+        headOption match {
+        case Some(p) =>
+          sql"""SELECT id FROM ids WHERE n3=${f._2.toString}""".as1[Int].
+            headOption match {
+            case Some(o) => Some((p, o))
+            case None => None
+          }
+        case None =>
+          None
+      }
+    }
+
     def freeText(query : String, property : Option[URI], filter : Option[(rdf.URI, rdf.RDFNode)],
       offset : Int, limit : Int) = {
       property match {
         case Some(p) =>
           filter match {
-            case Some((f, v)) =>
-              sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
+            case Some(f) =>
+              findFilter(f) match {
+                case Some((f, v)) =>
+                  sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
                     JOIN ids ON free_text.sid=ids.id
                     JOIN ids AS pids ON free_text.pid=pids.id
                     JOIN tripids ON free_text.sid=tripids.sid
-                    JOIN ids AS pid2 ON tripids.pid=pid2.id
-                    JOIN ids AS oid2 ON tripids.oid=oid2.id
                     WHERE pids.n3=${p.toString} AND object MATCH $query AND
-                    pid2.n3=${f.toString} AND oid2.n3=${v.toString}
+                    tripids.pid=${f} AND tripids.oid=${v}
                     LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
                       case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
                     })
+                  case None =>
+                    Nil
+              }
             case None => 
               sql"""SELECT DISTINCT free_text.sid, ids.pageId, ids.dianthus FROM free_text
                     JOIN ids ON free_text.sid=ids.id
@@ -161,17 +178,20 @@ class SQLiteBackend(siteSettings : YuzuSiteSettings)
           }
         case None =>
           filter match {
-            case Some((f, v)) =>
+            case Some(f) =>
+              findFilter(f) match {
+                case Some((f, v)) =>
               sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
                     JOIN ids AS sids ON free_text.sid=sids.id
                     JOIN tripids ON free_text.sid=tripids.sid
-                    JOIN ids AS pid2 ON tripids.pid=pid2.id
-                    JOIN ids AS oid2 ON tripids.oid=oid2.id
-                    WHERE object MATCH $query AND pid2.n3=${f.toString} AND 
-                    oid2.n3=${v.toString}
+                    WHERE object MATCH $query AND tripids.pid=${f} AND 
+                    tripids.oid=${v}
                     LIMIT $limit OFFSET $offset""".as3[Int, String, String].map({
                       case (i, id, d) => new SQLiteDocument(id, i, Option(d).map(DianthusID(_)))
                     })
+                  case None =>
+                    Nil
+                }
             case None =>
               sql"""SELECT DISTINCT free_text.sid, sids.pageId, sids.dianthus FROM free_text
                     JOIN ids AS sids ON free_text.sid=sids.id

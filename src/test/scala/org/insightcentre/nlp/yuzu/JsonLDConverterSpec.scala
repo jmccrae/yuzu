@@ -392,7 +392,7 @@ class JsonLDConverterSpec extends ScalatraSpec {
   def e29 = {
     val data = """{
   "@context": [
-    "http://json-ld.org/contexts/person.jsonld",
+    "https://json-ld.org/contexts/person.jsonld",
     {
       "pic": "http://xmlns.com/foaf/0.1/depiction"
     }
